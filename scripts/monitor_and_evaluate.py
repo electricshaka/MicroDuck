@@ -144,19 +144,21 @@ def evaluate_checkpoint(run_dir, ckpt_num):
     seeds_fin = None
     best_vx = None
     for l in score_out.splitlines():
-        if "score " in l:
+        if l.startswith("score "):
+            parts = l.split()
             try:
-                score_val = float(l.split()[1])
+                score_val = float(parts[1].rstrip("s"))
             except Exception:
                 pass
-        if "scored at" in l:
+            for p in parts:
+                if "/5" in p:
+                    try:
+                        seeds_fin = int(p.split("/")[0])
+                    except Exception:
+                        pass
+        elif "scored at" in l:
             try:
                 best_vx = float(l.split()[2])
-            except Exception:
-                pass
-        if "seeds finished:" in l:
-            try:
-                seeds_fin = int(l.split(":")[-1].strip().split("/")[0])
             except Exception:
                 pass
 
