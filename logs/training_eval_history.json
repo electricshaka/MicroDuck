@@ -1,0 +1,27 @@
+{
+  "2026-10-22_17-04-14_sprint_run1_ckpt_0": {
+    "error": "ONNX export failed",
+    "details": "C:\\GitHub\\microduck_challenges\\.venv\\Scripts\\python.exe: No module named mjlab_microduck.publish.__main__; 'mjlab_microduck.publish' is a package and cannot be directly executed\n"
+  },
+  "2026-10-22_17-04-14_sprint_run1_ckpt_250": {
+    "checkpoint": 250,
+    "score_s": null,
+    "command_vx": 0.4,
+    "seeds_finished": null,
+    "raw": "sweep 21 commanded speeds 0.20\u20131.20 m/s\n   0.20 m/s  fall at 1.05m\n   0.25 m/s  fall at 0.91m\n   0.30 m/s  fall at 0.96m\n   0.35 m/s  fall at 1.08m\n   0.40 m/s  fall at 1.30m\n   0.45 m/s  fall at 1.14m\n   0.50 m/s  fall at 1.25m\n   0.55 m/s  fall at 1.10m\n   0.60 m/s  fall at 1.11m\n   0.65 m/s  fall at 1.06m\n   0.70 m/s  fall at 0.93m\n   0.75 m/s  fall at 0.92m\n   0.80 m/s  fall at 0.93m\n   0.85 m/s  fall at 0.85m\n   0.90 m/s  fall at 0.86m\n   0.95 m/s  timeout at 0.85m\n   1.00 m/s  timeout at 0.86m\n   1.05 m/s  timeout at 1.07m\n   1.10 m/s  timeout at 0.56m\n   1.15 m/s  timeout at 0.06m\n   1.20 m/s  timeout at -0.46m\n\nscored at 0.40 m/s\nseed 1: fall     \u2014\nseed 2: fall     \u2014\nseed 3: fall     \u2014\nseed 4: fall     \u2014\nseed 5: fall     \u2014\n\nscore 50.000s \u00b7 0/5 finished \u00b7 replay from seed 1\n"
+  },
+  "2026-10-22_17-04-14_sprint_run1_ckpt_500": {
+    "checkpoint": 500,
+    "score_s": 8.848,
+    "command_vx": 0.4,
+    "seeds_finished": 5,
+    "raw": "sweep 21 commanded speeds 0.20\u20131.20 m/s\n   0.20 m/s  11.78s\n   0.25 m/s  10.54s\n   0.30 m/s  9.62s\n   0.35 m/s  9.12s\n   0.40 m/s  8.84s\n   0.45 m/s  8.94s\n   0.50 m/s  9.34s\n   0.55 m/s  fall at 1.52m\n   0.60 m/s  fall at 1.29m\n   0.65 m/s  timeout at 1.14m\n   0.70 m/s  fall at 1.11m\n   0.75 m/s  fall at 0.95m\n   0.80 m/s  fall at 1.38m\n   0.85 m/s  23.74s\n   0.90 m/s  28.28s\n   0.95 m/s  33.56s\n   1.00 m/s  timeout at 1.21m\n   1.05 m/s  timeout at 0.60m\n   1.10 m/s  timeout at -0.15m\n   1.15 m/s  timeout at 0.03m\n   1.20 m/s  timeout at -0.03m\n\nscored at 0.40 m/s\nseed 1: finish   8.84s\nseed 2: finish   8.86s\nseed 3: finish   8.90s\nseed 4: finish   8.80s\nseed 5: finish   8.84s\n\nscore 8.848s \u00b7 5/5 finished \u00b7 replay from seed 5\n"
+  },
+  "2026-10-22_17-04-14_sprint_run1_ckpt_750": {
+    "checkpoint": 750,
+    "score_s": 8.08,
+    "command_vx": 0.65,
+    "seeds_finished": 5,
+    "raw": "sweep 21 commanded speeds 0.20\u20131.20 m/s\n   0.20 m/s  21.10s\n   0.25 m/s  15.02s\n   0.30 m/s  10.86s\n   0.35 m/s  8.34s\n   0.40 m/s  fall at 1.68m\n   0.45 m/s  fall at 1.91m\n   0.50 m/s  fall at 1.50m\n   0.55 m/s  5.88s\n   0.60 m/s  6.44s\n   0.65 m/s  8.10s\n   0.70 m/s  12.72s\n   0.75 m/s  19.68s\n   0.80 m/s  25.22s\n   0.85 m/s  fall at 0.85m\n   0.90 m/s  fall at 0.83m\n   0.95 m/s  fall at 0.56m\n   1.00 m/s  fall at 0.27m\n   1.05 m/s  timeout at 0.21m\n   1.10 m/s  timeout at 0.07m\n   1.15 m/s  timeout at -0.59m\n   1.20 m/s  timeout at -0.44m\n\nscored at 0.65 m/s\nseed 1: finish   8.10s\nseed 2: finish   8.22s\nseed 3: finish   7.90s\nseed 4: finish   8.18s\nseed 5: finish   8.00s\n\nscore 8.080s \u00b7 5/5 finished \u00b7 replay from seed 1\n"
+  }
+}
