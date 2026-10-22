@@ -51,5 +51,12 @@
     "command_vx": 0.55,
     "seeds_finished": 4,
     "raw": "sweep 21 commanded speeds 0.20\u20131.20 m/s\n   0.20 m/s  timeout at 1.18m\n   0.25 m/s  timeout at 1.70m\n   0.30 m/s  8.88s\n   0.35 m/s  7.26s\n   0.40 m/s  6.38s\n   0.45 m/s  6.08s\n   0.50 m/s  fall at 2.00m\n   0.55 m/s  5.86s\n   0.60 m/s  6.36s\n   0.65 m/s  31.52s\n   0.70 m/s  timeout at 1.96m\n   0.75 m/s  timeout at 1.52m\n   0.80 m/s  timeout at 1.27m\n   0.85 m/s  timeout at 1.03m\n   0.90 m/s  timeout at 0.93m\n   0.95 m/s  timeout at 0.85m\n   1.00 m/s  timeout at 0.77m\n   1.05 m/s  timeout at 0.76m\n   1.10 m/s  timeout at 0.74m\n   1.15 m/s  timeout at 0.73m\n   1.20 m/s  timeout at 0.75m\n\nscored at 0.55 m/s\nseed 1: finish   5.86s\nseed 2: fall     \u2014\nseed 3: finish   6.10s\nseed 4: finish   6.16s\nseed 5: finish   6.06s\n\nscore 14.836s \u00b7 4/5 finished \u00b7 replay from seed 5\n"
+  },
+  "2026-10-22_17-04-14_sprint_run1_ckpt_2000": {
+    "checkpoint": 2000,
+    "score_s": 5.38,
+    "command_vx": 0.5,
+    "seeds_finished": 5,
+    "raw": "sweep 21 commanded speeds 0.20\u20131.20 m/s\n   0.20 m/s  fall at 1.36m\n   0.25 m/s  11.34s\n   0.30 m/s  8.34s\n   0.35 m/s  6.92s\n   0.40 m/s  6.08s\n   0.45 m/s  5.64s\n   0.50 m/s  5.36s\n   0.55 m/s  5.46s\n   0.60 m/s  6.12s\n   0.65 m/s  fall at 0.87m\n   0.70 m/s  fall at 1.07m\n   0.75 m/s  timeout at 1.14m\n   0.80 m/s  timeout at 0.74m\n   0.85 m/s  timeout at 0.49m\n   0.90 m/s  timeout at 0.50m\n   0.95 m/s  timeout at 0.59m\n   1.00 m/s  timeout at 0.61m\n   1.05 m/s  timeout at 0.59m\n   1.10 m/s  timeout at 0.57m\n   1.15 m/s  timeout at 0.55m\n   1.20 m/s  timeout at 0.53m\n\nscored at 0.50 m/s\nseed 1: finish   5.36s\nseed 2: finish   5.36s\nseed 3: finish   5.36s\nseed 4: finish   5.42s\nseed 5: finish   5.40s\n\nscore 5.380s \u00b7 5/5 finished \u00b7 replay from seed 3\n"
   }
 }
