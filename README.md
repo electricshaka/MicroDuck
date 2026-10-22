@@ -56,7 +56,27 @@ The **Microduck Arena** evaluates policies server-side across standardized seeds
 | **Top 3 Evaluation** | Fastest 3 speeds evaluated across **5 perturbed seeds** |
 | **Scoring Metric** | Mean elapsed time over the 5 seeds |
 | **Fall Penalty** | Trunk tilt > 60° (gravity $z > -0.5$) for 0.3 s or timeout at 50 s counts as **50.0 s** |
-| **Baseline Target** | Pollen Reference Policy: **4.892 s (5/5 finished at 0.50 m/s)** |
+| **Pollen Baseline** | Conservative walking reference: **4.892 s** (5/5 finished at 0.50 m/s) |
+| **Current World Record** | **0.840 s** (5/5 finished at 1.15 m/s sweep) |
+
+### Live Arena Podium Standings (Sprint 2m)
+
+| Rank | Competitor | Policy | Commanded $v_x$ | Mean Time | Seeds |
+|---|---|---|---|---|---|
+| **#1** | `jrubiosainz` | `game-sprinter-remix4` | 1.15 m/s | **0.840 s** | 5/5 |
+| **#2** | `austindixson` | `sprint-improver` | 1.15 m/s | **0.840 s** | 5/5 |
+| **#3** | `DenRakEiw` | `twelve-parsec-duck_0840` | 1.15 m/s | **0.840 s** | 5/5 |
+| **#4** | `dashi` | `sprint-remix-r844` | 1.15 m/s | **0.844 s** | 5/5 |
+| **#5** | `dashi` | `sprint-remix-r848` | 1.15 m/s | **0.848 s** | 5/5 |
+
+Both `#1` (`game-sprinter-remix4`) and `#3` (`twelve-parsec-duck_0840`) have been downloaded into `models/` and locally scored and verified at **0.840s** on Jupiter.
+
+### Why the Leaders Run Under 1 Second
+
+The conservative 4.892s gait walks upright at $0.50$ m/s. The top policies (`0.840s`) are explosive forward-lunge sprinters:
+1. They target the extreme high end of the speed sweep ($v_x = 1.15$ m/s).
+2. They pitch the torso forward right on the threshold of the 60° tilt fall penalty ("running like it's falling forward"), converting gravitational torque directly into forward linear acceleration.
+3. Because the Arena rules evaluate the best commanded speed across 5 seeds, the policy sacrifices low-speed stability (it falls if commanded at 0.20–0.30 m/s) to maximize velocity and stride frequency at 1.15 m/s.
 
 ---
 
