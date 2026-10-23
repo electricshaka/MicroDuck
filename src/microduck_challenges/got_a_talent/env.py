@@ -508,6 +508,11 @@ def make_env_cfg(
     cfg.rewards["headstand_hold"] = RewardTermCfg(
         func=headstand.headstand_hold, weight=8.0, params={"command_name": "twist", **sensors},
     )
+    # hs1 lay upside down on its trunk: during a headstand only the head may touch.
+    cfg.rewards["headstand_body_contact"] = RewardTermCfg(
+        func=headstand.headstand_body_contact, weight=-2.0,
+        params={"command_name": "twist", "body_sensor": body_ground_cfg.name},
+    )
 
     # ── Sim2real regularisers — MATCHED to velocity ─────────────────────────
     # velocity's exact set and absolute weights:

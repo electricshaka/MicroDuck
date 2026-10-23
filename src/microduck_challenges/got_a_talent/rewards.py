@@ -48,6 +48,22 @@ def _found(env, sensor_name: str) -> torch.Tensor:
     return (env.scene.sensors[sensor_name].data.found > 0).any(dim=-1).float()
 
 
+def _trunk_z(env) -> torch.Tensor:
+    robot = env.scene["robot"]
+    return robot.data.root_link_pos_w[:, 2] - env.scene.terrain.env_origins[:, 2]
+
+
+# hs1 learned to lie upside down, rocking between the head and the top of the trunk
+# at z 0.035-0.07 m: inverted and, every other step, head-only. The shaping terms
+# now pay only with the trunk off the floor: nothing below 0.07 m, full from 0.12 m
+# (standing is 0.115, the headstand 0.15).
+LYING_Z, HIGH_Z = 0.07, 0.12
+
+
+def _off_the_floor(env) -> torch.Tensor:
+    return torch.clamp((_trunk_z(env) - LYING_Z) / (HIGH_Z - LYING_Z), 0.0, 1.0)
+
+
 # ── Command ────────────────────────────────────────────────────────────────────
 
 
@@ -105,14 +121,22 @@ def unless_headstand(env, term, gate_command: str = "twist", **params) -> torch.
 
 
 def headstand_progress(env, command_name: str = "twist") -> torch.Tensor:
-    """Dense pull toward upside down while a headstand is commanded: 0 upright, 1 inverted."""
-    return headstand_flag(env, command_name) * _inverted(env)
+    """Dense pull toward upside down while a headstand is commanded: 0 upright, 1 inverted,
+    paid only with the trunk off the floor."""
+    return headstand_flag(env, command_name) * _inverted(env) * _off_the_floor(env)
 
 
 def headstand_support(env, head_sensor: str, body_sensor: str, command_name: str = "twist") -> torch.Tensor:
-    """The head on the floor and nothing else, the trunk at least half way over."""
+    """The head on the floor and nothing else, the trunk at least half way over and off the floor."""
     gate = torch.clamp((_inverted(env) - 0.5) / 0.4, 0.0, 1.0)
-    return headstand_flag(env, command_name) * gate * _found(env, head_sensor) * (1.0 - _found(env, body_sensor))
+    support = _found(env, head_sensor) * (1.0 - _found(env, body_sensor))
+    return headstand_flag(env, command_name) * gate * support * _off_the_floor(env)
+
+
+def headstand_body_contact(env, body_sensor: str, command_name: str = "twist") -> torch.Tensor:
+    """1 while a headstand is commanded and the trunk or a leg touches the floor (use a negative
+    weight). Lifting off from the feet costs it for a moment; lying on the trunk costs it all along."""
+    return headstand_flag(env, command_name) * _found(env, body_sensor)
 
 
 def headstand_hold(
@@ -130,8 +154,7 @@ def headstand_hold(
     vertical axis is free."""
     robot = env.scene["robot"]
     inverted = torch.clamp((_inverted(env) - 0.85) / 0.1, 0.0, 1.0)  # full past ~25° from vertical
-    z = robot.data.root_link_pos_w[:, 2] - env.scene.terrain.env_origins[:, 2]
-    height = torch.exp(-torch.square((z - z_target) / z_std))
+    height = torch.exp(-torch.square((_trunk_z(env) - z_target) / z_std))
     tilt_rate = torch.sum(torch.square(robot.data.root_link_ang_vel_w[:, :2]), dim=1)
     steady = torch.exp(-tilt_rate / tilt_rate_std ** 2)
     support = _found(env, head_sensor) * (1.0 - _found(env, body_sensor))
