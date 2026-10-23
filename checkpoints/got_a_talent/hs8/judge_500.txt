@@ -1,0 +1,9 @@
+[0;93m2026-10-23 15:06:17.227414874 [W:onnxruntime:Default, device_discovery.cc:325 DiscoverDevicesForPlatform] GPU device discovery failed: device_discovery.cc:92 ReadFileContents Failed to open file: "/sys/class/drm/card0/device/vendor"[m
+[mdp] Patches 1-2 active: NaN-safe reward/advantage
+[mdp] Patch 4 active: ONNX export filters passive_* joints
+[mdp] Patch 5 active: MICRODUCK_WARM_START=1 restarts curricula after checkpoint load
+seed 1: stood before the flag yes | onto head after 0.36 s | longest hold 12.62 s | on head 12.64 of 13 s | spin: +13.80 turns (ccw +), mean +8.7 rad/s, best 1 s +9.4 rad/s
+seed 2: stood before the flag yes | onto head after 0.36 s | longest hold 12.66 s | on head 12.66 of 13 s | spin: +13.92 turns (ccw +), mean +8.7 rad/s, best 1 s +9.5 rad/s
+seed 3: stood before the flag yes | onto head after 0.38 s | longest hold 12.64 s | on head 12.64 of 13 s | spin: +13.87 turns (ccw +), mean +8.7 rad/s, best 1 s +9.3 rad/s
+mean longest +12.64, total +12.65, turns +13.86, mean_rate +8.71, best_rate +9.41
+[W1023 15:06:19.332084768 AllocatorConfig.cpp:28] Warning: PYTORCH_CUDA_ALLOC_CONF is deprecated, use PYTORCH_ALLOC_CONF instead (function operator())
