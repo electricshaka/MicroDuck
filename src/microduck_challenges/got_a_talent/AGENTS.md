@@ -362,10 +362,17 @@ From [The Conversation](https://theconversation.com/how-do-breakdancers-avoid-br
 | hs3 | 610abc0 | HEADSTAND_PROB 0.35 → 0.15 | Neck still pinned; target asked -9.5 rad | Not a share problem |
 | hs4 | 0e9f700 | penalise targets past joint limits | Target back to -1.7 rad, but stood as a tripod (feet + head down), 36° lean | A target past a limit gives no gradient; fix that first |
 | hs5 | 80e55b4 | -2 head on the floor outside a headstand | Checkpoint 250: head error 1.92 → 0.57 rad, stands 3/3, headstand 12.5 s | The tripod was the trap; still above check.py's 0.25 rad |
-| hs6 | b368ac7 | spin flag + `headspin` reward | running | |
+| hs6 | b368ac7 | spin flag + `headspin` reward | Paused at iteration ~330 (2026-10-23, GPU lent to another job). Checkpoint 250: headstand holds 12.5 s with the spin flag up (checkpoint 0 fell when it rose), stand error 0.50 rad, but no spin: 0.01 turns; `Episode_Reward/headspin` 0.007 against `headstand_hold` 1.8 | Spin not discovered: a slow first turn (1 rad/s) earns 0.4/step against the hold's 8 |
 
 Best checkpoints so far: hs2 `model_1250` (headstand, stand hunched), hs5 `model_250` (headstand,
-better stand). Run folders are under `logs/rsl_rl/got_a_talent/` on the machine that trained them.
+better stand), hs6 `model_250` (headstand that survives the spin flag, stand 0.50 rad). Run folders
+are under `logs/rsl_rl/got_a_talent/` on the machine that trained them.
+
+**Next step (hs7)**: one change, the b-boy progression "quarter turns first": a curriculum on
+`headspin`'s `rate_max`, 3 rad/s at the start (1 rad/s pays 2/step) widening to 15 rad/s; resume
+from hs6 `model_250` with `MICRODUCK_WARM_START=1`, and back to 4096 envs if host memory allows.
+If the spin still does not start: relax `action_rate_l2` on the neck and legs while the spin flag is
+up, as its own run.
 
 ### Judging
 
