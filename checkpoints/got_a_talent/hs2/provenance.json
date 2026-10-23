@@ -16,7 +16,7 @@
   "task": "Mjlab-GotATalent-MicroDuck",
   "seed": 1,
   "commit": "89b9cbaa8",
-  "branch": "claude/leaderboard-duck-strategy-3616b1",
+  "branch": "main",
   "dirty": false,
   "repo": "https://github.com/pollen-robotics/microduck-challenges.git",
   "base": "mjlab-microduck 0.1.0 @ 8d0dbc94c",

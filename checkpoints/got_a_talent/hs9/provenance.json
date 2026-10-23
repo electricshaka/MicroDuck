@@ -21,10 +21,10 @@
   ],
   "task": "Mjlab-GotATalent-MicroDuck",
   "seed": 1,
-  "commit": "09d00fbe5",
+  "commit": "4119968",
   "branch": "main",
-  "dirty": true,
-  "repo": "https://github.com/electricshaka/microduck-private.git",
+  "dirty": false,
+  "repo": "https://github.com/electricshaka/MicroDuck.git",
   "base": "mjlab-microduck 0.1.0 @ 8d0dbc94c",
   "started": "2026-10-23T16:49:04Z"
 }
