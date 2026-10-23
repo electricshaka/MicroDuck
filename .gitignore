@@ -13,6 +13,7 @@ runs/
 *.onnx
 *.pt
 *.pth
+*.npy
 
 # IDE and OS
 .vscode/
