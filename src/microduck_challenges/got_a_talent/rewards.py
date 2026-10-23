@@ -252,6 +252,28 @@ def headspin_rate_max_curriculum(
     return torch.tensor([rate_max], device=env.device)
 
 
+def head_stillness_on_head(
+    env,
+    command_name: str = "twist",
+    vel_std: float = 1.0,
+    yaw_std: float = 0.15,
+    roll_std: float = 0.15,
+) -> torch.Tensor:
+    """Reward for keeping the head/neck quiet and centered during headstand (hs8), forcing legs to drive spin."""
+    robot = env.scene["robot"]
+    # Head joint velocities: neck_pitch (5), head_pitch (6), head_yaw (7), head_roll (8)
+    head_joint_vel = robot.data.joint_vel[:, 5:9]
+    head_vel_sq = torch.sum(torch.square(head_joint_vel), dim=-1)
+    vel_still = torch.exp(-head_vel_sq / (vel_std ** 2))
+
+    # Head yaw (7) and roll (8) deviations from neutral 0.0
+    yaw_err = torch.square(robot.data.joint_pos[:, 7])
+    roll_err = torch.square(robot.data.joint_pos[:, 8])
+    pose_still = torch.exp(-yaw_err / (yaw_std ** 2) - roll_err / (roll_std ** 2))
+
+    return headstand_flag(env, command_name) * vel_still * pose_still
+
+
 # ── Events ─────────────────────────────────────────────────────────────────────
 
 

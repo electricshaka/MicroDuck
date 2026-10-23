@@ -521,9 +521,13 @@ def make_env_cfg(
         func=headstand.headstand_body_contact, weight=-2.0,
         params={"command_name": "twist", "body_sensor": body_ground_cfg.name},
     )
-    # The headspin (twist[2]): new counter-clockwise turn on the head, starts at 3 rad/s (hs7).
+    # The headspin (twist[2]): new counter-clockwise turn on the head, starts at 6 rad/s (hs8).
     cfg.rewards["headspin"] = RewardTermCfg(
-        func=headstand.headspin, weight=6.0, params={"command_name": "twist", "rate_max": 3.0, **sensors},
+        func=headstand.headspin, weight=6.0, params={"command_name": "twist", "rate_max": 6.0, **sensors},
+    )
+    # Head stillness during headstand (hs8: b-boy static head pivot, forces legs to drive spin).
+    cfg.rewards["head_stillness_on_head"] = RewardTermCfg(
+        func=headstand.head_stillness_on_head, weight=3.0, params={"command_name": "twist"},
     )
     # hs2-hs4 stood as a tripod on the feet and the head: otherwise the head stays off the floor.
     cfg.rewards["head_contact_unless_headstand"] = RewardTermCfg(
@@ -986,16 +990,15 @@ def make_env_cfg(
         },
     )
 
-    # Headspin rate_max curriculum (hs7: "quarter turns first", 3 -> 15 rad/s).
+    # Headspin rate_max curriculum (hs8: leg-driven b-boy spin, 6.0 -> 10.0 -> 15.0 rad/s).
     cfg.curriculum["headspin_rate_max"] = CurriculumTermCfg(
         func=headstand.headspin_rate_max_curriculum,
         params={
             "reward_name": "headspin",
             "stages": [
-                {"step": 0,         "rate_max": 3.0},
-                {"step": 500 * 24,  "rate_max": 6.0},
-                {"step": 1000 * 24, "rate_max": 10.0},
-                {"step": 1500 * 24, "rate_max": 15.0},
+                {"step": 0,         "rate_max": 6.0},
+                {"step": 500 * 24,  "rate_max": 10.0},
+                {"step": 1000 * 24, "rate_max": 15.0},
             ],
         },
     )
