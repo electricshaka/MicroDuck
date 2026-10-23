@@ -4,7 +4,8 @@ A complete copy of microduck_rl's sitstand task (microduck_sitstand_env_cfg.py,
 the config behind alpha_sitstand), made MicroDuck Got a Talent's own: flat ground
 only, the Arena's contact solver, and three reward weights a novice tunes read
 from challenge.toml ([params]). The Arena plays each entry's timeline.json on a
-stage: twist.vx is the sit flag (1 = sit, 0 = stand), head is 4 deltas from the
+stage: twist.vx is the sit flag (1 = sit, 0 = stand), twist[1] the headstand
+flag (1 = go onto the head and hold; rewards.py), head is 4 deltas from the
 default pose (neck_pitch, head_pitch, head_yaw, head_roll). Everything here is
 yours to change; the robot (MICRODUCK_STANDUP_ROBOT_CFG) and the reward
 functions (microduck_mdp) come from mjlab_microduck and are not edited here.
@@ -157,6 +158,20 @@ POSTURE_RAMP_S = 2.0
 MAX_DESCENT_SPEED = 0.05
 MAX_RISE_SPEED    = 0.08
 
+# Headstand (rewards.py): the probability a resample raises the headstand flag in
+# twist[1] (latched for the rest of the episode), and the share of episodes that
+# start already on the head with the flag up.
+HEADSTAND_PROB       = 0.35
+HEADSTAND_SPAWN_PROB = 0.2
+# The sit/stand terms switched off while the headstand flag is up: each says
+# "stay upright" (or "stay still at a height"), the opposite of going over.
+REST_STACK = (
+    "posture_pose_legs", "head_pose_tracking", "posture_pose_l1",
+    "posture_height", "posture_height_sharp", "posture_height_l1", "rise_bootstrap",
+    "descent_speed", "rise_speed", "gentle_motion",
+    "upright_linear", "upright_while_tall", "posture_stillness", "posture_composite",
+)
+
 from mjlab.envs import ManagerBasedRlEnvCfg
 from mjlab.envs.mdp import dr
 from mjlab.envs.mdp.actions import JointPositionActionCfg
@@ -185,6 +200,8 @@ from mjlab_microduck.tasks.microduck_velocity_env_cfg import (
     HEAD_POSE_CMD_RESAMPLE_S,
 )
 from mjlab_microduck.tasks.symmetry import PpoWithSymmetryCfg, SYMMETRY_CFG
+
+from microduck_challenges.got_a_talent import rewards as headstand
 
 
 def make_env_cfg(
@@ -218,6 +235,28 @@ def make_env_cfg(
         num_slots=1,
     )
 
+    # Headstand support: the head on the floor, and every other collision body.
+    head_ground_cfg = ContactSensorCfg(
+        name="head_ground",
+        primary=ContactMatch(mode="body", pattern=r"^jaw_soft$", entity="robot"),
+        secondary=ContactMatch(mode="body", pattern="terrain"),
+        fields=("found",),
+        reduce="netforce",
+        num_slots=1,
+    )
+    body_ground_cfg = ContactSensorCfg(
+        name="body_ground",
+        primary=ContactMatch(
+            mode="body",
+            pattern=r"^(trunk_base|hip_l|hip_l_2|leg|leg_2|ankle_left|ankle_right)$",
+            entity="robot",
+        ),
+        secondary=ContactMatch(mode="body", pattern="terrain"),
+        fields=("found",),
+        reduce="netforce",
+        num_slots=1,
+    )
+
     # NOTE: no head-ground contact penalty here (unlike the sit env). Using the
     # head as a third support point during transitions is explicitly allowed —
     # the plank-as-terminal-rest exploit is anti-selected by posture_composite
@@ -231,7 +270,7 @@ def make_env_cfg(
     # Standup robot variant: full collision meshes — the body must physically
     # rest on the ground while seated, and knees/head may touch mid-transition.
     cfg.scene.entities = {"robot": MICRODUCK_STANDUP_ROBOT_CFG}
-    cfg.scene.sensors  = (feet_ground_cfg, self_collision_cfg)
+    cfg.scene.sensors  = (feet_ground_cfg, self_collision_cfg, head_ground_cfg, body_ground_cfg)
     cfg.viewer.body_name = "trunk_base"
 
     cfg.episode_length_s = EPISODE_LENGTH_S
@@ -450,6 +489,26 @@ def make_env_cfg(
         },
     )
 
+    # ── Headstand (twist[1], rewards.py) ─────────────────────────────────────
+    # The rest stack above pauses while the flag is up; three terms take over:
+    # a dense pull toward upside down, head-only support, and the multiplicative
+    # goal (inverted, head only, at headstand height, not tipping; spinning about
+    # the vertical axis is free, for the headspin to come).
+    for name in REST_STACK:
+        term = cfg.rewards[name]
+        term.params = {"term": term.func, "gate_command": "twist", **term.params}
+        term.func = headstand.unless_headstand
+    sensors = {"head_sensor": head_ground_cfg.name, "body_sensor": body_ground_cfg.name}
+    cfg.rewards["headstand_progress"] = RewardTermCfg(
+        func=headstand.headstand_progress, weight=2.0, params={"command_name": "twist"},
+    )
+    cfg.rewards["headstand_support"] = RewardTermCfg(
+        func=headstand.headstand_support, weight=2.0, params={"command_name": "twist", **sensors},
+    )
+    cfg.rewards["headstand_hold"] = RewardTermCfg(
+        func=headstand.headstand_hold, weight=8.0, params={"command_name": "twist", **sensors},
+    )
+
     # ── Sim2real regularisers — MATCHED to velocity ─────────────────────────
     # velocity's exact set and absolute weights:
     #   • action_rate_l2: -0.1 at stage 0, ramped -0.1 → -1.0 by iter 1500
@@ -588,13 +647,14 @@ def make_env_cfg(
     command.ranges.heading    = None
     command.resampling_time_range = POSTURE_DWELL_S
     command.debug_vis = False
-    cfg.commands["twist"] = microduck_mdp.SitStandCommandCfg(
+    cfg.commands["twist"] = headstand.HeadstandCommandCfg(
         **{
             **vars(command),
             "sit_prob": SIT_PROB,
             "ramp_s":   POSTURE_RAMP_S,
             "sit_z":    SIT_Z,
             "stand_z":  STAND_Z,
+            "headstand_prob": HEADSTAND_PROB,
         }
     )
 
@@ -647,6 +707,12 @@ def make_env_cfg(
             "standing_z_min":          0.11,
             "standing_z_max":          0.12,
         },
+    )
+    # Then a share of episodes start on the head, flag up (rewards.spawn_headstand).
+    cfg.events["spawn_headstand"] = EventTermCfg(
+        func=headstand.spawn_headstand,
+        mode="reset",
+        params={"prob": HEADSTAND_SPAWN_PROB},
     )
 
     # MuJoCo physics robustness (sit env's contact NaN fix). The standup XML

@@ -7,7 +7,7 @@ kind  = "perpetual"
 
 # What the policy reads in each command group: publish writes it in the manifest.
 [command]
-twist = "[sit flag: 1 sit, 0 stand; unused; unused]"
+twist = "[sit flag: 1 sit, 0 stand; headstand flag: 1 go onto the head and hold; unused]"
 head  = "[neck_pitch, head_pitch, head_yaw, head_roll]: rad from the default pose"
 
 [recipe]                  # the first training, as is
