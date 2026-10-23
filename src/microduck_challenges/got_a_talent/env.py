@@ -5,7 +5,8 @@ the config behind alpha_sitstand), made MicroDuck Got a Talent's own: flat groun
 only, the Arena's contact solver, and three reward weights a novice tunes read
 from challenge.toml ([params]). The Arena plays each entry's timeline.json on a
 stage: twist.vx is the sit flag (1 = sit, 0 = stand), twist[1] the headstand
-flag (1 = go onto the head and hold; rewards.py), head is 4 deltas from the
+flag (1 = go onto the head and hold; rewards.py), twist[2] the spin flag (1 =
+spin counter-clockwise on the head), head is 4 deltas from the
 default pose (neck_pitch, head_pitch, head_yaw, head_roll). Everything here is
 yours to change; the robot (MICRODUCK_STANDUP_ROBOT_CFG) and the reward
 functions (microduck_mdp) come from mjlab_microduck and are not edited here.
@@ -166,6 +167,10 @@ MAX_RISE_SPEED    = 0.08
 # head error 1.93 rad, every checkpoint). 0.15 gives sit/stand about half the time.
 HEADSTAND_PROB       = 0.15
 HEADSTAND_SPAWN_PROB = 0.2
+# Headspin (rewards.headspin): the probability that a resample with the headstand
+# flag up also raises the spin flag in twist[2]; drawn afresh at each resample, so
+# spins start and stop on the head.
+SPIN_PROB            = 0.5
 # The sit/stand terms switched off while the headstand flag is up: each says
 # "stay upright" (or "stay still at a height"), the opposite of going over.
 REST_STACK = (
@@ -516,6 +521,10 @@ def make_env_cfg(
         func=headstand.headstand_body_contact, weight=-2.0,
         params={"command_name": "twist", "body_sensor": body_ground_cfg.name},
     )
+    # The headspin (twist[2]): new counter-clockwise turn on the head, up to 15 rad/s.
+    cfg.rewards["headspin"] = RewardTermCfg(
+        func=headstand.headspin, weight=6.0, params={"command_name": "twist", **sensors},
+    )
     # hs2-hs4 stood as a tripod on the feet and the head: otherwise the head stays off the floor.
     cfg.rewards["head_contact_unless_headstand"] = RewardTermCfg(
         func=headstand.head_contact_unless_headstand, weight=-2.0,
@@ -674,6 +683,7 @@ def make_env_cfg(
             "sit_z":    SIT_Z,
             "stand_z":  STAND_Z,
             "headstand_prob": HEADSTAND_PROB,
+            "spin_prob":      SPIN_PROB,
         }
     )
 
