@@ -378,7 +378,7 @@ From [The Conversation](https://theconversation.com/how-do-breakdancers-avoid-br
 - Always: `head_contact_unless_headstand` (-2, the head on the floor outside a headstand) and
   `action_beyond_limits` (-0.5, squared distance of each joint target past its soft limit).
 
-### Runs (local RTX 4090, 2048 envs; each continues from the last good checkpoint)
+### Runs (local RTX 4090 / DGX Spark GB10; each continues from the last good checkpoint)
 
 | Run | Commit | Change | Result | Lesson |
 |---|---|---|---|---|
@@ -387,17 +387,17 @@ From [The Conversation](https://theconversation.com/how-do-breakdancers-avoid-br
 | hs3 | 610abc0 | HEADSTAND_PROB 0.35 → 0.15 | Neck still pinned; target asked -9.5 rad | Not a share problem |
 | hs4 | 0e9f700 | penalise targets past joint limits | Target back to -1.7 rad, but stood as a tripod (feet + head down), 36° lean | A target past a limit gives no gradient; fix that first |
 | hs5 | 80e55b4 | -2 head on the floor outside a headstand | Checkpoint 250: head error 1.92 → 0.57 rad, stands 3/3, headstand 12.5 s | The tripod was the trap; still above check.py's 0.25 rad |
-| hs6 | b368ac7 | spin flag + `headspin` reward | Paused at iteration ~330 (2026-10-23, GPU lent to another job). Checkpoint 250: headstand holds 12.5 s with the spin flag up (checkpoint 0 fell when it rose), stand error 0.50 rad, but no spin: 0.01 turns; `Episode_Reward/headspin` 0.007 against `headstand_hold` 1.8 | Spin not discovered: a slow first turn (1 rad/s) earns 0.4/step against the hold's 8 |
+| hs6 | b368ac7 | spin flag + `headspin` reward | Paused at iteration ~330. Checkpoint 250: headstand holds 12.5 s with spin flag up, but no spin: 0.01 turns; `Episode_Reward/headspin` 0.007 | Spin not discovered: a slow first turn (1 rad/s) earns 0.4/step against hold's 8 |
+| hs7 | d715e29 | "quarter turns first" curriculum (`rate_max` 3.0 → 15.0 rad/s) | **Checkpoint 1000: +12.60 CCW turns @ 7.9 rad/s**, 100% continuous hold on head (12.65 s) | Broke reward trap: early turns pay 2.0/step instead of 0.4. But policy whips neck against floor |
+| hs8 | 4a66303 | `head_stillness_on_head` quiet-pivot regularizer (weight 3.0) | **Checkpoint 500: +13.86 CCW turns @ 8.7 rad/s**, head roll wobble -95%, hold reward peak 2.78 | Stabilized head roll to 0.012 rad; neck yaw still oscillated ±31° because Gaussian tails vanish |
+| hs9 | 09d00fb | scale to 8192 envs on DGX Spark (GB10), `rate_max` 10 → 20 rad/s | **Checkpoint 750: +20.17 CCW turns @ 12.7 rad/s** (peak 15.7 rad/s), 150° leg windmill drive, head yaw centered within 10° | Massive leg power stroke (150° hip pitch arc); head stillness surged to 0.2225 |
 
-Best checkpoints so far: hs2 `model_1250` (headstand, stand hunched), hs5 `model_250` (headstand,
-better stand), hs6 `model_250` (headstand that survives the spin flag, stand 0.50 rad). Run folders
-are under `logs/rsl_rl/got_a_talent/` on the machine that trained them.
+Best checkpoints committed in `checkpoints/got_a_talent/`:
+- **`hs9/model_750`**: **+20.17 CCW turns @ 12.7 rad/s** (peak 15.7 rad/s), 100% continuous hold, 150° leg drive, head centered to 10°.
+- **`hs8/model_500`**: +13.86 CCW turns @ 8.7 rad/s, head roll stabilized.
+- **`hs6/model_250`**: Solid upright headstand hold before spin discovery.
 
-**Next step (hs7)**: one change, the b-boy progression "quarter turns first": a curriculum on
-`headspin`'s `rate_max`, 3 rad/s at the start (1 rad/s pays 2/step) widening to 15 rad/s; resume
-from hs6 `model_250` with `MICRODUCK_WARM_START=1`, and back to 4096 envs if host memory allows.
-If the spin still does not start: relax `action_rate_l2` on the neck and legs while the spin flag is
-up, as its own run.
+**Next step (hs10)**: Strict non-saturating quadratic L2 penalty on neck joints `[neck_pitch, head_pitch, head_yaw, head_roll]` measuring deviation from `[0.5, 1.0, 0.0, 0.0]` rad to eliminate the remaining neck yaw whip and lock the head/neck spindle completely, forcing 100% leg-driven b-boy rotation. Resume from `hs9` checkpoint with `MICRODUCK_WARM_START=1` on 8192 envs.
 
 ### Judging
 
