@@ -400,8 +400,9 @@ Best checkpoints committed in `checkpoints/got_a_talent/`:
 **Choreography & Freeze Finish (`timeline.json`)**:
 - Stand until $t = 1.5\text{ s}$ (`twist: [0, 0, 0]`).
 - Dive to headstand at $t = 1.5\text{ s}$ (`twist: [0, 1, 0]`).
-- Spin kick starts immediately upon floor contact at $t = 2.0\text{ s}$ (`twist: [0, 1, 1]`) through $16.0\text{ s}$.
-- Breakdance headstand freeze holds from $t = 16.0\text{ s}$ to $20.0\text{ s}$ (`twist: [0, 1, 0]`), locking the duck vertically inverted on its head (`upz = -0.99`, $z = 0.145\,\text{m}$, head-only contact) until the buzzer.
+- Spin kick starts immediately upon floor contact at $t = 2.0\text{ s}$ (`twist: [0, 1, 1]`) through $10.0\text{ s}$, executing +20.7 full CCW rotations at up to 16.3 rad/s.
+- Spin flag drops at $t = 10.0\text{ s}$ (`twist: [0, 1, 0]`), smoothly braking angular momentum until coming to a **complete stop at $t = 18.0\text{ s}$** (2 seconds before the end).
+- Breakdance headstand freeze holds dead still from $t = 18.0\text{ s}$ to $20.0\text{ s}$ (`upz = -0.99`, $z = 0.145\,\text{m}$, spin rate $\le 0.34\,\text{rad/s} \to 0.09\,\text{rad/s}$, head-only contact) until the final buzzer.
 - `check.py` generalizes posture segmenting to support `headstand` (`command[1] >= 0.5`) in addition to `sit` and `stand`.
 
 **Next step (hs10)**: Strict non-saturating quadratic L2 penalty on neck joints `[neck_pitch, head_pitch, head_yaw, head_roll]` measuring deviation from `[0.5, 1.0, 0.0, 0.0]` rad to eliminate the remaining neck yaw whip and lock the head/neck spindle completely, forcing 100% leg-driven b-boy rotation. Resume from `hs9` checkpoint with `MICRODUCK_WARM_START=1` on 8192 envs.
