@@ -1,0 +1,16 @@
+[mdp] Patches 1-2 active: NaN-safe reward/advantage
+[mdp] Patch 4 active: ONNX export filters passive_* joints
+[mdp] Patch 5 active: MICRODUCK_WARM_START=1 restarts curricula after checkpoint load
+seed 1: stood before the flag yes | onto head after 0.34 s | longest hold 6.10 s | on head 12.64 of 13 s | spin: +23.72 turns (ccw +), mean +14.9 rad/s, best 1 s +17.7 rad/s
+seed 2: stood before the flag yes | onto head after 0.34 s | longest hold 12.68 s | on head 12.68 of 13 s | spin: +23.23 turns (ccw +), mean +14.6 rad/s, best 1 s +17.0 rad/s
+seed 3: stood before the flag yes | onto head after 0.36 s | longest hold 9.60 s | on head 12.64 of 13 s | spin: +23.61 turns (ccw +), mean +14.8 rad/s, best 1 s +18.0 rad/s
+mean longest +9.46, total +12.65, turns +23.52, mean_rate +14.78, best_rate +17.60
+
+=== Full Timeline Performance (20s) ===
+[mdp] Patches 1-2 active: NaN-safe reward/advantage
+[mdp] Patch 4 active: ONNX export filters passive_* joints
+[mdp] Patch 5 active: MICRODUCK_WARM_START=1 restarts curricula after checkpoint load
+seed 1: stood before the flag yes | onto head after 0.36 s | longest hold 9.48 s | on head 18.14 of 18 s | spin: +24.11 turns (ccw +), mean +8.4 rad/s, best 1 s +16.7 rad/s
+seed 2: stood before the flag yes | onto head after 0.36 s | longest hold 18.16 s | on head 18.16 of 18 s | spin: +23.79 turns (ccw +), mean +8.3 rad/s, best 1 s +18.0 rad/s
+seed 3: stood before the flag yes | onto head after 0.36 s | longest hold 18.16 s | on head 18.16 of 18 s | spin: +25.86 turns (ccw +), mean +9.0 rad/s, best 1 s +18.0 rad/s
+mean longest +15.27, total +18.15, turns +24.59, mean_rate +8.58, best_rate +17.56

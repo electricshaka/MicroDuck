@@ -390,10 +390,11 @@ From [The Conversation](https://theconversation.com/how-do-breakdancers-avoid-br
 | hs6 | b368ac7 | spin flag + `headspin` reward | Paused at iteration ~330. Checkpoint 250: headstand holds 12.5 s with spin flag up, but no spin: 0.01 turns; `Episode_Reward/headspin` 0.007 | Spin not discovered: a slow first turn (1 rad/s) earns 0.4/step against hold's 8 |
 | hs7 | d715e29 | "quarter turns first" curriculum (`rate_max` 3.0 → 15.0 rad/s) | **Checkpoint 1000: +12.60 CCW turns @ 7.9 rad/s**, 100% continuous hold on head (12.65 s) | Broke reward trap: early turns pay 2.0/step instead of 0.4. But policy whips neck against floor |
 | hs8 | 4a66303 | `head_stillness_on_head` quiet-pivot regularizer (weight 3.0) | **Checkpoint 500: +13.86 CCW turns @ 8.7 rad/s**, head roll wobble -95%, hold reward peak 2.78 | Stabilized head roll to 0.012 rad; neck yaw still oscillated ±31° because Gaussian tails vanish |
-| hs9 | 09d00fb | scale to 8192 envs on DGX Spark (GB10), `rate_max` 10 → 20 rad/s | **Checkpoint 750: +20.17 CCW turns @ 12.7 rad/s** (peak 15.7 rad/s), 150° leg windmill drive, head yaw centered within 10° | Massive leg power stroke (150° hip pitch arc); head stillness surged to 0.2225 |
+| hs9 | 09d00fb | scale to 8192 envs on DGX Spark (GB10), `rate_max` 10 → 20 rad/s | **Checkpoint 1000: +23.52 CCW turns @ 14.8 rad/s** (peak 18.0 rad/s), +24.59 turns on full timeline, 18.16 s continuous hold | Unlocked Stage 3 (20 rad/s). Massive power stroke, unbroken hold across seeds |
 
 Best checkpoints committed in `checkpoints/got_a_talent/`:
-- **`hs9/model_750`**: **+20.17 CCW turns @ 12.7 rad/s** (peak 15.7 rad/s on standard test; +37.24 turns on full timeline), 100% continuous hold (18.16 s on Seed 1), 150° leg drive, head centered to 10°.
+- **`hs9/model_1000`**: **+23.52 CCW turns @ 14.8 rad/s** (peak 18.0 rad/s / 172 RPM on standard test; +24.59 turns on full timeline), 18.16 s continuous hold (Seeds 2 & 3), Stage 3 unlocked (20 rad/s).
+- **`hs9/model_750`**: +20.17 CCW turns @ 12.7 rad/s (peak 15.7 rad/s), 100% continuous hold, 150° leg drive.
 - **`hs8/model_500`**: +13.86 CCW turns @ 8.7 rad/s, head roll stabilized.
 - **`hs6/model_250`**: Solid upright headstand hold before spin discovery.
 
