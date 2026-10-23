@@ -39,7 +39,10 @@ positions from the default pose (14), joint velocities one control step old (14)
 then the 13 command numbers the timeline gives: twist (3), head (4), body (6). This challenge's
 policy reads:
 
-- `twist[0]`, the **sit flag**: 1 sits, 0 stands; `twist[1]` and `twist[2]` unused (0);
+- `twist[0]`, the **sit flag**: 1 sits, 0 stands;
+- `twist[1]`, the **headstand flag**: 1 goes onto the head and holds (see "The headspin" below);
+- `twist[2]`, the **spin flag**: with the headstand flag, 1 spins counter-clockwise (seen from above)
+  on the head;
 - `head`, **4 angles in radians from the default pose**: neck_pitch, head_pitch, head_yaw, head_roll;
 - `body`: unused (zeros).
 
@@ -93,8 +96,9 @@ well: check it on the stage, and if the user wants it anyway, adjust the test wi
 | `challenge.toml` `[recipe]` | `num_envs` 4096, `max_iterations` 3000, `seed` 1 | Yes, when agreed with the user |
 | `challenge.toml` `[command]` | What the policy reads in each command group; `publish` writes it into the manifest | Only with the commands' meaning |
 | `env.py` | The whole environment (microduck_rl's sit & stand task): posture rewards, head command and its curriculum, domain randomization, delayed pushes, `RL_CFG` | Yes, once the knobs are not enough |
-| `rewards.py` | Does not exist yet: create it for a custom reward term, then add the term to `cfg.rewards` in `env.py` | Yes |
-| `check.py` | Judges a policy's performance of a timeline on the Arena's stage | Use it as is |
+| `rewards.py` | The headstand and headspin: their command (`HeadstandCommand`), reward terms, the headstand spawn, the joint-limit penalty | Yes |
+| `check.py` | Judges a policy's sit/stand and head moves against a timeline on the Arena's stage | Use it as is |
+| `headspin_check.py` | Judges a policy's headstand and headspin on the Arena's stage, several seeds | Use it as is |
 | `tasks.py`, `event`/`task`/`kind` in `challenge.toml` | Registration with mjlab and the Arena | No |
 
 | Knob | Label | Default | Range | Sets in `env.py` |
@@ -286,8 +290,118 @@ fork, never `pollen-robotics`; the workshop's home sets that up).
   that closes before the move completes makes the policy unlearn it; a "rise" that was really a
   lean back at 57°, just under the 60° fall threshold.
 - **A new kind of move needs a command for it.** The 13 command numbers are fixed (the real robot
-  feeds the same 61 observations). Free slots: `twist[1]`, `twist[2]` and `body` (6). A new move
-  reads one of them, is trained on it, and `[command]` in `challenge.toml` says what it means.
+  feeds the same 61 observations). `twist[1]` and `twist[2]` now carry the headstand and the spin;
+  the free slots left are `body` (6). A new move reads one of them, is trained on it, and
+  `[command]` in `challenge.toml` says what it means.
+
+## The headspin (work in progress)
+
+The performance being built: the duck stands, goes onto its head on a timeline command, holds a
+headstand, then spins on its head like a b-boy, all on the stage's grippy floor. Any agent can pick
+this up from here: the strategy, every run and its lesson, and the open problems are below.
+
+### Why a headspin
+
+On the board (2026-10-22) the best vote rates went to single, physical stunts: dashi's trained
+backward roll 46 %, juicenv's variety show 37 %; troupes with songs 18–30 %. Nobody has a
+headspin.
+
+### What the robot and the Arena allow (measured in the Arena's physics)
+
+- **The floor grips**: friction 1.0 against every robot geom, the Arena's, and a test holds training
+  to it. MuJoCo takes the larger friction of a pair, so nothing on the robot side lowers it. Each
+  contact point has no torsional friction (condim 3); the braking of a spin comes from the head
+  touching at several points. A free spin on the head slowed from 7.9 to 3.7 rad/s in 0.2 s.
+- **No arms**, so no hand taps. What can add spin is any joint that twists the body against the
+  head's grip: the neck's head_yaw (±170°) whipped the body up to 10–13 rad/s in one swing with the
+  head planted; leg swings work the same way. Opening and shutting the legs (the skater trick)
+  changes the speed by only ~5% on this robot (light legs) and adds no spin.
+- **Spin did not stabilise an open-loop headstand**: dropped spinning on the head with no control,
+  20 rad/s fell off sooner than 8 rad/s. Balance has to be active; a trained policy may differ.
+- **The geometry**: hips open only ±22° sideways (no side split), ±90° front and back (a scissor
+  split). Headstand pose: neck_pitch +0.5, head_pitch +1.0 rad (absolute), legs at HOME; the trunk
+  then sits at z 0.15 m. Pollen's forward roll passes through the headstand 0.1–0.25 s in and
+  overshoots it: getting up is easy, stopping there is the skill.
+- **The stage labels a headstand a fall** (trunk past 60° for 0.3 s) but plays on: harmless.
+
+### What b-boys do, and the duck's version
+
+From [The Conversation](https://theconversation.com/how-do-breakdancers-avoid-breaking-their-necks-231579),
+[Scientific American](https://www.scientificamerican.com/article/the-physics-of-breakdancing-a-new-olympic-sport/),
+[bboydojo](https://bboydojo.com/breakdance/how-to-do-a-headspin/) and
+[Flashmavi](https://www.flashmavi.com/learn/learn-the-headspin):
+
+| B-boy technique | Duck version | Where |
+|---|---|---|
+| Torso stacked vertically over the head, neck stiff | Hold: upside down within ~25°, only the head down, trunk at 0.15 m, low pitch/roll rates | `headstand_hold` |
+| Hand taps / arm pumps keep the spin going | Neck whips and leg swings twisting the body against the head's grip | Free to the policy; `headspin` pays the turn |
+| Legs together = faster ("drills"), out = slower and steadier | Small effect here; the policy may use it | Free to the policy |
+| Hips swing to start the turn; learn quarter, then half turns | Twisting entry, spawns already spinning; any new turn pays | `spawn_headstand`, `headspin` |
+| Low-friction cap on the crown | Not available; a head pose that touches at one rounded point brakes less | Free to the policy |
+
+### Commands and rewards (rewards.py, env.py)
+
+- `twist[1]` **headstand flag**, latched in training (once up it stays up to the episode's end);
+  raised with `HEADSTAND_PROB` 0.15 per resample, and `HEADSTAND_SPAWN_PROB` 0.2 of episodes start
+  on the head (some spinning up to ±6 rad/s). `twist[2]` **spin flag**, drawn with `SPIN_PROB` 0.5
+  at every resample while the headstand flag is up.
+- While the headstand flag is up, the sit/stand terms in `REST_STACK` are off (`unless_headstand`),
+  and these pay: `headstand_progress` (2, upside down AND trunk off the floor), `headstand_support`
+  (2, head-only contact, trunk off the floor), `headstand_hold` (8, the multiplicative goal),
+  `headstand_body_contact` (-2, trunk or a leg on the floor), `headspin` (6, new counter-clockwise
+  turn on the head past the furthest so far, capped at 15 rad/s; back-and-forth pays nothing).
+- Always: `head_contact_unless_headstand` (-2, the head on the floor outside a headstand) and
+  `action_beyond_limits` (-0.5, squared distance of each joint target past its soft limit).
+
+### Runs (local RTX 4090, 2048 envs; each continues from the last good checkpoint)
+
+| Run | Commit | Change | Result | Lesson |
+|---|---|---|---|---|
+| hs1 | 2ff472e | headstand flag, rewards, spawns | Lay upside down rocking head/trunk at z 0.04 m; hold 0.2 s | Shaping that only checks "inverted" pays lying down: gate it on trunk height |
+| hs2 | 89b9cba | shaping needs the trunk off the floor; -2 body contact | Tripod at 250, one foot at 500; **checkpoint 1000-1250: onto the head in 0.40 s, held 12.6 s, 3/3 seeds** | Works. But sit/stand FAIL from 250: neck folded to its limit |
+| hs3 | 610abc0 | HEADSTAND_PROB 0.35 → 0.15 | Neck still pinned; target asked -9.5 rad | Not a share problem |
+| hs4 | 0e9f700 | penalise targets past joint limits | Target back to -1.7 rad, but stood as a tripod (feet + head down), 36° lean | A target past a limit gives no gradient; fix that first |
+| hs5 | 80e55b4 | -2 head on the floor outside a headstand | Checkpoint 250: head error 1.92 → 0.57 rad, stands 3/3, headstand 12.5 s | The tripod was the trap; still above check.py's 0.25 rad |
+| hs6 | b368ac7 | spin flag + `headspin` reward | running | |
+
+Best checkpoints so far: hs2 `model_1250` (headstand, stand hunched), hs5 `model_250` (headstand,
+better stand). Run folders are under `logs/rsl_rl/got_a_talent/` on the machine that trained them.
+
+### Judging
+
+```bash
+run=logs/rsl_rl/got_a_talent/<run>; n=<checkpoint>
+uv run --no-sync publish --run $run --checkpoint $n --repo local/microduck-eval --dry-run --allow-dirty
+uv run --no-sync --group workshop python -m microduck_challenges.got_a_talent.headspin_check publish-eval/policy.onnx
+uv run --no-sync --group workshop python -m microduck_challenges.got_a_talent.check publish-eval/policy.onnx
+```
+
+`headspin_check` plays stand 2 s → headstand flag → spin flag at 5 s, on seeds 1-3, and reports the
+time onto the head, the longest hold, time on the head, turns and spin rates. A policy trained
+without the spin flag falls when it rises: judge those with `--timeline` on a file without it.
+`check.py` judges the sit/stand routine; it must still pass for a show that also sits and looks
+around.
+
+### Running on Windows (what this machine needed)
+
+- The lock installs CPU-only torch on Windows. Training on the GPU here used torch 2.9.1+cu128
+  installed into the venv (`uv pip install torch==2.9.1 --index-url https://download.pytorch.org/whl/cu128`,
+  no cu129 Windows wheel exists), then every command with `uv run --no-sync` so uv does not put the
+  CPU build back. `pyproject.toml` and `uv.lock` stay untouched.
+- Resuming a run: `MICRODUCK_WARM_START=1` (else every curriculum jumps to its last stage) and
+  `PYTHONUTF8=1` (the warm-start message crashes a cp1252 console), then
+  `--agent.resume True --agent.load-run <run folder> --agent.load-checkpoint model_<N>.pt`.
+- 2048 envs, not the recipe's 4096: 4096 ran out of host memory with other jobs running.
+
+### Open problems and next ideas
+
+1. **Stand quality**: get `check.py` to PASS (head within 0.25 rad) while the headstand holds.
+   If hs5/hs6 stall above it: raise the `head_reward` knob (0.75, up to 2.0), with the user.
+2. **Spin**: judge hs6 for turns and rate on the head. If it will not start, more spawns already
+   spinning, or relax `action_rate_l2` on the neck and legs while the spin flag is up (fast
+   reversals are how the spin is pumped).
+3. **Coming down** from the headstand on command (the flag is latched in training).
+4. **Show**: a timeline, stand → headstand → spin → (down) → bow; sound only with the user.
 
 ## The competition
 
