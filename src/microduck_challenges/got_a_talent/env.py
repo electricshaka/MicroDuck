@@ -528,6 +528,12 @@ def make_env_cfg(
     # WITHOUT blocking a slow big motion, so heavier-than-velocity would also
     # be defensible — start at parity, tighten only if the real robot shakes.
     cfg.rewards["action_rate_l2"] = RewardTermCfg(func=mdp.action_rate_l2, weight=-0.1)
+    # Joint targets past a joint's limits (rewards.action_beyond_limits): hs2/hs3
+    # pinned the neck by commanding it 1-8 rad past its limit, out of reach of
+    # every reward's gradient.
+    cfg.rewards["action_beyond_limits"] = RewardTermCfg(
+        func=headstand.action_beyond_limits, weight=-0.5,
+    )
     cfg.rewards["joint_torque_rate_l2"] = RewardTermCfg(
         func=microduck_mdp.joint_torque_rate_l2, weight=0.0
     )
