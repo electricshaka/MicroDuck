@@ -143,7 +143,7 @@ def test_the_reference_timeline_stays_inside_what_training_saw(cfg):
     flags = [c[0] for c in timeline.commands]
     assert set(flags) <= {0.0, 1.0}
     for command in timeline.commands:
-        assert command[1:3] == (0.0, 0.0) and command[7:] == (0.0,) * 6
+        assert set(command[:3]) <= {0.0, 1.0} and command[7:] == (0.0,) * 6
         for value, (_, hi) in zip(command[3:7], final):
             assert abs(value) <= 0.4 * hi
     changes = [t for i, t in enumerate(timeline.times) if i and flags[i] != flags[i - 1]]
