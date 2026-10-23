@@ -1,0 +1,4 @@
+seed 1: stands before flag yes | onto head after 0.40 s | longest hold 12.62 s | on head 12.62 of 13 s | turns 0.02
+seed 2: stands before flag yes | onto head after 0.40 s | longest hold 12.62 s | on head 12.62 of 13 s | turns 0.06
+seed 3: stands before flag yes | onto head after 0.40 s | longest hold 12.62 s | on head 12.62 of 13 s | turns 0.04
+mean longest hold 12.62 s, mean on head 12.62 s

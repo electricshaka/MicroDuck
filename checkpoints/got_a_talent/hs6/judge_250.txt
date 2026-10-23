@@ -1,0 +1,8 @@
+[mdp] Patches 1-2 active: NaN-safe reward/advantage
+[mdp] Patch 4 active: ONNX export filters passive_* joints
+[mdp] Patch 5 active: MICRODUCK_WARM_START=1 restarts curricula after checkpoint load
+seed 1: stood before the flag yes | onto head after 0.52 s | longest hold 12.50 s | on head 12.50 of 13 s | spin: +0.01 turns (ccw +), mean +0.0 rad/s, best 1 s +0.1 rad/s
+seed 2: stood before the flag yes | onto head after 0.54 s | longest hold 12.48 s | on head 12.48 of 13 s | spin: +0.01 turns (ccw +), mean +0.0 rad/s, best 1 s +0.1 rad/s
+seed 3: stood before the flag yes | onto head after 0.52 s | longest hold 12.50 s | on head 12.50 of 13 s | spin: +0.01 turns (ccw +), mean +0.0 rad/s, best 1 s +0.1 rad/s
+mean longest +12.49, total +12.49, turns +0.01, mean_rate +0.00, best_rate +0.06
+sit/stand check: FAIL: largest head error 0.50 rad

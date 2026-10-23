@@ -1,0 +1,5 @@
+seed 1: stands before flag yes | onto head after 0.54 s | longest hold 12.48 s | on head 12.48 of 13 s | turns 0.05
+seed 2: stands before flag yes | onto head after 0.54 s | longest hold 12.48 s | on head 12.48 of 13 s | turns 0.04
+seed 3: stands before flag yes | onto head after 0.56 s | longest hold 12.46 s | on head 12.46 of 13 s | turns 0.03
+mean longest hold 12.47 s, mean on head 12.47 s
+sit/stand check: FAIL: largest head error 0.57 rad
