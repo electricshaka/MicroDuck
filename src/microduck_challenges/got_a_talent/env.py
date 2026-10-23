@@ -521,11 +521,11 @@ def make_env_cfg(
         func=headstand.headstand_body_contact, weight=-2.0,
         params={"command_name": "twist", "body_sensor": body_ground_cfg.name},
     )
-    # The headspin (twist[2]): new counter-clockwise turn on the head, starts at 6 rad/s (hs8).
+    # The headspin (twist[2]): new counter-clockwise turn on the head, starts at 10 rad/s (hs9).
     cfg.rewards["headspin"] = RewardTermCfg(
-        func=headstand.headspin, weight=6.0, params={"command_name": "twist", "rate_max": 6.0, **sensors},
+        func=headstand.headspin, weight=6.0, params={"command_name": "twist", "rate_max": 10.0, **sensors},
     )
-    # Head stillness during headstand (hs8: b-boy static head pivot, forces legs to drive spin).
+    # Head stillness during headstand (hs8/hs9: b-boy static head pivot, forces legs to drive spin).
     cfg.rewards["head_stillness_on_head"] = RewardTermCfg(
         func=headstand.head_stillness_on_head, weight=3.0, params={"command_name": "twist"},
     )
@@ -924,33 +924,28 @@ def make_env_cfg(
             },
         )
 
-    # action_rate curriculum — velocity's exact ramp (-0.1 → -1.0 by iter 1500).
+    # action_rate curriculum — velocity's exact ramp (-0.2 → -1.0 by iter 1500).
     cfg.curriculum["action_rate_weight"] = CurriculumTermCfg(
         func=microduck_mdp.reward_weight,
         params={
             "reward_name":   "action_rate_l2",
             "weight_stages": [
-                {"step": 0,          "weight": -0.1},
-                {"step": 500 * 24,   "weight": -0.2},
-                {"step": 750 * 24,   "weight": -0.4},
+                {"step": 0,          "weight": -0.2},
+                {"step": 500 * 24,   "weight": -0.4},
                 {"step": 1000 * 24,  "weight": -0.6},
-                {"step": 1250 * 24,  "weight": -0.8},
-                {"step": 1500 * 24,  "weight": -1.0},
+                {"step": 1500 * 24,  "weight": -0.8},
+                {"step": 2000 * 24,  "weight": -1.0},
             ],
         },
     )
 
-    # Descent-speed cap tightening: discover the sit under magnitude 10
-    # (crash-sit already net-negative), then tighten to 20. POSITIVE weights —
-    # the function is self-negating (see the sign-convention warning at the
-    # reward definitions).
+    # Descent-speed cap tightening: tightened to 20 from step 0 in hs9.
     cfg.curriculum["descent_speed_weight"] = CurriculumTermCfg(
         func=microduck_mdp.reward_weight,
         params={
             "reward_name":   "descent_speed",
             "weight_stages": [
-                {"step": 0,          "weight": 10.0},
-                {"step": 500 * 24,   "weight": 20.0},
+                {"step": 0,          "weight": 20.0},
             ],
         },
     )
@@ -990,15 +985,15 @@ def make_env_cfg(
         },
     )
 
-    # Headspin rate_max curriculum (hs8: leg-driven b-boy spin, 6.0 -> 10.0 -> 15.0 rad/s).
+    # Headspin rate_max curriculum (hs9: 8192 envs, 10.0 -> 15.0 -> 20.0 rad/s).
     cfg.curriculum["headspin_rate_max"] = CurriculumTermCfg(
         func=headstand.headspin_rate_max_curriculum,
         params={
             "reward_name": "headspin",
             "stages": [
-                {"step": 0,         "rate_max": 6.0},
-                {"step": 500 * 24,  "rate_max": 10.0},
-                {"step": 1000 * 24, "rate_max": 15.0},
+                {"step": 0,         "rate_max": 10.0},
+                {"step": 500 * 24,  "rate_max": 15.0},
+                {"step": 1000 * 24, "rate_max": 20.0},
             ],
         },
     )
