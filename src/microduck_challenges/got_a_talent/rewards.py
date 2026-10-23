@@ -235,6 +235,23 @@ def action_beyond_limits(env, action_name: str = "joint_pos") -> torch.Tensor:
     return torch.sum(torch.square(excess), dim=1)
 
 
+def headspin_rate_max_curriculum(
+    env,
+    env_ids: torch.Tensor,
+    stages: list[dict],
+    reward_name: str = "headspin",
+) -> torch.Tensor:
+    """Step-staged rate_max curriculum for headspin ('quarter turns first')."""
+    del env_ids
+    term_cfg = env.reward_manager.get_term_cfg(reward_name)
+    rate_max = term_cfg.params.get("rate_max", 3.0)
+    for stage in stages:
+        if env.common_step_counter >= stage["step"]:
+            rate_max = stage["rate_max"]
+    term_cfg.params["rate_max"] = rate_max
+    return torch.tensor([rate_max], device=env.device)
+
+
 # ── Events ─────────────────────────────────────────────────────────────────────
 
 
