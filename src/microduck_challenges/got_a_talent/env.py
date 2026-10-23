@@ -160,8 +160,11 @@ MAX_RISE_SPEED    = 0.08
 
 # Headstand (rewards.py): the probability a resample raises the headstand flag in
 # twist[1] (latched for the rest of the episode), and the share of episodes that
-# start already on the head with the flag up.
-HEADSTAND_PROB       = 0.35
+# start already on the head with the flag up. At 0.35 (hs1, hs2) the latch kept the
+# flag up for most of the training time: hs2 learned the headstand but stood with
+# its neck pinned at its limit, trunk leaning 32°, and never sat (check.py FAIL,
+# head error 1.93 rad, every checkpoint). 0.15 gives sit/stand about half the time.
+HEADSTAND_PROB       = 0.15
 HEADSTAND_SPAWN_PROB = 0.2
 # The sit/stand terms switched off while the headstand flag is up: each says
 # "stay upright" (or "stay still at a height"), the opposite of going over.
