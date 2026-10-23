@@ -99,6 +99,7 @@ well: check it on the stage, and if the user wants it anyway, adjust the test wi
 | `rewards.py` | The headstand and headspin: their command (`HeadstandCommand`), reward terms, the headstand spawn, the joint-limit penalty | Yes |
 | `check.py` | Judges a policy's sit/stand and head moves against a timeline on the Arena's stage | Use it as is |
 | `headspin_check.py` | Judges a policy's headstand and headspin on the Arena's stage, several seeds | Use it as is |
+| `headspin_view.py` | Plays a policy's headstand and headspin live in a MuJoCo viewer window | Use it as is |
 | `tasks.py`, `event`/`task`/`kind` in `challenge.toml` | Registration with mjlab and the Arena | No |
 
 | Knob | Label | Default | Range | Sets in `env.py` |
@@ -299,6 +300,30 @@ fork, never `pollen-robotics`; the workshop's home sets that up).
 The performance being built: the duck stands, goes onto its head on a timeline command, holds a
 headstand, then spins on its head like a b-boy, all on the stage's grippy floor. Any agent can pick
 this up from here: the strategy, every run and its lesson, and the open problems are below.
+
+### Start here (picking this work up)
+
+1. **Get the work**: it lives on the private repo `electricshaka/microduck-private`, branch `main`
+   (a checkout of `pollen-robotics/microduck-challenges` on its own `main` has none of it).
+2. **The trained checkpoints are committed** under `checkpoints/got_a_talent/` (training's `logs/`
+   is git-ignored): `hs6/model_250` is the latest (headstand that holds with the spin flag up; no
+   spin yet), `hs5/model_250` the best stand, `hs2/model_1250` the first solid headstand. Each folder
+   has the `.pt` (to resume training), the exported `.onnx` (to judge, watch or publish), its
+   `judge_<N>.txt` and `provenance.json`.
+3. **Watch it**: `uv run --no-sync --group workshop python -m microduck_challenges.got_a_talent.headspin_view checkpoints/got_a_talent/hs6/model_250.onnx`
+4. **Judge it**: `headspin_check` and `check.py` on the `.onnx` (see Judging below).
+5. **Resume training** (the next step is hs7, see Runs): mjlab resumes from a run folder, so copy
+   the checkpoint into one first:
+
+   ```bash
+   mkdir -p logs/rsl_rl/got_a_talent/hs6_base && cp checkpoints/got_a_talent/hs6/model_250.pt logs/rsl_rl/got_a_talent/hs6_base/
+   PYTHONUTF8=1 MICRODUCK_WARM_START=1 uv run --no-sync train Mjlab-GotATalent-MicroDuck --env.scene.num-envs 4096 \
+       --agent.max-iterations 3000 --agent.seed 1 --agent.logger tensorboard --agent.run-name hs7 \
+       --agent.resume True --agent.load-run hs6_base --agent.load-checkpoint model_250.pt > logs/hs7.log 2>&1 &
+   ```
+
+   Commit the change first (one change per run), and add any checkpoint worth keeping to
+   `checkpoints/got_a_talent/` the same way. Push only to the private repo.
 
 ### Why a headspin
 
