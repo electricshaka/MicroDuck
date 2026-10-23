@@ -1,11 +1,13 @@
 """MicroDuck Got a Talent's headstand: the flag a timeline sends, what training pays for it, and the
 headstand starts that give the balance something to learn from.
 
-The command (twist) is [sit flag, headstand flag, 0]. While the headstand flag is 1 the duck should
-get from wherever it is onto the top of its head and stay there, upside down, with nothing else on
-the floor. Stage 1 of the headspin: the hold. The spin comes later, so nothing here taxes turning
-about the vertical axis (a twisting entry, a b-boy's angled step into the roll, and a spinning
-headstand all score as well as a still one); only tipping (pitch and roll rates) is taxed.
+The command (twist) is [sit flag, headstand flag, spin flag]. While the headstand flag is 1 the duck
+should get from wherever it is onto the top of its head and stay there, upside down, with nothing
+else on the floor (stage 1, the hold). While the spin flag is also 1 it should spin there,
+counter-clockwise seen from above, as fast as it can up to 15 rad/s (stage 2, ``headspin``).
+Nothing taxes turning about the vertical axis (a twisting entry, a b-boy's angled step into the
+roll, and a spinning headstand all hold as well as a still one); only tipping (pitch and roll
+rates) is taxed.
 
 Training latches the flag: once an episode commands a headstand it keeps commanding it until the
 episode ends. Coming back down is a later stage.
@@ -28,6 +30,7 @@ import torch
 from mjlab_microduck.tasks import mdp as microduck_mdp
 
 HEADSTAND = 1  # twist slot of the headstand flag
+SPIN = 2       # twist slot of the spin flag: 1 = spin counter-clockwise (seen from above) on the head
 
 HEADSTAND_Z = 0.15            # trunk height resting on the head (measured, see above)
 HEADSTAND_NECK_PITCH = 0.5    # the measured balance pose, rad from 0 (not from HOME)
@@ -80,7 +83,12 @@ class HeadstandCommand(microduck_mdp.SitStandCommand):
     def __init__(self, cfg, env):
         super().__init__(cfg, env)
         self._headstand_prob = float(getattr(cfg, "headstand_prob", 0.35))
+        self._spin_prob = float(getattr(cfg, "spin_prob", 0.0))
         self.spawned = torch.zeros(self.num_envs, dtype=torch.bool, device=self.device)
+        # headspin's state: the trunk's turn about the vertical axis while spinning on the head
+        # (rad, counter-clockwise positive), and the furthest it has reached.
+        self.turned = torch.zeros(self.num_envs, device=self.device)
+        self.frontier = torch.zeros(self.num_envs, device=self.device)
 
     def reset(self, env_ids):
         self.vel_command_b[env_ids, HEADSTAND] = 0.0
@@ -88,8 +96,18 @@ class HeadstandCommand(microduck_mdp.SitStandCommand):
         mark = self.spawned[env_ids]
         self.vel_command_b[env_ids, HEADSTAND] = torch.where(mark, 1.0, self.vel_command_b[env_ids, HEADSTAND])
         self.vel_command_b[env_ids, 0] = torch.where(mark, 0.0, self.vel_command_b[env_ids, 0])
+        self._draw_spin(env_ids)
         self.spawned[env_ids] = False
+        self.turned[env_ids] = 0.0
+        self.frontier[env_ids] = 0.0
         return extras
+
+    def _draw_spin(self, env_ids: torch.Tensor) -> None:
+        """The spin flag: drawn afresh at every resample while the headstand flag is up, so spins
+        start and stop on the head; always down otherwise."""
+        up = self.vel_command_b[env_ids, HEADSTAND] > 0.5
+        spin = up & (torch.rand(len(env_ids), device=self.device) < self._spin_prob)
+        self.vel_command_b[env_ids, SPIN] = spin.float()
 
     def _resample_command(self, env_ids: torch.Tensor) -> None:
         n = len(env_ids)
@@ -100,6 +118,7 @@ class HeadstandCommand(microduck_mdp.SitStandCommand):
         up = was_up | (torch.rand(n, device=self.device) < self._headstand_prob)
         self.vel_command_b[env_ids, HEADSTAND] = up.float()
         self.vel_command_b[env_ids, 0] = torch.where(up, 0.0, self.vel_command_b[env_ids, 0])
+        self._draw_spin(env_ids)
 
 
 @_dataclass(kw_only=True)
@@ -107,6 +126,8 @@ class HeadstandCommandCfg(microduck_mdp.SitStandCommandCfg):
     class_type: type = HeadstandCommand
     # Probability that a resample raises the headstand flag (it then stays up).
     headstand_prob: float = 0.35
+    # Probability that a resample with the headstand flag up also raises the spin flag.
+    spin_prob: float = 0.0
 
     def build(self, env) -> "HeadstandCommand":
         return HeadstandCommand(self, env)
@@ -153,12 +174,44 @@ def headstand_hold(
     plank earns nothing. Only the horizontal angular rates count as tipping: spinning about the
     vertical axis is free."""
     robot = env.scene["robot"]
-    inverted = torch.clamp((_inverted(env) - 0.85) / 0.1, 0.0, 1.0)  # full past ~25° from vertical
-    height = torch.exp(-torch.square((_trunk_z(env) - z_target) / z_std))
     tilt_rate = torch.sum(torch.square(robot.data.root_link_ang_vel_w[:, :2]), dim=1)
     steady = torch.exp(-tilt_rate / tilt_rate_std ** 2)
+    on_head = _on_head(env, head_sensor, body_sensor, z_target, z_std)
+    return headstand_flag(env, command_name) * on_head * steady
+
+
+def _on_head(env, head_sensor: str, body_sensor: str, z_target: float = HEADSTAND_Z, z_std: float = 0.03) -> torch.Tensor:
+    """0-1: upside down within ~25° (full), only the head on the floor, trunk at headstand height."""
+    inverted = torch.clamp((_inverted(env) - 0.85) / 0.1, 0.0, 1.0)
+    height = torch.exp(-torch.square((_trunk_z(env) - z_target) / z_std))
     support = _found(env, head_sensor) * (1.0 - _found(env, body_sensor))
-    return headstand_flag(env, command_name) * inverted * support * height * steady
+    return inverted * support * height
+
+
+def headspin(
+    env,
+    head_sensor: str,
+    body_sensor: str,
+    command_name: str = "twist",
+    rate_max: float = 15.0,
+) -> torch.Tensor:
+    """The spin, while the headstand and spin flags are both up: the trunk's NEW counter-clockwise
+    turn about the vertical axis per second, past the furthest it has turned so far, capped at
+    ``rate_max`` rad/s and scaled to 0-1. Faster pays more, up to the cap; turning back and
+    forth pays nothing (the way back must be made up before the frontier moves again), and a
+    turn only counts on the head (the hold's own test without its steadiness), so spinning while
+    lying down or tumbling earns nothing. The policy may drive it with any joints: neck whips,
+    leg swings, both."""
+    command = env.command_manager.get_term(command_name)
+    flags = command.command[:, HEADSTAND] * command.command[:, SPIN]
+    on_head = _on_head(env, head_sensor, body_sensor)
+    yaw_rate = env.scene["robot"].data.root_link_ang_vel_w[:, 2]
+    counting = flags * (on_head > 0.5).float()
+    command.turned += yaw_rate * env.step_dt * counting
+    advance = torch.clamp(command.turned - command.frontier, min=0.0)
+    command.frontier = torch.maximum(command.frontier, command.turned)
+    rate = advance / env.step_dt
+    return flags * on_head * torch.clamp(rate, max=rate_max) / rate_max
 
 
 def head_contact_unless_headstand(env, head_sensor: str, command_name: str = "twist") -> torch.Tensor:
