@@ -393,9 +393,16 @@ From [The Conversation](https://theconversation.com/how-do-breakdancers-avoid-br
 | hs9 | 09d00fb | scale to 8192 envs on DGX Spark (GB10), `rate_max` 10 → 20 rad/s | **Checkpoint 750: +20.17 CCW turns @ 12.7 rad/s** (peak 15.7 rad/s), 150° leg windmill drive, head yaw centered within 10° | Massive leg power stroke (150° hip pitch arc); head stillness surged to 0.2225 |
 
 Best checkpoints committed in `checkpoints/got_a_talent/`:
-- **`hs9/model_750`**: **+20.17 CCW turns @ 12.7 rad/s** (peak 15.7 rad/s), 100% continuous hold, 150° leg drive, head centered to 10°.
+- **`hs9/model_750`**: **+20.17 CCW turns @ 12.7 rad/s** (peak 15.7 rad/s on standard test; +37.24 turns on full timeline), 100% continuous hold (18.16 s on Seed 1), 150° leg drive, head centered to 10°.
 - **`hs8/model_500`**: +13.86 CCW turns @ 8.7 rad/s, head roll stabilized.
 - **`hs6/model_250`**: Solid upright headstand hold before spin discovery.
+
+**Choreography & Freeze Finish (`timeline.json`)**:
+- Stand until $t = 1.5\text{ s}$ (`twist: [0, 0, 0]`).
+- Dive to headstand at $t = 1.5\text{ s}$ (`twist: [0, 1, 0]`).
+- Spin kick starts immediately upon floor contact at $t = 2.0\text{ s}$ (`twist: [0, 1, 1]`) through $16.0\text{ s}$.
+- Breakdance headstand freeze holds from $t = 16.0\text{ s}$ to $20.0\text{ s}$ (`twist: [0, 1, 0]`), locking the duck vertically inverted on its head (`upz = -0.99`, $z = 0.145\,\text{m}$, head-only contact) until the buzzer.
+- `check.py` generalizes posture segmenting to support `headstand` (`command[1] >= 0.5`) in addition to `sit` and `stand`.
 
 **Next step (hs10)**: Strict non-saturating quadratic L2 penalty on neck joints `[neck_pitch, head_pitch, head_yaw, head_roll]` measuring deviation from `[0.5, 1.0, 0.0, 0.0]` rad to eliminate the remaining neck yaw whip and lock the head/neck spindle completely, forcing 100% leg-driven b-boy rotation. Resume from `hs9` checkpoint with `MICRODUCK_WARM_START=1` on 8192 envs.
 

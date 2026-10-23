@@ -46,22 +46,38 @@ def _frames(start_s: float, end_s: float) -> slice:
     return slice(round(start_s / CTRL_DT), round(end_s / CTRL_DT))
 
 
-def _flag_segments(timeline: Timeline) -> list[tuple[float, float, bool]]:
-    """(start, end, sit) for each stretch where the sit flag keeps one value."""
-    segments: list[tuple[float, float, bool]] = []
+def _posture_type(command) -> str:
+    if len(command) > 1 and command[1] >= 0.5:
+        return "headstand"
+    if command[0] >= 0.5:
+        return "sit"
+    return "stand"
+
+
+def _flag_segments(timeline: Timeline) -> list[tuple[float, float, str]]:
+    """(start, end, posture) for each stretch where posture keeps one value."""
+    segments: list[tuple[float, float, str]] = []
     for t, command in zip(timeline.times, timeline.commands):
-        sit = command[0] >= 0.5
-        if segments and segments[-1][2] == sit:
+        posture = _posture_type(command)
+        if segments and segments[-1][2] == posture:
             continue
         if segments:
             segments[-1] = (segments[-1][0], t, segments[-1][2])
-        segments.append((t, timeline.duration_s, sit))
+        segments.append((t, timeline.duration_s, posture))
     return segments
 
 
-def _posture(trace, start_s: float, end_s: float, sit: bool) -> tuple[str, bool]:
-    name = "sit" if sit else "stand"
-    window = (stage.seated(trace) if sit else stage.standing(trace))[_frames(start_s, end_s)]
+def _posture(trace, start_s: float, end_s: float, posture: str | bool) -> tuple[str, bool]:
+    if isinstance(posture, bool):
+        posture = "sit" if posture else "stand"
+    name = posture
+    if posture == "sit":
+        mask = stage.seated(trace)
+    elif posture == "headstand":
+        mask = (stage._cos_tilt(trace) < -0.85) & (trace[:, 2] > 0.10)
+    else:
+        mask = stage.standing(trace)
+    window = mask[_frames(start_s, end_s)]
     reach = window[: round(REACH_S / CTRL_DT)]
     if not reach.any():
         return f"{name}: not reached within {REACH_S:g} s", False
