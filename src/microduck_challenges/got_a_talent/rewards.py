@@ -161,6 +161,19 @@ def headstand_hold(
     return headstand_flag(env, command_name) * inverted * support * height * steady
 
 
+def action_beyond_limits(env, action_name: str = "joint_pos") -> torch.Tensor:
+    """Squared distance of each commanded joint target past its joint's limits, summed (use a
+    negative weight). A target past a limit moves nothing: the joint stops at the limit whatever
+    the target, so the rewards give no gradient back from there. hs2 and hs3 held the neck at its
+    -1.57 rad limit by commanding -2.5, then -9.5 rad, with exploration noise of 0.48: the stand
+    and head-tracking rewards could never pull the head back up. This term can."""
+    term = env.action_manager.get_term(action_name)
+    target = term.raw_action * term.scale + term.offset
+    limits = env.scene["robot"].data.soft_joint_pos_limits[:, term.target_ids]
+    excess = (limits[..., 0] - target).clamp(min=0.0) + (target - limits[..., 1]).clamp(min=0.0)
+    return torch.sum(torch.square(excess), dim=1)
+
+
 # ── Events ─────────────────────────────────────────────────────────────────────
 
 
