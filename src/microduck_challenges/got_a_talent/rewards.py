@@ -161,6 +161,14 @@ def headstand_hold(
     return headstand_flag(env, command_name) * inverted * support * height * steady
 
 
+def head_contact_unless_headstand(env, head_sensor: str, command_name: str = "twist") -> torch.Tensor:
+    """1 while the headstand flag is down and the head touches the floor (use a negative weight):
+    the mirror of headstand_body_contact. hs2-hs4 "stood" as a tripod, both feet and the head on the
+    floor, trunk leaning 36° with the neck folded to its limit; stable, and paid nearly all of the
+    stand rewards but the composite, so the head never came up."""
+    return (1.0 - headstand_flag(env, command_name)) * _found(env, head_sensor)
+
+
 def action_beyond_limits(env, action_name: str = "joint_pos") -> torch.Tensor:
     """Squared distance of each commanded joint target past its joint's limits, summed (use a
     negative weight). A target past a limit moves nothing: the joint stops at the limit whatever
