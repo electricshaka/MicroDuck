@@ -582,8 +582,11 @@ def test_the_reference_timeline_plays_on_the_arena():
 def test_the_reference_timeline_stays_inside_what_training_saw(cfg):
     """The Arena guardrail, widened to the breakdance envelope the stage verified.
 
-    Pollen's invariants hold as before: flags are only ever 0 or 1, the body slots
-    stay zero, and each head angle stays inside the widened curriculum's own range.
+    Pollen's invariants hold as before: flags are only ever 0 or 1, slots the policy was
+    never trained on stay zero, and each head angle stays inside the widened curriculum's
+    own range. Since hs12 the sweep flag (body[1]) is a trained command: it may rise in the
+    timeline, only ever to 1 — the knee-drop sweep played 464 deg on the Arena's stage with
+    hs12/model_2250 (full 20.00 s, dive and headstand unchanged, 2026-10-24).
     What the choreography adds — the toprock beat-bop (head targets 0.5–0.7 s apart,
     a 0.7 rad judge glance = 50 % of the ±1.4 rad yaw, a 0.2 rad nod roll = 65 % of
     ±0.31 rad) and the 2 s knee-drop sit — sits outside the *sampling* envelope
@@ -597,7 +600,9 @@ def test_the_reference_timeline_stays_inside_what_training_saw(cfg):
     assert set(flags) <= {0.0, 1.0}
     head_allowance = (0.4, 0.4, 0.55, 0.7)  # of the final curriculum range, per dim
     for command in timeline.commands:
-        assert set(command[:3]) <= {0.0, 1.0} and command[7:] == (0.0,) * 6
+        assert set(command[:3]) <= {0.0, 1.0}
+        assert set(command[8:9]) <= {0.0, 1.0}              # sweep flag: trained by hs12
+        assert command[7:8] + command[9:] == (0.0,) * 5     # every other body slot
         for value, cap, (_, hi) in zip(command[3:7], head_allowance, final):
             assert abs(value) <= cap * hi
     postures = ["headstand" if c[1] >= 0.5 else ("sit" if c[0] else "stand")
