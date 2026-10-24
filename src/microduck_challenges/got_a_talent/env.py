@@ -529,6 +529,14 @@ def make_env_cfg(
     cfg.rewards["head_stillness_on_head"] = RewardTermCfg(
         func=headstand.head_stillness_on_head, weight=3.0, params={"command_name": "twist"},
     )
+    # Spindle lock (hs10): a strict quadratic cost for deviating from the headstand spindle pose
+    # [0.5, 1.0, 0, 0] (neck_pitch, head_pitch, head_yaw, head_roll) while the flag is up. The
+    # stillness reward above is exp: outside ~0.3 rad it grants nothing and costs nothing, and
+    # hs9 still oscillated neck yaw ±31° to pump the spin. A quadratic keeps paying against that,
+    # so rotation must come from the legs and the freeze holds a stacked spindle.
+    cfg.rewards["head_spindle_penalty"] = RewardTermCfg(
+        func=headstand.head_spindle_penalty, weight=-1.0, params={"command_name": "twist"},
+    )
     # hs2-hs4 stood as a tripod on the feet and the head: otherwise the head stays off the floor.
     cfg.rewards["head_contact_unless_headstand"] = RewardTermCfg(
         func=headstand.head_contact_unless_headstand, weight=-2.0,

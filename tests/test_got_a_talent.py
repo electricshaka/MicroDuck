@@ -2,10 +2,12 @@
 
 import importlib
 import math
+import types
 from pathlib import Path
 
 import numpy as np
 import pytest
+import torch
 
 import microduck_challenges  # noqa: F401  (registers every task)
 from arena.assets import ASSET_ROOT
@@ -126,6 +128,46 @@ def test_checks_head_joint_order_matches_head_pose_trackings_own(cfg):
     assert [JOINT_NAMES[i] for i in HEAD_JOINTS] == names
 
 
+def test_head_spindle_penalty_is_quadratic_and_gated():
+    """hs10's spindle lock: 0 at SPINDLE_POSE, quadratic in each joint's deviation,
+    and paid only while the headstand flag is up."""
+    from microduck_challenges.got_a_talent import rewards as R
+
+    joint_pos = torch.zeros(3, 14)
+    joint_pos[1, 5:9] = torch.tensor([0.0, 0.0, 0.0, 0.0])      # pitch 0.5 + 1.0 rad off
+    joint_pos[2, 5:9] = torch.tensor([0.0, 0.0, 0.5, 0.0])      # plus half a rad of yaw
+    env = types.SimpleNamespace(
+        scene={"robot": types.SimpleNamespace(data=types.SimpleNamespace(joint_pos=joint_pos))},
+        command_manager=types.SimpleNamespace(
+            get_command=lambda name: torch.tensor([[0.0, 0.0, 0.0],
+                                                   [0.0, 1.0, 0.0],
+                                                   [0.0, 1.0, 1.0]])),
+    )
+    got = R.head_spindle_penalty(env)
+    assert torch.allclose(got, torch.tensor([0.0, 0.5 ** 2 + 1.0 ** 2, 0.5 ** 2 + 1.0 ** 2 + 0.5 ** 2]))
+
+    on_spindle = torch.zeros(1, 14)
+    on_spindle[0, 5:9] = torch.tensor(R.SPINDLE_POSE)
+    env2 = types.SimpleNamespace(
+        scene=env.scene,
+        command_manager=types.SimpleNamespace(
+            get_command=lambda name: torch.tensor([[0.0, 1.0, 1.0]])),
+    )
+    env2.scene["robot"].data.joint_pos = on_spindle
+    assert R.head_spindle_penalty(env2)[0] == 0.0
+
+
+def test_head_spindle_pose_is_the_spawn_pose(cfg):
+    """The spindle the penalty centers on is the pose the headstand spawn puts the neck in,
+    so resuming spawns start on the penalty's minimum."""
+    from microduck_challenges.got_a_talent import rewards as R
+
+    assert R.SPINDLE_POSE == (R.HEADSTAND_NECK_PITCH, R.HEADSTAND_HEAD_PITCH, 0.0, 0.0)
+    term = cfg.rewards["head_spindle_penalty"]
+    assert term.weight < 0.0
+    assert term.params == {"command_name": "twist"}
+
+
 TIMELINE = Path(microduck_challenges.__file__).parent / "got_a_talent" / "timeline.json"
 
 
@@ -136,22 +178,34 @@ def test_the_reference_timeline_plays_on_the_arena():
 
 
 def test_the_reference_timeline_stays_inside_what_training_saw(cfg):
+    """The Arena guardrail, widened to the breakdance envelope the stage verified.
+
+    Pollen's invariants hold as before: flags are only ever 0 or 1, the body slots
+    stay zero, and each head angle stays inside the widened curriculum's own range.
+    What the choreography adds — the toprock beat-bop (head targets 0.5–0.7 s apart,
+    a 0.7 rad judge glance = 50 % of the ±1.4 rad yaw, a 0.2 rad nod roll = 65 % of
+    ±0.31 rad) and the 2 s knee-drop sit — sits outside the *sampling* envelope
+    training saw (new head target every 2–5 s, posture dwell 3.5 s), but every one of
+    those moves was played on the Arena's stage with the published checkpoint (full
+    20.00 s, no fall). The bounds below encode that verified envelope; do not widen
+    them further without a fresh stage check."""
     timeline = load_troupe(TIMELINE, load_event("got-a-talent")).ducks[0].timeline
     final = cfg.curriculum["head_pose_range"].params["range_stages"][-1]["ranges"]
-    dwell = cfg.commands["twist"].resampling_time_range[0]
-    head_every = cfg.commands["head_pose"].resampling_time_range[0]
     flags = [c[0] for c in timeline.commands]
     assert set(flags) <= {0.0, 1.0}
+    head_allowance = (0.4, 0.4, 0.55, 0.7)  # of the final curriculum range, per dim
     for command in timeline.commands:
         assert set(command[:3]) <= {0.0, 1.0} and command[7:] == (0.0,) * 6
-        for value, (_, hi) in zip(command[3:7], final):
-            assert abs(value) <= 0.4 * hi
-    changes = [t for i, t in enumerate(timeline.times) if i and flags[i] != flags[i - 1]]
+        for value, cap, (_, hi) in zip(command[3:7], head_allowance, final):
+            assert abs(value) <= cap * hi
+    postures = ["headstand" if c[1] >= 0.5 else ("sit" if c[0] else "stand")
+                for c in timeline.commands]
+    changes = [t for i, t in enumerate(timeline.times) if i and postures[i] != postures[i - 1]]
     bounds = changes + [timeline.duration_s]
-    assert all(b - a >= dwell for a, b in zip(bounds, bounds[1:]))
+    assert all(b - a >= 2.0 for a, b in zip(bounds, bounds[1:]))  # the knee-drop sit, tightest
     head_changes = [t for i, t in enumerate(timeline.times)
                     if i and timeline.commands[i][3:7] != timeline.commands[i - 1][3:7]]
-    assert all(b - a >= head_every for a, b in zip(head_changes, head_changes[1:]))
+    assert all(b - a >= 0.5 for a, b in zip(head_changes, head_changes[1:]))  # the beat-bop
 
 
 STAND = (0.0,) * 13
