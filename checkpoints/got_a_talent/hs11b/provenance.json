@@ -26,5 +26,7 @@
   "dirty": true,
   "repo": "https://github.com/electricshaka/microduck-private.git",
   "base": "mjlab-microduck 0.1.0 @ 8d0dbc94c",
-  "started": "2026-10-24T11:55:10Z"
+  "started": "2026-10-24T11:55:10Z",
+  "artifact": "checkpoint 1250 chosen: +24.24 CCW turns @ 15.24 rad/s, hold 12.68 s, sit reached 0.46 s (fastest of any checkpoint so far); neighbours 1500 (+23.98, sit 0.70 s) and 1000 (+23.42, sit 0.92 s) pass too; 2500/2750 sat late (1.4 s) as the 2500-stage pushes landed. Footwork itself FAILED again: the toprock probe reads 1 touchdown at every checkpoint, flag up or down (the dense window only harvested the seeded landing, curve flat ~0.2) - body[0] footwork is parked. This checkpoint is also the resume base for hs12 (its body[1] dims are dead: scratch/prewarm_hs12.py wakes them).",
+  "dirty_note": "untracked scratch/ scripts only; src and tests clean at 985dfd2a9"
 }

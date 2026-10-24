@@ -44,7 +44,10 @@ policy reads:
 - `twist[2]`, the **spin flag**: with the headstand flag, 1 spins counter-clockwise (seen from above)
   on the head;
 - `head`, **4 angles in radians from the default pose**: neck_pitch, head_pitch, head_yaw, head_roll;
-- `body`: unused (zeros).
+- `body[0]`, the **toprock flag** (hs11): standing footwork — trained twice, never emerged, now
+  **parked**: the show keeps it at 0 and the feet stay static;
+- `body[1]`, the **downrock sweep flag** (hs12): 1 sweeps a leg around while the sit crouch holds;
+- `body[2..5]`, unused (zeros).
 
 A short `timeline.json` (Pollen's, 9 keyframes over 20 s, is in this folder):
 
@@ -317,17 +320,18 @@ this up from here: the strategy, every run and its lesson, and the open problems
    (to judge, watch or publish), its `judge_<N>.txt` and `provenance.json`.
 3. **Watch it**: `uv run --no-sync --group workshop python -m microduck_challenges.got_a_talent.headspin_view checkpoints/got_a_talent/hs11/model_1250.onnx --timeline src/microduck_challenges/got_a_talent/timeline.json`
 4. **Judge it**: `headspin_check` and `check.py` on the `.onnx` (see Judging below).
-5. **Resume training** (hs11 is done — the next step is **hs11b**, dense footwork + mid-step spawn,
-   the backlog entry below). Both hs11 and hs11b resume from the **prewarmed** hs10 checkpoint —
-   body[0] was dead in every hs10-era checkpoint (normalizer std 0, first-layer weights random),
-   so rebuild that base once before resuming (`scratch/prewarm_hs11.py` patches a copy of
-   `hs10/model_1750.pt` into `logs/rsl_rl/got_a_talent/hs10_base/model_1750.pt`):
+5. **Resume training** (hs11b is done, footwork parked — **hs12, the downrock sweep, is running**;
+   the backlog entry below says what it changes). hs12 resumes from the **prewarmed** hs11b winner:
+   body[1..5] are dead in every hs11b-era checkpoint (body[0] was woken in hs11, the rest never), so
+   rebuild that base first (`scratch/prewarm_hs12.py` patches a copy of
+   `checkpoints/got_a_talent/hs11b/model_1250.pt` into
+   `logs/rsl_rl/got_a_talent/hs11b_base/model_1250.pt`):
 
    ```bash
-   uv run --no-sync python scratch/prewarm_hs11.py
+   uv run --no-sync python scratch/prewarm_hs12.py
    PYTHONUTF8=1 MICRODUCK_WARM_START=1 uv run --no-sync train Mjlab-GotATalent-MicroDuck --env.scene.num-envs 4096 \
-       --agent.max-iterations 3000 --agent.seed 1 --agent.logger tensorboard --agent.run-name hs11b \
-       --agent.resume True --agent.load-run hs10_base --agent.load-checkpoint model_1750.pt > logs/hs11b.log 2>&1 &
+       --agent.max-iterations 3000 --agent.seed 1 --agent.logger tensorboard --agent.run-name hs12 \
+       --agent.resume True --agent.load-run hs11b_base --agent.load-checkpoint model_1250.pt > logs/hs12.log 2>&1 &
    ```
 
    Commit the change first (one change per run), and add any checkpoint worth keeping to
@@ -404,10 +408,13 @@ From [The Conversation](https://theconversation.com/how-do-breakdancers-avoid-br
 | hs9 | 09d00fb | scale to 8192 envs on DGX Spark (GB10), `rate_max` 10 → 20 rad/s | **Checkpoint 1000: +23.52 CCW turns @ 14.8 rad/s** (peak 18.0 rad/s), +24.59 turns on full timeline, 18.16 s continuous hold | Unlocked Stage 3 (20 rad/s). Massive power stroke, unbroken hold across seeds |
 | hs10 | 7d12e27 | `head_spindle_penalty`: −1.0 quadratic on joints 5-8 off [0.5, 1.0, 0, 0] rad while the flag is up, to kill the ±31° neck-yaw whip and force leg-driven spin | **Checkpoint 1750: +23.95 CCW turns @ mean 15.1 rad/s, 3/3 seeds, hold 12.68 s, sit 0.64 s** — spindle penalty −0.07 at its floor: the neck is quiet and the legs carry the spin | Spindle lock holds turns AND kills the whip (penalty ~0 vs hs9's ±31° oscillation); but the deterministic-stage **sit flickers checkpoint to checkpoint** (250, 500, 1000, 2000, 2500, 2750, 2999 sat late/never; 750, 1250, 1500, 1750, 2250 sat in 0.6–1.2 s): judge the sit line per checkpoint, and pick one whose neighbours pass too |
 | hs11 | bceeeb1 | toprock on `body[0]`: standing-only 0/1 flag, `toprock_step` paying each alternating landing (2 Hz cap), hip_roll sway, stillness paused under the flag; dead body dims prewarmed in the normalizer (mean 0.25 / var 0.1875, first-layer cols zeroed — `scratch/prewarm_hs11.py`) | **Footwork never discovered: 0 of 12 checkpoints ever stepped** on stage (probe: 1 touchdown, hip_roll ≤ 0.02 rad, flag up or down; `toprock_step` flat 0.004–0.008 for 3000 iters). Spin meanwhile hit record: **1750 +25.88 @ 16.26** (never sat), and **2999 collapsed (+0.01 turns)** | A reward that pays ONE frame per landing amortizes a full step to ~0.004/step — under the posture cost of lifting a foot, so no gradient; the same trap hs6's spin had, which only a DENSE pay fixed. And the final checkpoint of a run can collapse: never archive the last one without judging it |
-| hs11b | 985dfd2 | dense rhythm window (0.75 s) + mid-step spawn (prob 0.25) to unlock toprock footwork | **Checkpoint 1250: +24.25 CCW turns @ 15.24 rad/s (170 RPM)**, 100% continuous hold 12.68 s, record knee drop sit in **0.46 s** (fastest ever). Checkpoint 1500 hit **18.17 rad/s (173.5 RPM)** peak. Step reward grew 40x to 0.162. | Dense window boosted step learning gradient 40x (0.004 → 0.162). Model 1250 is the fastest sit transition on record (0.46 s) while holding +24.25 turns. |
+| hs11b | 985dfd2 | dense rhythm window (0.75 s) + mid-step spawn (prob 0.25) to unlock toprock footwork | **Footwork failed again: the probe reads 1 touchdown at all 12 checkpoints, flag up or down** — the step curve grew 40× (0.004 → flat ~0.16 from iter ~50 on) but that is the *spawned* landing harvesting the window, not learned steps. The run's other lines improved: **1250 +24.25 turns @ 15.24 rad/s, hold 12.68 s, sit 0.46 s (fastest on record), dive 0.28 s**; 1500 peaked 18.17 rad/s; no collapse anywhere | Dense pay amplifies whatever the state already contains — a seeded landing included; harvesting the seed is free, so producing a step was never needed. Two mechanisms, two runs, one verdict: footwork on this robot is not reward-shapeable — `body[0]` parked. Sit and spin improved on the way |
 
 Best checkpoints committed in `checkpoints/got_a_talent/`:
-- **`hs11b/model_1250`**: **+24.25 CCW turns @ mean 15.24 rad/s** (best 1 s 17.75 rad/s / 170 RPM), 3/3 seeds, continuous hold 12.68 s, knee-drop sit reached in **0.46 s** (fastest sit transition on project record), headstand dive in 0.28 s.
+- **`hs11b/model_1250`**: **+24.25 CCW turns @ mean 15.24 rad/s** (best 1 s 17.75 rad/s), 3/3 seeds,
+  continuous hold 12.68 s, knee-drop sit reached in **0.46 s** (fastest on record), dive onto the head
+  in 0.28 s. Spins marginally less than hs11/1250, so the live show stays hs11; **this is the resume
+  base for hs12** (wake its dead body[1..5] dims first, `scratch/prewarm_hs12.py`).
 - **`hs11/model_1250`** (live): **+25.22 CCW turns @ mean 15.9 rad/s** (best 1 s 18.4 rad/s), 3/3 seeds,
   hold 12.68 s, knee-drop sit reached in **0.52 s** (fastest sit yet) — beats hs10/model_1750 on every
   line. Same run's 1750 spins more (+25.88 @ 16.26, longest 12.37 s) but **never sits** — a spin
@@ -423,9 +430,11 @@ Best checkpoints committed in `checkpoints/got_a_talent/`:
 
 **The live choreography (`timeline.json`, verified 20.00 s on the Arena's stage, hs9/model_1000)**:
 - 0.0–2.0 s Toprock opening: upright stance, beat-bop head nods (±0.35 rad pitch) and sharp
-  judge call-out glances (±0.7 rad head_yaw, 0.2 rad roll). Feet static — footwork is hs11b.
+  judge call-out glances (±0.7 rad head_yaw, 0.2 rad roll). Feet static — standing footwork failed
+  twice (hs11, hs11b) and is parked; the body stays at zeros here.
 - 2.0–4.0 s B-Boy Knee Drop: sit flag up, snaps from z 0.115 m to a low seated crouch z 0.060 m,
-  holds (downrock footwork inside it is hs12).
+  holds (the leg sweep inside it is hs12 — `body[1]`, in training; the timeline raises it only after
+  a checkpoint shows the sweep on the sweep probe).
 - 4.0–4.5 s Inversion Dive: headstand flag up, pops hips and lands on the crown in ~0.3 s.
 - 4.5–11.5 s Power Headspin: spin flag up, +21 to +24.6 CCW turns @ mean 14.8 rad/s (peak
   18.0 rad/s ≈ 172 RPM).
@@ -491,32 +500,32 @@ stage probe `scratch/toprock_probe.py` (2.5 s stand, flag 0 then 1, seeds 1-3, c
 `toprock_step`'s own rules) says is the acceptance gate for ANY footwork attempt: today it must
 read **≥ 2 alternating steps with body[0]=1** where hs11 read 1 touchdown.
 
-**hs11b — Dense footwork + mid-step spawn** (in progress). *Hypothesis*: hs11 died of the hs6
-disease twice over — a landing pays ONE frame (a whole step amortized to ~0.004/step, under the
-posture it costs to lift a foot), and the alternating state is never visited from a planted stand.
-So, deliberately two changes at one root cause: (1) `toprock_step` pays **DENSE**: every valid
-alternating step (new contact by the foot not last down, ≥ `period_s` apart, and not made after
-being airborne ≥ 3 frames — hops are not steps) opens a `hold_s` = 0.75 s window paid on EVERY
-step (weight 2.0); only keeping the rhythm keeps it alive, the `headstand_hold` shape. (2)
-`spawn_toprock` (events, after `spawn_headstand`, prob 0.25, skips head-down spawns) starts
-standing episodes already **MID-STEP**: one foot raised by the measured lift pose (`TOPROCK_LIFT_*`,
-signs probed on the model: left leg positive, right mirrored), +0.015 m, 0.05 rad lean, still;
-it marks `ToprockCommand.spawned` and `reset` raises the flag from the mark (the `spawn_headstand`
-pattern). Verified on a live CPU env: the seeded landing pays within 4 steps of the first reset
-(`scratch/spawn_env_test.py`). Resume from the same prewarmed `hs10_base` (see Start here).
-*Success bar*: some checkpoint reads ≥ 2 steps / ≥ 45 s upright on the probe, and `toprock_step`
-grows past ~0.1 in training. *If dense + spawn still never steps*: footwork on this robot is not
-reward-shapeable — park `body[0]` (leave the timeline foot-static, the guard test stays), no more
-footwork runs until a new mechanism idea.
+**hs11b — Dense footwork + mid-step spawn** — **DONE, footwork FAILED again → parked.** The dense
+window + mid-step spawn (see the Runs table) grew the curve 40× but the stage probe still read
+1 touchdown at all 12 checkpoints: the payout harvested the seeded landing, so producing a step
+was never needed. Per the written fallback: `body[0]` stays untrained-used (flag exists, show keeps
+it 0, timeline foot-static, guard test unchanged), **no more footwork runs until a new mechanism
+idea**. The `toprock_probe` gate (≥ 2 alternating steps) still stands for any future attempt.
 
-**hs12 — Downrock floorwork** (`body[1]` = sweep flag, coffee-grinder / scissor sweep). Problem:
-the knee-drop crouch (2–4 s) sits static before the dive. Implementation: a second `body` slot,
-sampled 1 only with the sit flag; in the seated crouch reward one leg sweeping forward
-(hip_pitch ≈ −1.2 rad, knee ≈ 0) and arcing across the floor — frontier progress on the swept
-foot's yaw angle about the trunk (again: back-and-forth pays nothing), gated on staying seated
-(no head contact, crouch height), ending in the dive tuck. Hip yaw range is limited (±22° side,
-±90° front/back): expect a scissor sweep, not a full grinder. Judge on stage: visible leg arc
-during the sit, sit hold and dive timing unchanged.
+**hs12 — Downrock floorwork** (`body[1]` = sweep flag, scissor sweep) — **RUNNING (commit 435fbe8,
+run `hs12`, resumed from prewarmed `hs11b_base/model_1250`)**. *Hypothesis*: the knee-drop crouch
+(2–4 s) sits static before the dive; a crouched turn is a state the robot visits and can hold (unlike
+the standing step), so paying the headspin's frontier shape — new counter-clockwise TRUNK yaw per
+second, dense every step, capped, back-and-forth nothing — with a seeded mid-sweep start will make
+the crouch grind. Implementation: `rewards.downrock_sweep` (6.0, gated on the crouch band
+z 0.045–0.095, flag up, head off the floor) + `downrock_leg` (2.0, one hip 1.15 rad forward, knee
+near straight, either side — the sweep's visible shape as seasoning, hip yaw's ±22° limit means
+expect a scissor sweep, not a full grinder); `spawn_seated_sweep` seeds 35% of resets mid-sweep
+(SIT keyframe, one leg out, trunk already turning 1.5–3 rad/s CCW; marks both commands so the flags
+match the posture — verified paying from step 0 on a live CPU env, `scratch/sweep_env_test.py`);
+stillness now pauses under the sweep flag too; curriculum `sweep_rate_max` 2.0 → 3.5 → 5.0 rad/s
+(quarter-turns-first at seated scale). *Follow it*: `Episode_Reward/downrock_sweep` must grow while
+`headspin`, `posture_composite` and the sit line hold hs11b levels. *Judge*: the trio + the sweep
+probe `scratch/sweep_probe.py` (2.5 s stand → 2.5 s quiet crouch → 3 s sweep called, seeds 1-3,
+counts frontier degrees during the sweep phase; the quiet crouch must barely turn). *Success bar*:
+some checkpoint's probe MEAN **≥ 30° swept** with the crouch held ≥ 2 s and sit/dive unchanged —
+then raise `body[1]=1` at t=2.0 s on stage; if the probe still reads single-digit degrees at 3000,
+downrock is parked the way footwork was.
 
 **hs12b — Inverted "L-Kick" Freeze** (`body[4]` = L-kick flag). B-boy freeze variation held during
 the headstand. Implementation: one leg vertical (needle), the other extended horizontally forward
@@ -557,7 +566,8 @@ the 2.6 m × 3.8 m stage:
 - Never edit Pollen's upstream files (`README.md`, `CLAUDE.md`, `tests/test_challenges.py`,
   `pyproject.toml`, `uv.lock`, other challenges' folders); challenge logic lives in this folder
   plus `tests/test_got_a_talent.py`.
-- `uv run --no-sync --group workshop pytest` before every launch: **76 green at this writing**.
+- `uv run --no-sync --group workshop pytest` before every launch: **81 green at this writing**
+  (76 through hs11b; the hs12 sweep tests added 5).
 - Never publish, enter the Arena, or launch HF jobs without the user's explicit yes. Pushing
   `main` to the user's two repos is part of the agreed workflow:
   `git push private main && git push origin main` (`private` = `electricshaka/microduck-private`,
@@ -569,7 +579,9 @@ the 2.6 m × 3.8 m stage:
    more episodes already spinning (they seed leg-driven states).
 2. **Coming down** from the headstand on command — now scheduled as hs13 (the flag is latched
    in training).
-3. **Show**: toprock footwork (hs11b), downrock (hs12), exit + bow (hs13), sound (hs14, user's yes).
+3. **Show**: footwork parked after two failed runs (hs11, hs11b — do not retry without a new
+   mechanism); downrock sweep in training (hs12); L-kick freeze (hs12b); exit + bow (hs13);
+   sound + cypher troupe (hs14, user's yes given for staging, not publishing).
 
 ### Judging
 
