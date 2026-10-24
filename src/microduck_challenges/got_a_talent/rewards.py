@@ -313,12 +313,21 @@ class ToprockCommand(CommandTerm):
         self._flag_prob = float(getattr(cfg, "toprock_prob", 0.5))
         self._flag = torch.zeros(self.num_envs, device=self.device)
         self._command = torch.zeros(self.num_envs, 6, device=self.device)
+        # spawn_toprock marks the episodes it starts mid-step; its reset raises the flag from the
+        # mark (the HeadstandCommand.spawned pattern: mjlab applies reset events before commands).
+        self.spawned = torch.zeros(self.num_envs, dtype=torch.bool, device=self.device)
         # Footwork state for rewards.toprock_step (the frontier trick, as with the headspin's
         # turned/frontier): which foot landed last (-1 = neither yet), each foot's contact on the
-        # previous step, and seconds since a step was last paid (the ~2 Hz cap).
+        # previous step, seconds since a step counted (the ~2 Hz cap and the dense hold window),
+        # and the airborne streak that tells a hop from a step.
         self.last_foot = -torch.ones(self.num_envs, dtype=torch.long, device=self.device)
         self.prev_down = torch.zeros(self.num_envs, 2, dtype=torch.bool, device=self.device)
         self.since_paid = torch.full((self.num_envs,), 10.0, device=self.device)
+        # seconds since the last VALID alternating step — toprock_step pays while this is < hold_s
+        self.since_valid = torch.full((self.num_envs,), 10.0, device=self.device)
+        # consecutive control steps with BOTH feet off the floor; a few of them says the duck is
+        # airborne (hopping), and an airborne landing is not a step.
+        self.airborne_run = torch.zeros(self.num_envs, dtype=torch.long, device=self.device)
 
     @property
     def command(self) -> torch.Tensor:
@@ -326,16 +335,24 @@ class ToprockCommand(CommandTerm):
 
     def reset(self, env_ids):
         extras = super().reset(env_ids)
+        # A spawn_toprock episode starts with the flag up (mjlab applies reset events first, so
+        # the spawn has marked these env_ids); every other episode starts flag-down and waits for
+        # its first draw, like the headstand does.
+        self._flag[env_ids] = self.spawned[env_ids].float()
         self.last_foot[env_ids] = -1
         self.prev_down[env_ids] = False
         self.since_paid[env_ids] = 10.0
+        self.since_valid[env_ids] = 10.0
+        self.airborne_run[env_ids] = 0
+        self.spawned[env_ids] = False
         return extras
 
     def _resample_command(self, env_ids: torch.Tensor) -> None:
         self._flag[env_ids] = (
             torch.rand(len(env_ids), device=self.device) < self._flag_prob
         ).float()
-        self.since_paid[env_ids] = 10.0  # a new segment may pay its first step at once
+        self.since_paid[env_ids] = 10.0  # a new segment may count its first step at once
+        self.since_valid[env_ids] = 10.0  # and never inherits the previous segment's hold window
 
     def _update_command(self) -> None:
         twist = self._env.command_manager.get_command("twist")
@@ -393,24 +410,35 @@ def toprock_step(
     command_name: str = "body_pose",
     feet_sensor: str = "feet_ground_contact",
     period_s: float = 0.5,
+    hold_s: float = 0.75,
 ) -> torch.Tensor:
-    """The footwork itself, while the toprock flag is up and the duck stands: 1.0 for a NEW contact
-    made by the foot that was NOT the last one down — an alternating step, the same frontier trick
-    as the headspin: hopping twice on the same foot pays nothing, only real steps advance it. And no
-    more than one step is paid per ``period_s`` (at 0.5 s, 2 steps per second: a beat, not a
-    hyper-quake). The command carries no clock, so this cap is what puts the move on tempo."""
+    """The footwork itself, DENSE, the way the headstand pays. The flag is up and the duck stands;
+    a valid step is a NEW contact by the foot that was NOT last down, no sooner than ``period_s``
+    after the last valid one (the ~2 Hz beat), and made WITHOUT having been airborne — one foot
+    always on the floor is what separates a step from a hop. Every valid step refreshes a window
+    of ``hold_s``; the duck is paid on EVERY step it spends inside that window. A rhythm that
+    lapses stops paying ``hold_s`` later, so the only way to keep collecting is to keep stepping —
+    same self-sustaining shape as headstand_hold, which is why the headstand was learnable and
+    hs11's per-landing-pay was not: one frame per landing amortized a full step to ~0.004, under
+    the noise floor of the posture it costs to lift a foot. Same frontier rules as before:
+    same-foot taps and two-footed hops never refresh the window."""
     cmd = env.command_manager.get_term(command_name)
     gate = _toprock_gate(env, command_name)
     found = env.scene.sensors[feet_sensor].data.found > 0  # (N, 2): left and right foot on the floor
     landed = found & ~cmd.prev_down
     fresh = (landed[:, 0] & (cmd.last_foot != 0)) | (landed[:, 1] & (cmd.last_foot != 1))
+    flying = cmd.airborne_run >= 3       # ~60 ms with nothing underfoot: airborne, so not stepping
     cmd.since_paid += env.step_dt
-    pay = fresh & (cmd.since_paid >= period_s)
-    cmd.since_paid = torch.where(pay, torch.zeros_like(cmd.since_paid), cmd.since_paid)
+    valid = fresh & ~flying & (cmd.since_paid >= period_s)
+    cmd.since_paid = torch.where(valid, torch.zeros_like(cmd.since_paid), cmd.since_paid)
+    cmd.since_valid += env.step_dt
+    cmd.since_valid = torch.where(valid, torch.zeros_like(cmd.since_valid), cmd.since_valid)
+    cmd.airborne_run = torch.where(
+        found.any(dim=1), torch.zeros_like(cmd.airborne_run), cmd.airborne_run + 1)
     cmd.last_foot = torch.where(landed[:, 0], torch.zeros_like(cmd.last_foot), cmd.last_foot)
     cmd.last_foot = torch.where(landed[:, 1], torch.ones_like(cmd.last_foot), cmd.last_foot)
     cmd.prev_down = found
-    return gate * pay.float()
+    return gate * (cmd.since_valid < hold_s).float()
 
 
 def toprock_sway(
@@ -421,8 +449,8 @@ def toprock_sway(
 ) -> torch.Tensor:
     """Light seasoning on the step: hip_roll held about ``target`` rad off HOME (both legs, the
     lateral weight shift of rocking side to side). Small next to toprock_step — it gives the steps
-    their shape, it must not become the move (a held lean pays this and no steps: at weight 0.5 it
-    cannot out-earn 2.0 per step at 2 Hz)."""
+    their shape, it must not become the move: a held lean pays this and no steps, and at weight 0.5
+    it cannot out-earn the 2.0 every-step rhythm window that only real stepping keeps alive."""
     robot = env.scene["robot"]
     home = robot.data.default_joint_pos
     dev = (
@@ -470,5 +498,68 @@ def spawn_headstand(
     pose[:, 6] = HEADSTAND_HEAD_PITCH
     pose += torch.randn_like(pose) * joint_noise_std
     env.sim.data.qpos[ids.unsqueeze(1).long(), cols.unsqueeze(0)] = pose
+
+    env.command_manager.get_term(command_name).spawned[ids] = True
+
+
+# The raised foot's three joints, in the 14-servo order, per side — signs measured on the
+# training model (scratch/probe_joint_signs.py): left hip_roll/hip_pitch/knee POSITIVE lift the
+# left foot (its geom z 0.015 → ~0.055 m at these values); the right leg's joints are mounted
+# mirrored, so its signs are negative. Together: thigh forward, knee bent, leg opened out.
+TOPROCK_LIFT_JOINTS = {"left": (1, 2, 3), "right": (10, 11, 12)}
+TOPROCK_LIFT_POSE = (0.15, 0.50, 0.30)   # hip_roll, hip_pitch, knee offsets (rad)
+
+
+def spawn_toprock(
+    env,
+    env_ids: torch.Tensor,
+    prob: float = 0.25,
+    tilt: float = 0.05,
+    z_lift: float = 0.015,
+    joint_noise_std: float = 0.04,
+    command_name: str = "body_pose",
+):
+    """Start a share of toprock episodes already MID-STEP: standing, one foot raised off the
+    floor, weight leaning the other way, the toprock flag up (ToprockCommand.reset reads the mark).
+
+    Why this exists: hs11 showed the alternation is never discovered from a planted stand —
+    1750 iterations, 4096 envs, and the stage probe still counted one foot down. A clean step
+    needs one-foot support the STAND policy never visits, so PPO's noise pays it almost never and
+    the gradient never compounds — the same discovery wall the headless headstand hit, which
+    spawn_headstand broke by seeding the state. Here the seed is half a step: the first thing that
+    can happen is the raised foot LANDING, and a landing by a foot that was not last down pays at
+    once. Runs after set_ground_state (standing) and after spawn_headstand: an episode already put
+    on its head by that spawn is left alone — a headstand does not toprock."""
+    head_down = env.command_manager.get_term("twist").spawned
+    chosen = (torch.rand(len(env_ids), device=env.device) < prob) & ~head_down[env_ids]
+    ids = env_ids[chosen]
+    n = len(ids)
+    if n == 0:
+        return
+    asset = env.scene["robot"]
+    servo_ids = microduck_mdp._servo_joint_ids(env, asset)
+
+    # Which foot goes up, per env: +1 left, -1 right (the mirrored-leg sign).
+    side = torch.randint(0, 2, (n,), device=env.device) * 2 - 1
+    cols = torch.tensor([7 + j for j in servo_ids], device=env.device, dtype=torch.long)
+    pose = asset.data.default_joint_pos[ids][:, servo_ids].clone()
+    for foot, sign in (("left", 1), ("right", -1)):
+        j = torch.tensor(TOPROCK_LIFT_JOINTS[foot], device=env.device, dtype=torch.long)
+        off = torch.tensor(TOPROCK_LIFT_POSE, device=env.device) * sign
+        lift = (side == sign).nonzero().flatten()
+        pose[lift.unsqueeze(1), j.unsqueeze(0)] += off
+
+    pose += torch.randn_like(pose) * joint_noise_std
+    env.sim.data.qpos[ids.unsqueeze(1).long(), cols.unsqueeze(0)] = pose
+
+    # A touch higher, so the raised foot clears the floor; lean over the planted foot; still.
+    env.sim.data.qpos[ids, 2] = env.sim.data.qpos[ids, 2] + z_lift
+    q = env.sim.data.qpos[ids, 3:7].clone()          # free quaternion, w x y z
+    roll = -side.float() * tilt                       # away from the lifted foot
+    cw, sx = torch.cos(roll / 2), torch.sin(roll / 2)
+    w, x, y, z = q[:, 0], q[:, 1], q[:, 2], q[:, 3]
+    env.sim.data.qpos[ids, 3:7] = torch.stack(
+        [cw * w - sx * x, cw * x + sx * w, cw * y + sx * z, cw * z - sx * y], dim=1)
+    env.sim.data.qvel[ids] = 0.0
 
     env.command_manager.get_term(command_name).spawned[ids] = True

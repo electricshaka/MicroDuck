@@ -178,6 +178,8 @@ def _toprock_cmd(n: int = 1):
         last_foot=-torch.ones(n, dtype=torch.long),
         prev_down=torch.zeros(n, 2, dtype=torch.bool),
         since_paid=torch.full((n,), 10.0),
+        since_valid=torch.full((n,), 10.0),
+        airborne_run=torch.zeros(n, dtype=torch.long),
     )
 
 
@@ -223,9 +225,12 @@ def test_toprock_flag_only_rides_a_standing_posture():
     assert cmd._command[:, 1:].abs().max() == 0.0
 
 
-def test_toprock_step_pays_alternations_only_and_at_the_cap():
-    """hs11's frontier trick: a new contact by the foot that was NOT last down pays; the same
-    foot landing twice pays nothing; and no payment is closer than the 0.5 s tempo cap."""
+def test_toprock_step_pays_dense_while_the_rhythm_holds():
+    """hs11b's dense footwork: a valid alternating step (new contact by the foot NOT last down,
+    on a frame with only that foot on the floor, in tempo) opens a hold_s window paid on EVERY
+    step — the headstand's shape, which is why it is learnable. Keeping the reward means keeping
+    the rhythm: the same foot twice and two-footed hops never reopen the window, a step counts
+    only in tempo, and standing still earns nothing while the flag is up."""
     from microduck_challenges.got_a_talent import rewards as R
 
     cmd = _toprock_cmd()
@@ -237,17 +242,22 @@ def test_toprock_step_pays_alternations_only_and_at_the_cap():
             [[float(left), float(right)]])
         return float(R.toprock_step(env))
 
-    assert step(1, 0) == 1.0        # the first foot down starts the show
-    assert step(0, 0) == 0.0         # lifting costs nothing
-    assert step(1, 0) == 0.0         # the SAME foot down again: no step, no pay
-    cmd.since_paid[0] = 0.5          # the tempo timer has run out
-    assert step(0, 1) == 1.0         # the OTHER foot, in tempo: paid, timer restarts
-    assert step(1, 1) == 0.0         # both down, nothing new
-    cmd.since_paid[0] = 0.1          # too soon again
-    assert step(0, 0) == 0.0
-    assert step(1, 0) == 0.0         # a fresh foot in a hurry: fresh, but off-tempo → unpaid
-    cmd.command[0, 0] = 0.0          # flag down: a full clean step earns nothing
+    assert step(1, 0) == 1.0        # first foot down: opens the window
+    assert step(0, 0) == 1.0        # the foot swinging through the air: DENSE — still inside it
+    cmd.since_valid[0] = 0.8
     cmd.since_paid[0] = 10.0
+    assert step(0, 0) == 0.0        # window lapsed: nothing pays while feet hover (airborne 2)
+    assert step(0, 0) == 0.0        # (airborne 3: now flying)
+    assert step(1, 1) == 0.0        # landing both feet after flight: a HOP — fresh, in tempo, no
+    assert step(0, 0) == 0.0        # window still closed; clear the floor for new contacts
+    cmd.since_paid[0] = 0.6         # the tempo timer has run out
+    assert step(0, 1) == 0.0        # the SAME foot (last down) landing again: no step, no window
+    assert step(0, 0) == 0.0        # nothing pays in the air with a closed window
+    cmd.since_paid[0] = 0.6
+    assert step(1, 0) == 1.0        # the OTHER foot, on the floor throughout, in tempo: reopens
+    assert step(1, 0) == 1.0        # inside the fresh window, even as the same foot stays down
+    cmd.command[0, 0] = 0.0         # flag down: the gate closes, the same stepping earns nothing
+    cmd.since_valid[0] = 0.1
     assert step(0, 1) == 0.0
 
 
@@ -293,6 +303,74 @@ def test_unless_toprock_rests_for_either_flag():
     assert pay(env_with(0.0, 0.0)) == 1.0      # neither flag: the still stand earns its stillness
     assert pay(env_with(1.0, 0.0)) == 0.0      # headstand up: rests, as unless_headstand did
     assert pay(env_with(0.0, 1.0)) == 0.0      # toprock up: rests now, so stepping can out-earn it
+
+
+def test_spawn_toprock_marks_the_flag_and_skips_the_headstand(monkeypatch):
+    """rewards.spawn_toprock seeds a mid-step stand on a share of resets: the toprock command's
+    spawned mark goes up (its reset raises the flag from it), qpos moves — and an env already put
+    on its head by spawn_headstand is left exactly as that spawn made it."""
+    from microduck_challenges.got_a_talent import rewards as R
+
+    monkeypatch.setattr("mjlab_microduck.tasks.mdp._servo_joint_ids",
+                        lambda env, asset: list(range(14)))
+    n = 4
+    head_down = torch.tensor([False, True, False, False])  # env 1 is on its head already
+    body = types.SimpleNamespace(spawned=torch.zeros(n, dtype=torch.bool))
+    env = types.SimpleNamespace(
+        device="cpu",
+        scene={"robot": types.SimpleNamespace(data=types.SimpleNamespace(
+            default_joint_pos=torch.zeros(n, 14)))},
+        sim=types.SimpleNamespace(data=types.SimpleNamespace(
+            qpos=torch.zeros(n, 21), qvel=torch.zeros(n, 6))),
+        command_manager=types.SimpleNamespace(get_term=lambda name: {
+            "twist": types.SimpleNamespace(spawned=head_down), "body_pose": body}[name]),
+    )
+    env.sim.data.qpos[:, 3] = 1.0  # upright free quaternion
+    R.spawn_toprock(env, torch.arange(n), prob=1.0, joint_noise_std=0.0)
+
+    assert body.spawned.tolist() == [True, False, True, True]  # the head-down env was skipped
+    lifted = env.sim.data.qpos[:, 2] > 0.0
+    assert lifted.tolist() == [True, False, True, True]        # it stands a touch higher
+    assert torch.equal(env.sim.data.qpos[1], torch.tensor(
+        [0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, *([0.0] * 14)]))   # untouched, quaternion and all
+    # exactly one foot's three lift joints moved (per side), by the mirrored signs
+    for i in (0, 2, 3):
+        moved = [j for j in range(14) if env.sim.data.qpos[i, 7 + j].abs() > 0.0]
+        assert sorted(moved) in ([1, 2, 3], [10, 11, 12])
+        sign = 1 if moved == [1, 2, 3] else -1
+        assert all(env.sim.data.qpos[i, 7 + j] * sign > 0 for j in moved)
+
+
+def test_the_spawn_pose_really_lifts_one_foot_off_the_floor(cfg):
+    """The lift pose's SIGNS, measured on the training model (hs11b): right-leg joints are mounted
+    mirrored, so a right-foot lift is hip_roll/hip_pitch/knee all NEGATIVE; a wrong sign would
+    press the foot through the floor and the seed would be a fall, not a step."""
+    import mujoco
+
+    from microduck_challenges.got_a_talent import rewards as R
+
+    robot = _training_model(cfg.scene.entities["robot"])
+    data = mujoco.MjData(robot)
+    trunk = mujoco.mj_name2id(robot, mujoco.mjtObj.mjOBJ_BODY, "trunk_base")
+    free = int(robot.jnt_qposadr[robot.body_jntadr[trunk]])
+    adr = {n: int(robot.jnt_qposadr[mujoco.mj_name2id(robot, mujoco.mjtObj.mjOBJ_JOINT, n)])
+           for n in JOINT_NAMES}
+    foot = {s: mujoco.mj_name2id(robot, mujoco.mjtObj.mjOBJ_GEOM, f"{s}_foot_collision")
+            for s in ("left", "right")}
+
+    def standing_z(side):
+        data.qpos[:] = 0.0
+        data.qpos[free + 2] = 0.115
+        data.qpos[free + 3] = 1.0
+        mujoco.mj_forward(robot, data)
+        return float(data.geom_xpos[foot[side], 2])
+
+    base = standing_z("right")
+    for j, offset in zip(R.TOPROCK_LIFT_JOINTS["right"], R.TOPROCK_LIFT_POSE):
+        data.qpos[adr[JOINT_NAMES[j]]] -= offset        # mirrored side
+    mujoco.mj_forward(robot, data)
+    lifted = float(data.geom_xpos[foot["right"], 2])
+    assert lifted > base + 0.02  # the foot is clearly off the floor (probe: ~0.05 m vs 0.015)
 
 
 def test_the_feet_sensor_column_order(cfg):

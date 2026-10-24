@@ -175,6 +175,9 @@ SPIN_PROB            = 0.5
 # body[0]. It is forced down while a sit or a headstand is commanded, so the flag only ever rides
 # a standing posture — the stage raises it exactly there (the 0-2 s opening).
 TOPROCK_PROB         = 0.5
+# hs11: no checkpoint ever stepped (the alternation is never visited from a planted stand).
+# This share of toprock episodes starts MID-STEP so the first landing pays (rewards.spawn_toprock).
+TOPROCK_SPAWN_PROB   = 0.25
 # The sit/stand terms switched off while the headstand flag is up: each says
 # "stay upright" (or "stay still at a height"), the opposite of going over.
 REST_STACK = (
@@ -547,13 +550,15 @@ def make_env_cfg(
         params={"command_name": "twist", "head_sensor": head_ground_cfg.name},
     )
 
-    # ── Toprock footwork (body[0], hs11) ──────────────────────────────────────
-    # Alternating foot contacts under the toprock flag, at most 2 per second (rewards.toprock_step),
-    # plus light lateral hip_roll to shape the rock. The trap this encodes: the flag carries no
-    # beat and standing still must earn less than stepping — so posture_stillness, which pays quiet
-    # feet at the commanded height, is switched off while the flag is up (unless_toprock, the same
-    # pattern as the headstand pausing the rest stack). Every other term keeps paying: a step stays
-    # upright at stand height and tracks its head command.
+    # ── Toprock footwork (body[0], hs11 → hs11b) ──────────────────────────────
+    # hs11 paid each alternating landing ONCE and no policy ever stepped (amortized ~0.004, under
+    # the posture it costs to lift a foot). hs11b pays DENSE: a valid alternating step (in tempo,
+    # never airborne) opens a hold window paid every step (rewards.toprock_step), the headstand's
+    # learnable shape. Light lateral hip_roll shapes the rock. The trap this encodes: the flag
+    # carries no beat and standing still must earn less than stepping — so posture_stillness,
+    # which pays quiet feet at the commanded height, is switched off while the flag is up
+    # (unless_toprock, the same pattern as the headstand pausing the rest stack). Every other term
+    # keeps paying: a step stays upright at stand height and tracks its head command.
     cfg.rewards["toprock_step"] = RewardTermCfg(
         func=headstand.toprock_step, weight=2.0,
         params={"command_name": "body_pose", "feet_sensor": feet_ground_cfg.name},
@@ -785,6 +790,14 @@ def make_env_cfg(
         func=headstand.spawn_headstand,
         mode="reset",
         params={"prob": HEADSTAND_SPAWN_PROB},
+    )
+    # And a share of the standing ones start MID-STEP with the toprock flag up
+    # (rewards.spawn_toprock — the seeded state that broke the headstand's same wall;
+    # registered after spawn_headstand, whose picks it leaves alone).
+    cfg.events["spawn_toprock"] = EventTermCfg(
+        func=headstand.spawn_toprock,
+        mode="reset",
+        params={"prob": TOPROCK_SPAWN_PROB},
     )
 
     # MuJoCo physics robustness (sit env's contact NaN fix). The standup XML
