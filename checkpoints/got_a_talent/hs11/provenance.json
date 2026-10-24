@@ -1,0 +1,32 @@
+{
+  "command": [
+    "train",
+    "Mjlab-GotATalent-MicroDuck",
+    "--env.scene.num-envs",
+    "4096",
+    "--agent.max-iterations",
+    "3000",
+    "--agent.seed",
+    "1",
+    "--agent.logger",
+    "tensorboard",
+    "--agent.run-name",
+    "hs11",
+    "--agent.resume",
+    "True",
+    "--agent.load-run",
+    "hs10_base",
+    "--agent.load-checkpoint",
+    "model_1750.pt"
+  ],
+  "task": "Mjlab-GotATalent-MicroDuck",
+  "seed": 1,
+  "commit": "bceeeb17b",
+  "branch": "main",
+  "dirty": true,
+  "repo": "https://github.com/electricshaka/microduck-private.git",
+  "base": "mjlab-microduck 0.1.0 @ 8d0dbc94c",
+  "started": "2026-10-24T09:08:56Z",
+  "artifact": "checkpoint 1250 chosen: sit reached 0.52 s (the last strong-sit checkpoint) while spin +25.22 turns @ 15.85 rad/s, best spin of any sit-passing checkpoint; 1750 spins more (+25.88) but never sits; 2999 collapsed (+0.01 turns)",
+  "dirty_note": "untracked scratch/ scripts only; src and tests clean at bceeeb17b"
+}

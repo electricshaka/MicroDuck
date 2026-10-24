@@ -311,20 +311,23 @@ this up from here: the strategy, every run and its lesson, and the open problems
 1. **Get the work**: it lives on the private repo `electricshaka/microduck-private`, branch `main`
    (a checkout of `pollen-robotics/microduck-challenges` on its own `main` has none of it).
 2. **The trained checkpoints are committed** under `checkpoints/got_a_talent/` (training's `logs/`
-   is git-ignored): **`hs10/model_1750` is the live performance** (see Best checkpoints below),
-   with `hs9/model_1000`, `hs8/model_500`, `hs6/model_250`, `hs5/model_250`, `hs2/model_1250`
-   behind it. Each folder has the `.pt` (to resume training), the exported `.onnx` (to judge,
-   watch or publish), its `judge_<N>.txt` and `provenance.json`.
-3. **Watch it**: `uv run --no-sync --group workshop python -m microduck_challenges.got_a_talent.headspin_view checkpoints/got_a_talent/hs10/model_1750.onnx --timeline src/microduck_challenges/got_a_talent/timeline.json`
+   is git-ignored): **`hs11/model_1250` is the live performance** (see Best checkpoints below),
+   with `hs10/model_1750`, `hs9/model_1000`, `hs8/model_500`, `hs6/model_250`, `hs5/model_250`,
+   `hs2/model_1250` behind it. Each folder has the `.pt` (to resume training), the exported `.onnx`
+   (to judge, watch or publish), its `judge_<N>.txt` and `provenance.json`.
+3. **Watch it**: `uv run --no-sync --group workshop python -m microduck_challenges.got_a_talent.headspin_view checkpoints/got_a_talent/hs11/model_1250.onnx --timeline src/microduck_challenges/got_a_talent/timeline.json`
 4. **Judge it**: `headspin_check` and `check.py` on the `.onnx` (see Judging below).
-5. **Resume training** (hs10 is done — the next step is hs11, the toprock backlog entry below):
-   mjlab resumes from a run folder, so copy the checkpoint into one first:
+5. **Resume training** (hs11 is done — the next step is **hs11b**, dense footwork + mid-step spawn,
+   the backlog entry below). Both hs11 and hs11b resume from the **prewarmed** hs10 checkpoint —
+   body[0] was dead in every hs10-era checkpoint (normalizer std 0, first-layer weights random),
+   so rebuild that base once before resuming (`scratch/prewarm_hs11.py` patches a copy of
+   `hs10/model_1750.pt` into `logs/rsl_rl/got_a_talent/hs10_base/model_1750.pt`):
 
    ```bash
-   mkdir -p logs/rsl_rl/got_a_talent/hs10_base && cp checkpoints/got_a_talent/hs10/model_1750.pt logs/rsl_rl/got_a_talent/hs10_base/
+   uv run --no-sync python scratch/prewarm_hs11.py
    PYTHONUTF8=1 MICRODUCK_WARM_START=1 uv run --no-sync train Mjlab-GotATalent-MicroDuck --env.scene.num-envs 4096 \
-       --agent.max-iterations 3000 --agent.seed 1 --agent.logger tensorboard --agent.run-name hs11 \
-       --agent.resume True --agent.load-run hs10_base --agent.load-checkpoint model_1750.pt > logs/hs11.log 2>&1 &
+       --agent.max-iterations 3000 --agent.seed 1 --agent.logger tensorboard --agent.run-name hs11b \
+       --agent.resume True --agent.load-run hs10_base --agent.load-checkpoint model_1750.pt > logs/hs11b.log 2>&1 &
    ```
 
    Commit the change first (one change per run), and add any checkpoint worth keeping to
@@ -400,9 +403,14 @@ From [The Conversation](https://theconversation.com/how-do-breakdancers-avoid-br
 | hs8 | 4a66303 | `head_stillness_on_head` quiet-pivot regularizer (weight 3.0) | **Checkpoint 500: +13.86 CCW turns @ 8.7 rad/s**, head roll wobble -95%, hold reward peak 2.78 | Stabilized head roll to 0.012 rad; neck yaw still oscillated ±31° because Gaussian tails vanish |
 | hs9 | 09d00fb | scale to 8192 envs on DGX Spark (GB10), `rate_max` 10 → 20 rad/s | **Checkpoint 1000: +23.52 CCW turns @ 14.8 rad/s** (peak 18.0 rad/s), +24.59 turns on full timeline, 18.16 s continuous hold | Unlocked Stage 3 (20 rad/s). Massive power stroke, unbroken hold across seeds |
 | hs10 | 7d12e27 | `head_spindle_penalty`: −1.0 quadratic on joints 5-8 off [0.5, 1.0, 0, 0] rad while the flag is up, to kill the ±31° neck-yaw whip and force leg-driven spin | **Checkpoint 1750: +23.95 CCW turns @ mean 15.1 rad/s, 3/3 seeds, hold 12.68 s, sit 0.64 s** — spindle penalty −0.07 at its floor: the neck is quiet and the legs carry the spin | Spindle lock holds turns AND kills the whip (penalty ~0 vs hs9's ±31° oscillation); but the deterministic-stage **sit flickers checkpoint to checkpoint** (250, 500, 1000, 2000, 2500, 2750, 2999 sat late/never; 750, 1250, 1500, 1750, 2250 sat in 0.6–1.2 s): judge the sit line per checkpoint, and pick one whose neighbours pass too |
+| hs11 | bceeeb1 | toprock on `body[0]`: standing-only 0/1 flag, `toprock_step` paying each alternating landing (2 Hz cap), hip_roll sway, stillness paused under the flag; dead body dims prewarmed in the normalizer (mean 0.25 / var 0.1875, first-layer cols zeroed — `scratch/prewarm_hs11.py`) | **Footwork never discovered: 0 of 12 checkpoints ever stepped** on stage (probe: 1 touchdown, hip_roll ≤ 0.02 rad, flag up or down; `toprock_step` flat 0.004–0.008 for 3000 iters). Spin meanwhile hit record: **1750 +25.88 @ 16.26** (never sat), and **2999 collapsed (+0.01 turns)** | A reward that pays ONE frame per landing amortizes a full step to ~0.004/step — under the posture cost of lifting a foot, so no gradient; the same trap hs6's spin had, which only a DENSE pay fixed. And the final checkpoint of a run can collapse: never archive the last one without judging it |
 
 Best checkpoints committed in `checkpoints/got_a_talent/`:
-- **`hs10/model_1750`** (live): **+23.95 CCW turns @ mean 15.1 rad/s** (best 1 s 17.7 rad/s), 3/3 seeds,
+- **`hs11/model_1250`** (live): **+25.22 CCW turns @ mean 15.9 rad/s** (best 1 s 18.4 rad/s), 3/3 seeds,
+  hold 12.68 s, knee-drop sit reached in **0.52 s** (fastest sit yet) — beats hs10/model_1750 on every
+  line. Same run's 1750 spins more (+25.88 @ 16.26, longest 12.37 s) but **never sits** — a spin
+  specialist, not the show; kept in the run folder, not archived.
+- **`hs10/model_1750`**: **+23.95 CCW turns @ mean 15.1 rad/s** (best 1 s 17.7 rad/s), 3/3 seeds,
   continuous hold 12.68 s, spindle penalty at its floor (neck quiet through spin, brake and freeze),
   knee-drop sit reached in 0.64 s on the stage. Neighbours 1500 (+23.34, sit 0.74 s) and 1250
   (+22.79, sit 0.68 s) pass too.
@@ -413,7 +421,7 @@ Best checkpoints committed in `checkpoints/got_a_talent/`:
 
 **The live choreography (`timeline.json`, verified 20.00 s on the Arena's stage, hs9/model_1000)**:
 - 0.0–2.0 s Toprock opening: upright stance, beat-bop head nods (±0.35 rad pitch) and sharp
-  judge call-out glances (±0.7 rad head_yaw, 0.2 rad roll). Feet static — footwork is hs11.
+  judge call-out glances (±0.7 rad head_yaw, 0.2 rad roll). Feet static — footwork is hs11b.
 - 2.0–4.0 s B-Boy Knee Drop: sit flag up, snaps from z 0.115 m to a low seated crouch z 0.060 m,
   holds (downrock footwork inside it is hs12).
 - 4.0–4.5 s Inversion Dive: headstand flag up, pops hips and lands on the crown in ~0.3 s.
@@ -474,17 +482,30 @@ Runs table row, push both remotes.
 
 ### Backlog — the remaining skills (one commit + one run each, in order, after hs10)
 
-**hs11 — Active Toprock footwork** (`body[0]` = toprock flag). Problem: in 0–2 s only the neck
-moves; the feet stay planted in STAND. Implementation: repurpose `body` slot 0 (keep the 61-D
-layout: replace the `zero_command_padding` on the actor's `body_command` with a sampled command
-term, zero-padding the remaining 5 slots — never delete the term), sampled 0/1 only while the
-stand posture is commanded; a reward `toprock_footwork` gated on upright (trunk z ≥ 0.11 m, tilt
-≤ 15°) that pays the foot-contact *alternation* (the same frontier trick as `headspin`: a new
-contact by the foot that was not the last one down, capped at ~2 Hz so it cannot hyper-quake)
-plus a light lateral hip/ankle roll term (±0.2 rad). Trap to avoid: the flag carries no beat —
-the oscillation must be self-sustaining, and standing still must earn less than stepping.
-Timeline: raise `body[0]` to 1 during 0–2 s. Judge with `check.py` (stand segment must still
-PASS) + `headspin_view` watching the feet.
+**hs11 — Active Toprock footwork** (`body[0]` = toprock flag) — **DONE, footwork FAILED to emerge**
+(see the Runs table: 0 of 12 checkpoints stepped; the full implementation — `ToprockCommand`,
+per-landing `toprock_step`, sway, `unless_toprock` — is on `main` and in hs11's run). What the
+stage probe `scratch/toprock_probe.py` (2.5 s stand, flag 0 then 1, seeds 1-3, counts landings by
+`toprock_step`'s own rules) says is the acceptance gate for ANY footwork attempt: today it must
+read **≥ 2 alternating steps with body[0]=1** where hs11 read 1 touchdown.
+
+**hs11b — Dense footwork + mid-step spawn** (in progress). *Hypothesis*: hs11 died of the hs6
+disease twice over — a landing pays ONE frame (a whole step amortized to ~0.004/step, under the
+posture it costs to lift a foot), and the alternating state is never visited from a planted stand.
+So, deliberately two changes at one root cause: (1) `toprock_step` pays **DENSE**: every valid
+alternating step (new contact by the foot not last down, ≥ `period_s` apart, and not made after
+being airborne ≥ 3 frames — hops are not steps) opens a `hold_s` = 0.75 s window paid on EVERY
+step (weight 2.0); only keeping the rhythm keeps it alive, the `headstand_hold` shape. (2)
+`spawn_toprock` (events, after `spawn_headstand`, prob 0.25, skips head-down spawns) starts
+standing episodes already **MID-STEP**: one foot raised by the measured lift pose (`TOPROCK_LIFT_*`,
+signs probed on the model: left leg positive, right mirrored), +0.015 m, 0.05 rad lean, still;
+it marks `ToprockCommand.spawned` and `reset` raises the flag from the mark (the `spawn_headstand`
+pattern). Verified on a live CPU env: the seeded landing pays within 4 steps of the first reset
+(`scratch/spawn_env_test.py`). Resume from the same prewarmed `hs10_base` (see Start here).
+*Success bar*: some checkpoint reads ≥ 2 steps / ≥ 45 s upright on the probe, and `toprock_step`
+grows past ~0.1 in training. *If dense + spawn still never steps*: footwork on this robot is not
+reward-shapeable — park `body[0]` (leave the timeline foot-static, the guard test stays), no more
+footwork runs until a new mechanism idea.
 
 **hs12 — Downrock floorwork** (`body[1]` = sweep flag, coffee-grinder / scissor sweep). Problem:
 the knee-drop crouch (2–4 s) sits static before the dive. Implementation: a second `body` slot,
@@ -520,7 +541,7 @@ committing** (sound is a creative choice that needs their yes).
 - Never edit Pollen's upstream files (`README.md`, `CLAUDE.md`, `tests/test_challenges.py`,
   `pyproject.toml`, `uv.lock`, other challenges' folders); challenge logic lives in this folder
   plus `tests/test_got_a_talent.py`.
-- `uv run --no-sync --group workshop pytest` before every launch: **68 green at this writing**.
+- `uv run --no-sync --group workshop pytest` before every launch: **76 green at this writing**.
 - Never publish, enter the Arena, or launch HF jobs without the user's explicit yes. Pushing
   `main` to the user's two repos is part of the agreed workflow:
   `git push private main && git push origin main` (`private` = `electricshaka/microduck-private`,
@@ -532,7 +553,7 @@ committing** (sound is a creative choice that needs their yes).
    more episodes already spinning (they seed leg-driven states).
 2. **Coming down** from the headstand on command — now scheduled as hs13 (the flag is latched
    in training).
-3. **Show**: toprock footwork (hs11), downrock (hs12), exit + bow (hs13), sound (hs14, user's yes).
+3. **Show**: toprock footwork (hs11b), downrock (hs12), exit + bow (hs13), sound (hs14, user's yes).
 
 ### Judging
 
