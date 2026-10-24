@@ -30,11 +30,17 @@ CROUCH_Z_HI = 0.095                          # the reward's seated band's top ed
 
 
 def _timeline(path: Path) -> Path:
-    path.write_text(
-        '{"timeline_version": 1, "duration_s": 8.0, "keyframes": ['
-        '{"t": 0.0, "twist": [0, 0, 0], "head": [0, 0, 0, 0], "body": [0, 0, 0, 0, 0, 0]},'
-        '{"t": 2.5, "twist": [1, 0, 0], "head": [0, 0, 0, 0], "body": [0, 0, 0, 0, 0, 0]},'
-        f'{{"t": {T_SIT}, "twist": [1, 0, 0], "head": [0, 0, 0, 0], "body": [0, 1, 0, 0, 0, 0}}]}}')
+    import json
+    data = {
+        "timeline_version": 1,
+        "duration_s": 8.0,
+        "keyframes": [
+            {"t": 0.0, "twist": [0, 0, 0], "head": [0, 0, 0, 0], "body": [0, 0, 0, 0, 0, 0]},
+            {"t": 2.5, "twist": [1, 0, 0], "head": [0, 0, 0, 0], "body": [0, 0, 0, 0, 0, 0]},
+            {"t": T_SIT, "twist": [1, 0, 0], "head": [0, 0, 0, 0], "body": [0, 1, 0, 0, 0, 0]}
+        ]
+    }
+    path.write_text(json.dumps(data), encoding="utf-8")
     return path
 
 
