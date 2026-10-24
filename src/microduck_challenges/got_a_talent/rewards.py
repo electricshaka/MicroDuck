@@ -34,6 +34,7 @@ HEADSTAND = 1  # twist slot of the headstand flag
 SPIN = 2       # twist slot of the spin flag: 1 = spin counter-clockwise (seen from above) on the head
 TOPROCK = 0    # body slot of the toprock flag: 1 = step in place to the beat while standing
 SWEEP = 1      # body slot of the downrock sweep flag: 1 = sweep a leg around in the seated crouch
+KICK = 4       # body slot of the L-kick freeze flag: 1 = one leg up, one leg level, on the head
 
 HEADSTAND_Z = 0.15            # trunk height resting on the head (measured, see above)
 HEADSTAND_NECK_PITCH = 0.5    # the measured balance pose, rad from 0 (not from HOME)
@@ -314,12 +315,13 @@ def head_spindle_penalty(env, command_name: str = "twist") -> torch.Tensor:
 
 
 class ToprockCommand(CommandTerm):
-    """The dance flags in the body command: toprock in body[0], downrock sweep in body[1];
-    body 2-5 stay zero.
+    """The dance flags in the body command: toprock in body[0], downrock sweep in body[1],
+    L-kick freeze in body[4]; body 2, 3 and 5 stay zero.
 
-    Each resample draws both flags Bernoulli(prob). Every step each is forced down unless its
-    posture is commanded: toprock rides ONLY a standing posture (top-rock is a standing move),
-    the sweep ONLY a commanded sit (downrock is a floor move). The policy never sees a flag up
+    Each resample draws all three flags Bernoulli(prob). Every step each is forced down unless
+    its posture is commanded: toprock rides ONLY a standing posture (top-rock is a standing
+    move), the sweep ONLY a commanded sit (downrock is a floor move), the L-kick ONLY a
+    commanded headstand (it is a freeze held on the head). The policy never sees a flag up
     in a posture the move cannot happen in, and one slot never carries two moves at once.
     """
 
@@ -327,14 +329,17 @@ class ToprockCommand(CommandTerm):
         super().__init__(cfg, env)
         self._flag_prob = float(getattr(cfg, "toprock_prob", 0.5))
         self._sweep_prob = float(getattr(cfg, "sweep_prob", 0.5))
+        self._kick_prob = float(getattr(cfg, "kick_prob", 0.5))
         self._flag = torch.zeros(self.num_envs, device=self.device)
         self._sweep_flag = torch.zeros(self.num_envs, device=self.device)
+        self._kick_flag = torch.zeros(self.num_envs, device=self.device)
         self._command = torch.zeros(self.num_envs, 6, device=self.device)
         # spawn_toprock marks the episodes it starts mid-step and spawn_seated_sweep the ones it
         # starts mid-crouch; the reset raises each flag from its mark (the HeadstandCommand.spawned
         # pattern: mjlab applies reset events before commands).
         self.spawned = torch.zeros(self.num_envs, dtype=torch.bool, device=self.device)
         self.sweep_spawned = torch.zeros(self.num_envs, dtype=torch.bool, device=self.device)
+        self.kick_spawned = torch.zeros(self.num_envs, dtype=torch.bool, device=self.device)
         # Footwork state for rewards.toprock_step (the frontier trick, as with the headspin's
         # turned/frontier): which foot landed last (-1 = neither yet), each foot's contact on the
         # previous step, seconds since a step counted (the ~2 Hz cap and the dense hold window),
@@ -359,11 +364,13 @@ class ToprockCommand(CommandTerm):
 
     def reset(self, env_ids):
         extras = super().reset(env_ids)
-        # A spawn_toprock episode starts with the toprock flag up and a spawn_seated_sweep one
-        # with the sweep flag up (mjlab applies reset events first, so the spawns have marked
-        # these env_ids); every other episode starts flag-down and waits for its first draw.
+        # A spawn_toprock episode starts with the toprock flag up, a spawn_seated_sweep one with
+        # the sweep flag up and a spawn_l_kick one with the kick flag up (mjlab applies reset
+        # events first, so the spawns have marked these env_ids); every other episode starts
+        # flag-down and waits for its first draw.
         self._flag[env_ids] = self.spawned[env_ids].float()
         self._sweep_flag[env_ids] = self.sweep_spawned[env_ids].float()
+        self._kick_flag[env_ids] = self.kick_spawned[env_ids].float()
         self.last_foot[env_ids] = -1
         self.prev_down[env_ids] = False
         self.since_paid[env_ids] = 10.0
@@ -373,6 +380,7 @@ class ToprockCommand(CommandTerm):
         self.swept_frontier[env_ids] = 0.0
         self.spawned[env_ids] = False
         self.sweep_spawned[env_ids] = False
+        self.kick_spawned[env_ids] = False
         return extras
 
     def _resample_command(self, env_ids: torch.Tensor) -> None:
@@ -382,6 +390,9 @@ class ToprockCommand(CommandTerm):
         self._sweep_flag[env_ids] = (
             torch.rand(len(env_ids), device=self.device) < self._sweep_prob
         ).float()
+        self._kick_flag[env_ids] = (
+            torch.rand(len(env_ids), device=self.device) < self._kick_prob
+        ).float()
         self.since_paid[env_ids] = 10.0  # a new segment may count its first step at once
         self.since_valid[env_ids] = 10.0  # and never inherits the previous segment's hold window
 
@@ -389,9 +400,11 @@ class ToprockCommand(CommandTerm):
         twist = self._env.command_manager.get_command("twist")
         standing = (twist[:, 0] < 0.5) & (twist[:, 1] < 0.5)
         sitting = twist[:, 0] >= 0.5
+        headstanding = twist[:, 1] >= 0.5
         self._command[:, TOPROCK] = self._flag * standing
         self._command[:, SWEEP] = self._sweep_flag * sitting
-        self._command[:, 2:] = 0.0
+        self._command[:, KICK] = self._kick_flag * headstanding
+        self._command[:, [2, 3, 5]] = 0.0
 
     def _update_metrics(self) -> None:
         pass
@@ -405,6 +418,9 @@ class ToprockCommandCfg(CommandTermCfg):
     # Probability a resample raises the sweep flag (it holds to the next resample, and every step
     # in between carries it only while a sit is commanded).
     sweep_prob: float = 0.5
+    # Probability a resample raises the L-kick flag (it holds to the next resample, and every step
+    # in between carries it only while a headstand is commanded).
+    kick_prob: float = 0.5
 
     def build(self, env) -> "ToprockCommand":
         return ToprockCommand(self, env)
@@ -560,6 +576,65 @@ def downrock_leg(
     right = torch.square(pos[:, 11] - hip_target) + torch.square(pos[:, 12] + knee_target)
     shape = torch.exp(-torch.minimum(left, right) / std ** 2)
     return _seated_gate(env, command_name) * shape
+
+
+# ── L-kick freeze (body[4], hs12b) ─────────────────────────────────────────────
+# Pose targets measured on the live model (scratch/kick_env_probe.py, duck inverted gz +1):
+# the HOME hips (-0.458 left / +0.458 right, knees at 0) put both feet 0.117 m ABOVE the trunk —
+# the vertical NEEDLE leg is the ordinary headstand leg. Swinging one hip to +-1.42 (soft limit
+# 1.414, hard 1.571) with the knee straight brings that foot LEVEL with the trunk (dz -0.012):
+# the KICK leg. The robot is not mirror-symmetric here: the right kick reaches 0.03 m FORWARD of
+# the trunk, the left leg the same way swings 0.07 m BACK — a donkey-kick. Both read as a frozen
+# leg off the vertical, so either side may carry the kick and the reward takes the closer variant.
+
+LKICK_HIP = {"left": 1.42, "right": -1.42}          # kick leg, absolute hip_pitch, per side
+LKICK_NEEDLE_HIP = {"left": -0.458, "right": 0.458}  # needle leg: the HOME hip (measured vertical)
+LKICK_KNEE = 0.0                                      # straight on both (home knee -0.005/+0.005)
+
+
+def _kick_flag(env, command_name: str = "body_pose") -> torch.Tensor:
+    return env.command_manager.get_command(command_name)[:, KICK]
+
+
+def _kick_gate(env, command_name: str, head_sensor: str) -> torch.Tensor:
+    """The kick flag up AND the duck genuinely on its head: headstand flag commanded, the head
+    planted (the sensor that grounds every headstand term) and the trunk up at headstand height —
+    not mid-dive, not collapsed. Flat band, same rule as the sweep's: never pay a state that is
+    not the move."""
+    twist = env.command_manager.get_command("twist")
+    headstand = (twist[:, 1] >= 0.5).float()
+    up = torch.clamp((_trunk_z(env) - 0.11) / 0.02, 0.0, 1.0)  # full from z 0.13; headstand rests at 0.15
+    return _kick_flag(env, command_name) * headstand * _found(env, head_sensor) * up
+
+
+def l_kick_hold(
+    env,
+    command_name: str = "body_pose",
+    head_sensor: str = "head_ground",
+    std: float = 0.55,
+) -> torch.Tensor:
+    """The freeze itself, DENSE like every learnable pay on this robot: the kick flag is up on a
+    held headstand and the legs hold the L — one leg a straight needle at the HOME hip, the other
+    swung ~1.42 rad to level with a straight knee, either leg the kick (min of the two variants,
+    the downrock_leg pattern). exp(-pose error / std^2) every step: a held freeze pays, a leg
+    drifting off the shape fades. It is NOT seasoning — the hold IS the move — so it carries the
+    move's weight (6.0, as the sweep and the headspin), while headstand_hold keeps paying the
+    balance underneath it: the kick shifts the mass and the freeze must stay quiet on the head."""
+    pos = env.scene["robot"].data.joint_pos
+    left_kick = (
+        torch.square(pos[:, 2] - LKICK_HIP["left"])
+        + torch.square(pos[:, 3] - LKICK_KNEE)
+        + torch.square(pos[:, 11] - LKICK_NEEDLE_HIP["right"])
+        + torch.square(pos[:, 12] - LKICK_KNEE)
+    )
+    right_kick = (
+        torch.square(pos[:, 11] - LKICK_HIP["right"])
+        + torch.square(pos[:, 12] - LKICK_KNEE)
+        + torch.square(pos[:, 2] - LKICK_NEEDLE_HIP["left"])
+        + torch.square(pos[:, 3] - LKICK_KNEE)
+    )
+    shape = torch.exp(-torch.minimum(left_kick, right_kick) / std ** 2)
+    return _kick_gate(env, command_name, head_sensor) * shape
 
 
 # ── Events ─────────────────────────────────────────────────────────────────────
@@ -731,3 +806,59 @@ def spawn_seated_sweep(
     body.sweep_spawned[ids] = True
     body.spawned[ids] = False                 # a sweep seed replaces any toprock seed
     env.command_manager.get_term(posture_command).seated_spawned[ids] = True
+
+
+def spawn_l_kick(
+    env,
+    env_ids: torch.Tensor,
+    prob: float = 0.3,
+    z: float = HEADSTAND_Z,
+    joint_noise_std: float = 0.05,
+    command_name: str = "body_pose",
+    posture_command: str = "twist",
+):
+    """Start a share of kick episodes already IN THE FREEZE: the headstand spawn pose with one
+    leg swung to the measured kick hip (+-1.42, knee straight) and the other leg the HOME needle,
+    at rest (it is a freeze, not a spin), the headstand flag and the kick flag both raised.
+
+    Why this exists — the discovery lesson of hs7/hs11b/hs12, applied to a hold: from the ordinary
+    headstand (legs HOME) PPO's noise visits a one-hip 1.87 rad swing almost never, however dense
+    the pay; the seed IS the frozen state, and the policy first learns to HOLD what it is given,
+    then to reach it. It marks BOTH commands (the twist reset raises the headstand flag from its
+    mark; this command's reset raises the kick flag) and drops any toprock mark on those envs.
+    Skips episodes spawn_headstand already put on their head (those hold the needle legs the
+    base policy was trained on) and spawn_seated_sweep's crouch seeds. Runs after both."""
+    taken = (env.command_manager.get_term(posture_command).spawned
+             | env.command_manager.get_term(command_name).sweep_spawned)
+    chosen = (torch.rand(len(env_ids), device=env.device) < prob) & ~taken[env_ids]
+    ids = env_ids[chosen]
+    n = len(ids)
+    if n == 0:
+        return
+    asset = env.scene["robot"]
+    servo_ids = microduck_mdp._servo_joint_ids(env, asset)
+
+    # Upside down with a random heading, exactly as the headstand spawn.
+    yaw = torch.rand(n, device=env.device) * 2 * math.pi - math.pi
+    quat = torch.stack([torch.zeros_like(yaw), torch.cos(yaw / 2), torch.sin(yaw / 2), torch.zeros_like(yaw)], dim=1)
+    env.sim.data.qpos[ids, 2] = z + microduck_mdp._env_origin_z(env, ids)
+    env.sim.data.qpos[ids, 3:7] = quat
+    env.sim.data.qvel[ids, :6] = 0.0               # frozen: no trunk spin, no leg swing
+
+    cols = torch.tensor([7 + j for j in servo_ids], device=env.device, dtype=torch.long)
+    pose = asset.data.default_joint_pos[ids][:, servo_ids].clone()
+    pose[:, 5] = HEADSTAND_NECK_PITCH
+    pose[:, 6] = HEADSTAND_HEAD_PITCH
+    side = torch.randint(0, 2, (n,), device=env.device)   # 0 kicks the left leg, 1 the right
+    for leg, j_hip, j_knee in (("left", 2, 3), ("right", 11, 12)):
+        pick = ((side == 0) if leg == "left" else (side == 1)).nonzero().flatten()
+        pose[pick.unsqueeze(1), torch.tensor([j_hip], device=env.device)] = LKICK_HIP[leg]
+        pose[pick.unsqueeze(1), torch.tensor([j_knee], device=env.device)] = LKICK_KNEE
+
+    pose += torch.randn_like(pose) * joint_noise_std
+    env.sim.data.qpos[ids.unsqueeze(1).long(), cols.unsqueeze(0)] = pose
+
+    body = env.command_manager.get_term(command_name)
+    body.kick_spawned[ids] = True
+    body.spawned[ids] = False                  # a kick seed replaces any toprock seed
+    env.command_manager.get_term(posture_command).spawned[ids] = True

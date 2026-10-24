@@ -212,12 +212,14 @@ def _toprock_env(cmd, gravity_z=-1.0, z=0.115):
 def test_toprock_flag_only_rides_a_standing_posture():
     """body[0] is forced down every step while a sit or a headstand is commanded — the stage
     only ever raises it during the standing opening, and training never shows it elsewhere.
-    body[1] (hs12) is its mirror image: it rides ONLY a commanded sit (downrock is floorwork)."""
+    body[1] (hs12) is its mirror image: it rides ONLY a commanded sit (downrock is floorwork).
+    body[4] (hs12b) rides ONLY a commanded headstand (the L-kick is a freeze held on the head)."""
     from microduck_challenges.got_a_talent import rewards as R
 
     cmd = R.ToprockCommand.__new__(R.ToprockCommand)
     cmd._flag = torch.ones(3)
     cmd._sweep_flag = torch.ones(3)
+    cmd._kick_flag = torch.ones(3)
     cmd._command = torch.zeros(3, 6)
     twist = torch.tensor([[0.0, 0.0, 0.0],   # stand
                           [1.0, 0.0, 0.0],   # sit
@@ -227,7 +229,8 @@ def test_toprock_flag_only_rides_a_standing_posture():
     R.ToprockCommand._update_command(cmd)
     assert cmd._command[:, 0].tolist() == [1.0, 0.0, 0.0]   # toprock rides the stand
     assert cmd._command[:, 1].tolist() == [0.0, 1.0, 0.0]   # sweep rides the sit
-    assert cmd._command[:, 2:].abs().max() == 0.0           # the rest stay zero
+    assert cmd._command[:, R.KICK].tolist() == [0.0, 0.0, 1.0]  # L-kick rides the headstand
+    assert cmd._command[:, [2, 3, 5]].abs().max() == 0.0    # the other three slots stay zero
 
 
 def test_toprock_step_pays_dense_while_the_rhythm_holds():
@@ -537,20 +540,185 @@ def test_the_seed_sweep_pose_fits_the_robot(cfg):
 
 
 def test_the_downrock_wiring_lives_in_the_env(cfg):
-    """hs12's config: frontier sweep pays 6.0 (the headspin's weight), the leg shape 2.0 (must
-    not out-earn the turn), the seed event is registered, the sweep flag is drawn, and the
-    quarter-turns-first rate_max curriculum starts at a slow turn paying FULL."""
+    """hs12's config: frontier sweep pays 6.0 (the headspin's weight), the seed event is
+    registered, the sweep flag is drawn, and the quarter-turns-first rate_max curriculum starts at
+    a slow turn paying FULL. The leg seasoning is RETIRED since hs12b — it paid flat 0.004 for all
+    3000 hs12 iterations (the run's recorded lesson: cut dead seasoning); the function stays
+    tested, the registration must not come back by accident."""
     from microduck_challenges.got_a_talent import rewards as R
 
-    sweep, leg = cfg.rewards["downrock_sweep"], cfg.rewards["downrock_leg"]
-    assert sweep.func is R.downrock_sweep and leg.func is R.downrock_leg
-    assert sweep.weight == 6.0 and 0.0 < leg.weight < sweep.weight
+    sweep = cfg.rewards["downrock_sweep"]
+    assert sweep.func is R.downrock_sweep
+    assert sweep.weight == 6.0
+    assert "downrock_leg" not in cfg.rewards           # retired seasoning stays cut
     assert sweep.params["command_name"] == "body_pose" and sweep.params["rate_max"] == 2.0
     assert cfg.commands["body_pose"].sweep_prob > 0.0
     event = cfg.events["spawn_seated_sweep"]
     assert event.func is R.spawn_seated_sweep and event.params["prob"] > 0.0
     stages = cfg.curriculum["sweep_rate_max"].params["stages"]
     assert stages[0]["rate_max"] == 2.0 and stages[-1]["rate_max"] > stages[0]["rate_max"]
+
+
+# ── hs12b: the L-kick freeze (body[4]) ─────────────────────────────────────────
+
+
+def _kick_env(cmd, head_found=1.0, z=0.15, headstand=1.0, sit=0.0):
+    """A duck on its head on a flat stage, seen by rewards.l_kick_hold: the head sensor, the
+    trunk height, the twist command and (joint_pos) the leg shape are filled per test."""
+    twist = torch.tensor([[sit, headstand, 0.0]])
+    head = types.SimpleNamespace(data=types.SimpleNamespace(found=torch.full((1, 1), head_found)))
+    robot = types.SimpleNamespace(data=types.SimpleNamespace(
+        root_link_pos_w=torch.tensor([[0.0, 0.0, z]]),
+        joint_pos=torch.zeros(1, 14)))
+
+    class Scene(dict):
+        def __init__(self, robot, head):
+            super().__init__(robot=robot)
+            self.sensors = {"head_ground": head}
+            self.terrain = types.SimpleNamespace(env_origins=torch.zeros(1, 3))
+
+    return types.SimpleNamespace(
+        scene=Scene(robot, head),
+        step_dt=0.02,
+        command_manager=types.SimpleNamespace(
+            get_term=lambda name: cmd,
+            get_command=lambda name: twist if name == "twist" else cmd.command),
+    )
+
+
+def test_l_kick_hold_pays_only_the_flagged_freeze_on_the_head():
+    """The freeze pays on a headstand (head planted, trunk up) with body[4]=1 and the legs in
+    shape; every missing condition — flag, headstand, planted head, height — zeroes it: the pay
+    must never reach a state that is not the freeze."""
+    from microduck_challenges.got_a_talent import rewards as R
+
+    cmd = _toprock_cmd()
+    cmd.command[0, R.KICK] = 1.0
+    env = _kick_env(cmd)
+    env.scene["robot"].data.joint_pos[0, 2] = R.LKICK_HIP["left"]
+    env.scene["robot"].data.joint_pos[0, 11] = R.LKICK_NEEDLE_HIP["right"]
+    assert float(R.l_kick_hold(env)) == pytest.approx(1.0)
+
+    cmd.command[0, R.KICK] = 0.0
+    assert float(R.l_kick_hold(env)) == 0.0            # flag down: just a headstand
+    cmd.command[0, R.KICK] = 1.0
+    assert float(R.l_kick_hold(_kick_env(cmd, head_found=0.0))) == 0.0   # mid-dive, head in air
+    assert float(R.l_kick_hold(_kick_env(cmd, headstand=0.0, sit=1.0))) == 0.0  # seated: no ride
+    assert float(R.l_kick_hold(_kick_env(cmd, z=0.05))) == 0.0           # collapsed, not up
+
+
+def test_l_kick_hold_pays_either_leg_level_and_fades_off_shape():
+    """Either leg may carry the kick (the robot's two sides swing differently in the world, but
+    both reach level at their own hip sign); an ordinary headstand (both legs the HOME needle)
+    pays ~nothing, and a half-swinged leg sits between — the gradient toward the freeze."""
+    from microduck_challenges.got_a_talent import rewards as R
+
+    cmd = _toprock_cmd()
+    cmd.command[0, R.KICK] = 1.0
+    env = _kick_env(cmd)
+    pos = env.scene["robot"].data.joint_pos
+    pos[0, 2] = R.LKICK_NEEDLE_HIP["left"]             # both legs the HOME needle: not a kick
+    pos[0, 11] = R.LKICK_NEEDLE_HIP["right"]
+    assert float(R.l_kick_hold(env)) < 0.01
+    pos[0, 2] = R.LKICK_HIP["left"]                    # left leg level, right stays the needle
+    full = float(R.l_kick_hold(env))
+    assert full == pytest.approx(1.0)
+    pos[0, 2] = 0.7                                    # halfway out: pays, but less
+    assert float(R.l_kick_hold(env)) < full
+    pos[:] = 0.0
+    pos[0, 2] = R.LKICK_NEEDLE_HIP["left"]             # back to HOME on the left (needle)
+    pos[0, 11] = R.LKICK_HIP["right"]                  # and the RIGHT leg level (mirrored sign)
+    assert float(R.l_kick_hold(env)) == pytest.approx(1.0)
+
+
+def test_spawn_l_kick_marks_both_terms_and_levels_one_leg(monkeypatch):
+    """rewards.spawn_l_kick seeds the freeze IN the freeze: the twist command's headstand mark
+    AND this command's kick mark, one leg swung level with a straight knee and the other leg the
+    HOME needle, upside down at headstand height and AT REST — while a head-down spawn and a
+    seated-sweep seed are left exactly as they were and any toprock mark is dropped."""
+    from microduck_challenges.got_a_talent import rewards as R
+
+    monkeypatch.setattr("mjlab_microduck.tasks.mdp._servo_joint_ids",
+                        lambda env, asset: list(range(14)))
+    n = 5
+    head_down = torch.tensor([False, True, False, False, False])   # env 1 on its head already
+    twist = types.SimpleNamespace(spawned=head_down.clone(),
+                                  seated_spawned=torch.zeros(n, dtype=torch.bool))
+    body = types.SimpleNamespace(spawned=torch.tensor([True, False, False, False, False]),
+                                 sweep_spawned=torch.tensor([False, False, True, False, False]),
+                                 kick_spawned=torch.zeros(n, dtype=torch.bool))
+
+    class Scene(dict):
+        def __init__(self, robot):
+            super().__init__(robot=robot)
+            self.env_origins = torch.zeros(n, 3)
+
+    home = torch.zeros(n, 14)                        # the real HOME, hips ±0.458, knees ∓0.005
+    home[:, 2], home[:, 3] = -0.458, -0.005
+    home[:, 11], home[:, 12] = 0.458, 0.005
+    env = types.SimpleNamespace(
+        device="cpu",
+        scene=Scene(types.SimpleNamespace(data=types.SimpleNamespace(
+            default_joint_pos=home))),
+        sim=types.SimpleNamespace(data=types.SimpleNamespace(
+            qpos=torch.zeros(n, 21), qvel=torch.zeros(n, 6))),
+        command_manager=types.SimpleNamespace(
+            get_term=lambda name: {"twist": twist, "body_pose": body}[name]),
+    )
+    R.spawn_l_kick(env, torch.arange(n), prob=1.0, joint_noise_std=0.0)
+
+    assert body.kick_spawned.tolist() == [True, False, False, True, True]  # envs 1, 2 skipped
+    assert twist.spawned.tolist() == [True, True, False, True, True]       # headstand rides too
+    assert body.spawned.tolist() == [False, False, False, False, False]    # toprock marks dropped
+    for i in (1, 2):                                                       # the skips, untouched
+        assert env.sim.data.qpos[i].abs().max() == 0.0
+    for i in (0, 3, 4):
+        assert env.sim.data.qpos[i, 2] == pytest.approx(R.HEADSTAND_Z)     # headstand height
+        assert env.sim.data.qvel[i].abs().max() == 0.0                     # frozen, not spinning
+        l_hip, l_knee = float(env.sim.data.qpos[i, 9]), float(env.sim.data.qpos[i, 10])
+        r_hip, r_knee = float(env.sim.data.qpos[i, 18]), float(env.sim.data.qpos[i, 19])
+        left_kick = abs(l_hip - R.LKICK_HIP["left"]) < 1e-6 and abs(l_knee) < 1e-6
+        right_kick = abs(r_hip - R.LKICK_HIP["right"]) < 1e-6 and abs(r_knee) < 1e-6
+        assert left_kick != right_kick                                     # exactly one leg level
+        if left_kick:                                                      # the needle holds HOME
+            assert (r_hip, r_knee) == pytest.approx((R.LKICK_NEEDLE_HIP["right"], 0.005))
+        else:
+            assert (l_hip, l_knee) == pytest.approx((R.LKICK_NEEDLE_HIP["left"], -0.005))
+
+
+def test_the_seed_kick_pose_fits_the_robot(cfg):
+    """Every joint angle the kick seed writes — kick hip either side, straight knees, the HOME
+    needle — sits inside the training model's joint limits. 1.42 is deliberately inside the hard
+    1.571 but PAST the soft 1.414: the leg only goes level at the very end of its travel."""
+    import mujoco
+
+    from microduck_challenges.got_a_talent import rewards as R
+
+    robot = _training_model(cfg.scene.entities["robot"])
+    qid = {n: mujoco.mj_name2id(robot, mujoco.mjtObj.mjOBJ_JOINT, n) for n in JOINT_NAMES}
+
+    def fits(j, value):
+        lo, hi = robot.jnt_range[qid[JOINT_NAMES[j]]]
+        return lo <= value <= hi
+
+    assert fits(2, R.LKICK_HIP["left"]) and fits(3, R.LKICK_KNEE)
+    assert fits(11, R.LKICK_HIP["right"]) and fits(12, R.LKICK_KNEE)
+    assert fits(2, R.LKICK_NEEDLE_HIP["left"]) and fits(11, R.LKICK_NEEDLE_HIP["right"])
+
+
+def test_the_lkick_wiring_lives_in_the_env(cfg):
+    """hs12b's config: the freeze pays 6.0 (the move's weight), it is gated on the kick flag in
+    slot 4, the seed event is registered, and the flag is drawn — all of it off unless the
+    headstand posture carries it (the command masks that part; the tests above the gate)."""
+    from microduck_challenges.got_a_talent import rewards as R
+
+    assert R.KICK == 4                       # the slot the show will raise for the freeze
+    kick = cfg.rewards["l_kick_hold"]
+    assert kick.func is R.l_kick_hold and kick.weight == 6.0
+    assert kick.params["command_name"] == "body_pose"
+    assert cfg.commands["body_pose"].kick_prob > 0.0
+    event = cfg.events["spawn_l_kick"]
+    assert event.func is R.spawn_l_kick and event.params["prob"] > 0.0
 
 
 def test_the_feet_sensor_column_order(cfg):

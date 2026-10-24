@@ -185,6 +185,12 @@ TOPROCK_SPAWN_PROB   = 0.25
 # discovery wall so far).
 SWEEP_PROB           = 0.5
 SWEEP_SPAWN_PROB     = 0.35
+
+# L-kick freeze (hs12b, rewards.l_kick_hold): the probability a resample raises the kick flag on
+# body[4] (it rides only a commanded headstand), and the probability an episode starts already IN
+# the freeze — one leg swung level, the other the home needle (rewards.spawn_l_kick).
+KICK_PROB            = 0.5
+KICK_SPAWN_PROB      = 0.30
 # The sit/stand terms switched off while the headstand flag is up: each says
 # "stay upright" (or "stay still at a height"), the opposite of going over.
 REST_STACK = (
@@ -584,14 +590,30 @@ def make_env_cfg(
     # scissor sweep: the trunk turns counter-clockwise over the planted leg — a coffee grinder
     # without the hand post — paying the FRONTIER shape that made the headspin learnable (each new
     # degree pays, densely, every step; back-and-forth pays nothing) — see rewards.downrock_sweep.
-    # downrock_leg gives the arc its visible shape (one hip 1.15 rad forward, knee near straight)
-    # at seasoning weight, the toprock_sway pattern: it must not out-earn the turning itself.
+    # downrock_leg was to give the arc its visible shape (one hip 1.15 rad forward, knee near
+    # straight) at seasoning weight, the toprock_sway pattern — retired below, its own lesson.
     cfg.rewards["downrock_sweep"] = RewardTermCfg(
         func=headstand.downrock_sweep, weight=6.0,
         params={"command_name": "body_pose", "head_sensor": head_ground_cfg.name, "rate_max": 2.0},
     )
-    cfg.rewards["downrock_leg"] = RewardTermCfg(
-        func=headstand.downrock_leg, weight=2.0, params={"command_name": "body_pose"},
+    # downrock_leg RETIRED here (hs12b), the run's own recorded lesson: the seasoning paid flat
+    # 0.004 for all 3000 hs12 iterations — the duck grinds the sweep without the straight-leg
+    # shape, and a term that pays nothing to a trained move is graph weight and nothing else.
+    # The reward function stays in rewards.py (documented and unit-tested) for a future run that
+    # wants the leg SHAPE itself; only the registration is gone.
+
+    # ── L-kick freeze (body[4], hs12b) ────────────────────────────────────────
+    # The last 2 s of the show are a dead-still headstand; hs12b turns that hold into a freeze
+    # POP: one leg stays the needle (its HOME hip is already vertical), the other swings ~1.42 rad
+    # to LEVEL with a straight knee (scratch/kick_env_probe.py). It pays DENSE, exp on the pose,
+    # only while the kick flag rides a commanded headstand with the head planted and the trunk up
+    # (rewards.l_kick_hold). No competitor wrapper: during a headstand the whole rest stack is
+    # already off (unless_headstand) and headspin isn't paying (spin flag down), so headstand_hold
+    # still funds the balance underneath and the freeze's leg-shape is the only thing added — the
+    # hold IS the move, so it carries the move's weight (6.0, as the sweep and the headspin).
+    cfg.rewards["l_kick_hold"] = RewardTermCfg(
+        func=headstand.l_kick_hold, weight=6.0,
+        params={"command_name": "body_pose", "head_sensor": head_ground_cfg.name},
     )
 
     # ── Sim2real regularisers — MATCHED to velocity ─────────────────────────
@@ -752,14 +774,15 @@ def make_env_cfg(
         }
     )
 
-    # ── Command: the dance flags in body[0] (toprock) and body[1] (sweep) ─────
-    # (hs11, hs12, rewards.ToprockCommand) Resampled on its own 2-5 s timer, drawn 0/1 only, each
-    # forced down unless its posture is commanded (toprock: standing; sweep: seated). The flags
-    # carry no beat: the tempo lives in the payouts.
+    # ── Command: the dance flags in body[0] (toprock), body[1] (sweep), body[4] (L-kick) ──
+    # (hs11, hs12, hs12b, rewards.ToprockCommand) Resampled on its own 2-5 s timer, drawn 0/1
+    # only, each forced down unless its posture is commanded (toprock: standing; sweep: seated;
+    # L-kick: headstand). The flags carry no beat: the tempo lives in the payouts.
     cfg.commands["body_pose"] = headstand.ToprockCommandCfg(
         resampling_time_range=(2.0, 5.0),
         toprock_prob=TOPROCK_PROB,
         sweep_prob=SWEEP_PROB,
+        kick_prob=KICK_PROB,
     )
 
     # ── Terminations ──────────────────────────────────────────────────────────
@@ -833,6 +856,15 @@ def make_env_cfg(
         func=headstand.spawn_seated_sweep,
         mode="reset",
         params={"prob": SWEEP_SPAWN_PROB},
+    )
+    # And a share start IN THE FREEZE, upside down with one leg level and the kick flag up
+    # (rewards.spawn_l_kick — the same seeded-state lever on a HOLD this time; registered after
+    # spawn_headstand and spawn_seated_sweep, whose picks it leaves alone, and it marks the
+    # headstand flag too: a kick episode is born in the freeze, not in a draw).
+    cfg.events["spawn_l_kick"] = EventTermCfg(
+        func=headstand.spawn_l_kick,
+        mode="reset",
+        params={"prob": KICK_SPAWN_PROB},
     )
 
     # MuJoCo physics robustness (sit env's contact NaN fix). The standup XML

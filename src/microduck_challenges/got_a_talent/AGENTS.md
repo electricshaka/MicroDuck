@@ -47,7 +47,9 @@ policy reads:
 - `body[0]`, the **toprock flag** (hs11): standing footwork — trained twice, never emerged, now
   **parked**: the show keeps it at 0 and the feet stay static;
 - `body[1]`, the **downrock sweep flag** (hs12): 1 sweeps a leg around while the sit crouch holds;
-- `body[2..5]`, unused (zeros).
+- `body[4]`, the **L-kick freeze flag** (hs12b, training): 1 holds the freeze on the head — one leg
+  vertical, the other level; 0 the ordinary headstand;
+- `body[2, 3, 5]`, unused (zeros).
 
 A short `timeline.json` (Pollen's, 9 keyframes over 20 s, is in this folder):
 
@@ -320,24 +322,22 @@ this up from here: the strategy, every run and its lesson, and the open problems
    the `.pt` (to resume training), the exported `.onnx` (to judge, watch or publish), its
    `judge_<N>.txt` and `provenance.json`.
 3. **Watch it**: `uv run --no-sync --group workshop python -m microduck_challenges.got_a_talent.headspin_view checkpoints/got_a_talent/hs12/model_2250.onnx --timeline src/microduck_challenges/got_a_talent/timeline.json`
-4. **Judge it**: `headspin_check` and `check.py` on the `.onnx` (see Judging below); the downrock sweep: `scratch/sweep_probe.py <onnx>` (acceptance) and `... full` (the sweep measured inside the real show).
+4. **Judge it**: `headspin_check` and `check.py` on the `.onnx` (see Judging below); the downrock sweep: `scratch/sweep_probe.py <onnx>` (acceptance) and `... full` (the sweep measured inside the real show); the L-kick freeze: `scratch/kick_probe.py <onnx>` (quiet headstand window then the flag — acceptance reads the freeze window).
 5. **Resume training** (hs12 is done — downrock learned; **hs12b, the L-kick freeze on `body[4]`,
    is next**; the backlog entry says what it changes). No prewarm surgery: the `hs10_base` prewarm
    woke the WHOLE body block and every run since trained on it, so all body dims are alive in
-   `hs12/model_2250` (normalizer std ~0.41, first-layer |w| ≤ 0.13 — a raised flag lands at ~+1.9
-   and a new move starts from near-neutral). Write the next `scratch/prewarm_hs12b.py` as the
-   verify-and-stage pattern (VERIFY std > 0.2 and |w| < 0.3, then copy the archive byte-for-byte;
-   patching alive dims shifts the hidden units and breaks the "resume starts at the measured
-   behaviour" promise — the one run that loaded a patched copy, hs12, only did so because the
-   patch beat the rewrite to the load). The pattern, as hs12 actually ran (hs12b stages
-   `checkpoints/got_a_talent/hs12/model_2250.pt` into `logs/rsl_rl/got_a_talent/hs12_base/` the
-   same way, with `--agent.run-name hs12b`):
+   `hs12/model_2250` — `scratch/prewarm_hs12b.py` verifies `body[4]` itself (measured: normalizer
+   std 0.398, first-layer |w| ≤ 0.26 — a raised flag lands at ~+2.5, near-neutral) and stages the
+   archive byte-for-byte (VERIFY std > 0.2 and |w| < 0.3, then copy; patching alive dims shifts the
+   hidden units and breaks the "resume starts at the measured behaviour" promise — the one run that
+   loaded a patched copy, hs12, only did so because the patch beat the rewrite to the load). The
+   pattern, as hs12b stages (already run 2026-10-24):
 
    ```bash
-   uv run --no-sync python scratch/prewarm_hs12.py
+   uv run --no-sync python scratch/prewarm_hs12b.py
    PYTHONUTF8=1 MICRODUCK_WARM_START=1 uv run --no-sync train Mjlab-GotATalent-MicroDuck --env.scene.num-envs 4096 \
-       --agent.max-iterations 3000 --agent.seed 1 --agent.logger tensorboard --agent.run-name hs12 \
-       --agent.resume True --agent.load-run hs11b_base --agent.load-checkpoint model_1250.pt > logs/hs12.log 2>&1 &
+       --agent.max-iterations 3000 --agent.seed 1 --agent.logger tensorboard --agent.run-name hs12b \
+       --agent.resume True --agent.load-run hs12_base --agent.load-checkpoint model_2250.pt > logs/hs12b.log 2>&1 &
    ```
 
    Commit the change first (one change per run), and add any checkpoint worth keeping to
@@ -388,6 +388,14 @@ From [The Conversation](https://theconversation.com/how-do-breakdancers-avoid-br
   raised with `HEADSTAND_PROB` 0.15 per resample, and `HEADSTAND_SPAWN_PROB` 0.2 of episodes start
   on the head (some spinning up to ±6 rad/s). `twist[2]` **spin flag**, drawn with `SPIN_PROB` 0.5
   at every resample while the headstand flag is up.
+- `body[4]` **L-kick freeze flag** (hs12b): drawn with `KICK_PROB` 0.5 per resample and forced down
+  unless the headstand flag is up (`ToprockCommand` masks it, as the sweep rides the sit). While it
+  rides, `l_kick_hold` (6.0) pays DENSE: exp on the leg pose — one leg level (hip 1.42 the measured
+  level side, knee straight), the other the HOME needle (measured: HOME hips put the foot 0.117 m
+  ABOVE the inverted trunk; ±1.42 brings the foot level with it — `scratch/kick_env_probe.py`) —
+  gated on the head planted and trunk z ≥ 0.13, either leg may carry the kick (min of the two
+  variants). `spawn_l_kick` (30%) starts episodes already IN the freeze, at rest, marking the
+  headstand flag too; it skips episodes spawn_headstand/spawn_seated_sweep already claimed.
 - While the headstand flag is up, the sit/stand terms in `REST_STACK` are off (`unless_headstand`),
   and these pay: `headstand_progress` (2, upside down AND trunk off the floor), `headstand_support`
   (2, head-only contact, trunk off the floor), `headstand_hold` (8, the multiplicative goal),
@@ -416,6 +424,7 @@ From [The Conversation](https://theconversation.com/how-do-breakdancers-avoid-br
 | hs11 | ca08bcd | toprock on `body[0]`: standing-only 0/1 flag, `toprock_step` paying each alternating landing (2 Hz cap), hip_roll sway, stillness paused under the flag; dead body dims prewarmed in the normalizer (mean 0.25 / var 0.1875, first-layer cols zeroed — `scratch/prewarm_hs11.py`) | **Footwork never discovered: 0 of 12 checkpoints ever stepped** on stage (probe: 1 touchdown, hip_roll ≤ 0.02 rad, flag up or down; `toprock_step` flat 0.004–0.008 for 3000 iters). Spin meanwhile hit record: **1750 +25.88 @ 16.26** (never sat), and **2999 collapsed (+0.01 turns)** | A reward that pays ONE frame per landing amortizes a full step to ~0.004/step — under the posture cost of lifting a foot, so no gradient; the same trap hs6's spin had, which only a DENSE pay fixed. And the final checkpoint of a run can collapse: never archive the last one without judging it |
 | hs11b | ff66846 | dense rhythm window (0.75 s) + mid-step spawn (prob 0.25) to unlock toprock footwork | **Footwork failed again: the probe reads 1 touchdown at all 12 checkpoints, flag up or down** — the step curve grew 40× (0.004 → flat ~0.16 from iter ~50 on) but that is the *spawned* landing harvesting the window, not learned steps. The run's other lines improved: **1250 +24.25 turns @ 15.24 rad/s, hold 12.68 s, sit 0.46 s (fastest on record), dive 0.28 s**; 1500 peaked 18.17 rad/s; no collapse anywhere | Dense pay amplifies whatever the state already contains — a seeded landing included; harvesting the seed is free, so producing a step was never needed. Two mechanisms, two runs, one verdict: footwork on this robot is not reward-shapeable — `body[0]` parked. Sit and spin improved on the way |
 | hs12 | 1419963 | downrock sweep on `body[1]`: `downrock_sweep` (6.0, frontier CCW trunk yaw/sec dense in the crouch band, flag-gated), `downrock_leg` (2.0 straight-leg shape), `spawn_seated_sweep` (35% mid-sweep), stillness pause under the flag, curriculum 2.0→3.5→5.0 rad/s | **Downrock LEARNED: 2250 sweeps 837.2° per crouch (probe), crouch 3.00/3.00 s, quiet crouch 0.8°; +24.01 turns @ 15.09, sit 0.50 s, dive 0.26 s — best show checkpoint yet; on the full timeline 464° inside the 2 s knee drop, committed as the live show.** Neighbours 2000 (837°, sit 0.56) and 2500 (804°) pass; 2750/2999 decayed (+19.55/+18.60, sit missed) at the 2500 stage | The frontier pay + seeded start works where footwork failed because the crouch is a state the robot HOLDS — the seed is a starting position, not the whole move, so producing more of it is the only way to earn. Seasoning died: `downrock_leg` flat 0.004 all run — the duck grinds the sweep without the straight-leg shape; drop dead seasoning terms next run. Late-run decay at the final curriculum stage struck a second run: judge the last stage's checkpoints hardest |
+| hs12b | (this commit) | L-kick freeze on `body[4]`: `l_kick_hold` (6.0, DENSE exp on the measured leg pose — one leg level at hip ±1.42 knee straight, the other the HOME-hip needle — gated on the kick flag riding a headstand with the head planted and trunk z ≥ 0.13), `spawn_l_kick` (30% IN the freeze, at rest, marking the headstand flag too), kick flag rides only a commanded headstand; `downrock_leg` registration RETIRED (hs12's recorded lesson: flat 0.004). Resumed byte-for-byte from `hs12/model_2250` (`scratch/prewarm_hs12b.py` verified body[4] std 0.398 / \|w\| ≤ 0.26) | RUNNING — judged per the backlog bar below | — |
 
 Best checkpoints committed in `checkpoints/got_a_talent/`:
 - **`hs12/model_2250`** (live): the first checkpoint with the **downrock sweep**: probe MEAN
@@ -536,9 +545,43 @@ timeline. What to carry to the next move: the frontier pay works on held states;
 earned nothing (flat 0.004) — cut dead seasoning; the final curriculum stage decayed the run's
 last two checkpoints again — treat 2500-stage checkpoints with suspicion.
 
-**hs12b — Inverted "L-Kick" Freeze** (`body[4]` = L-kick flag). B-boy freeze variation held during
-the headstand. Implementation: one leg vertical (needle), the other extended horizontally forward
-at 90° (`hip_pitch ≈ -1.57` rad), held with high stillness and balance weighting before the buzzer.
+**hs12b — Inverted "L-Kick" Freeze** (`body[4]` = L-kick flag) — **IMPLEMENTED, running** (commit
+"this commit" above; resumed byte-for-byte from `hs12/model_2250` after `scratch/prewarm_hs12b.py`
+verified body[4] alive: normalizer std 0.398, first-layer |w| ≤ 0.26 — a raised flag lands at
+~+2.5; staged copy at `logs/rsl_rl/got_a_talent/hs12_base/model_2250.pt`).
+
+*Hypothesis*: the show's last 2 s are a dead-still headstand; a freeze POP — one leg staying the
+needle, the other swinging level — makes the ending a move, not a wait. PPO's noise alone will
+never visit a one-hip 1.9 rad swing from the needle headstand, however dense the pay; the
+`spawn_l_kick` seed (30% of resets, IN the freeze, at rest) puts the policy there and
+`l_kick_hold` (6.0) pays every step it holds — the hs12 lesson that a dense pay on a SEEDED hold
+works, applied to a hold instead of a turn.
+
+*Measured, not guessed* (`scratch/kick_env_probe.py`, live CPU env, duck verified inverted
+projected-gravity +1.0): the HOME hips (∓0.458) put both feet **0.117 m ABOVE** the inverted
+trunk — the ordinary headstand's legs are already two vertical needles; hips toward ±1.42 (soft
+limit 1.414, hard 1.571) with the knee straight bring a foot **level** with the trunk (dz −0.012).
+The two sides are NOT mirror-symmetric in the world: the right kick reaches 0.03 m FORWARD, the
+left the same way swings 0.07 m BACK (a donkey-kick) — both read as a frozen leg off the vertical,
+so `l_kick_hold` takes the min of the two per-side variants. Reward: exp(−pose err / 0.55²) × the
+kick flag riding a commanded headstand × the head planted × trunk z ≥ 0.13; no competitor wrapper
+(the rest stack is already off on the head, headspin isn't paying during the freeze). The dead
+`downrock_leg` registration is RETIRED here, hs12's recorded lesson (function and tests stay).
+
+*Baseline measured on hs12/model_2250 itself* (`scratch/kick_probe.py`, the acceptance probe): the
+trained headstand already holds BOTH legs level — quiet-window kick err 0.14 rad, needle err
+~1.7, up 2.17 s of 2.5; freeze window (flag up, untrained) 0.04 rad, drift 3°. So the flag's
+visible signal is the NEEDLE recovery: the freeze pulls one leg back to the vertical while the
+other stays level. **Success bar** (per checkpoint, seeds 1-3): freeze-window kick err ≤ 0.5 rad
+AND needle err ≤ 0.5 rad, up ≥ 2.0 s of 3, drift ≤ 60°, quiet window keeps the baseline shape
+(needle ≥ 1.2 rad) — plus `headspin_check`/`check.py` holding hs12 levels (+24 turns, sit ~0.5 s)
+and the kick flag NOT raising the legs without the flag. *If the needle never returns* (< 0.8 err
+stuck at 3000): the hold shape is too far from the trained two-level balance — re-scope the entry
+honestly as a two-level pencil freeze vs a legs-tucked hold, or raise `spawn_l_kick` to 0.5 and
+re-run once. *Finish*: same ritual — judge all 12 checkpoints, archive the winner to
+`checkpoints/got_a_talent/hs12b/`, fill the Runs row, push, and ONLY after a stage-verified
+checkpoint raise `body[4]=1` at 18.0 s in `timeline.json` (widening the guard test then, with the
+measured verification cited).
 
 **hs13 — Headstand Exit & upright freeze** (unlatch `twist[1]`). Problem: the headstand flag is
 latched for the whole episode; the show ends upside down. Implementation: in
@@ -579,8 +622,8 @@ the 2.6 m × 3.8 m stage:
 - Never edit Pollen's upstream files (`README.md`, `CLAUDE.md`, `tests/test_challenges.py`,
   `pyproject.toml`, `uv.lock`, other challenges' folders); challenge logic lives in this folder
   plus `tests/test_got_a_talent.py`.
-- `uv run --no-sync --group workshop pytest` before every launch: **81 green at this writing**
-  (76 through hs11b; the hs12 sweep tests added 5).
+- `uv run --no-sync --group workshop pytest` before every launch: **86 green at this writing**
+  (81 through hs12; the hs12b kick tests added 5).
 - Never publish, enter the Arena, or launch HF jobs without the user's explicit yes. Pushing
   `main` to the user's two repos is part of the agreed workflow:
   `git push private main && git push origin main` (`private` = `electricshaka/microduck-private`,
@@ -593,8 +636,8 @@ the 2.6 m × 3.8 m stage:
 2. **Coming down** from the headstand on command — now scheduled as hs13 (the flag is latched
    in training).
 3. **Show**: footwork parked after two failed runs (hs11, hs11b — do not retry without a new
-   mechanism); the downrock sweep is LEARNED and live in the show (hs12); next: L-kick freeze
-   (hs12b); exit + bow (hs13);
+   mechanism); the downrock sweep is LEARNED and live in the show (hs12); the L-kick freeze
+   (hs12b) is training now; exit + bow (hs13);
    sound + cypher troupe (hs14, user's yes given for staging, not publishing).
 
 ### Judging

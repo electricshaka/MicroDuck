@@ -9,7 +9,7 @@ kind  = "perpetual"
 [command]
 twist = "[sit flag: 1 sit, 0 stand; headstand flag: 1 go onto the head and hold; spin flag: 1 spin counter-clockwise on the head]"
 head  = "[neck_pitch, head_pitch, head_yaw, head_roll]: rad from the default pose"
-body  = "[toprock flag: 1 step in place while standing, 0 stand still; downrock sweep flag: 1 sweep a leg around in the seated crouch, 0 hold the crouch; 4 slots unused]"
+body  = "[toprock flag: 1 step in place while standing, 0 stand still; downrock sweep flag: 1 sweep a leg around in the seated crouch, 0 hold the crouch; 0; 0; L-kick freeze flag: 1 hold the freeze on the head, one leg up and one leg level, 0 ordinary headstand; 0]"
 
 [recipe]                  # the first training, as is
 num_envs       = 4096
