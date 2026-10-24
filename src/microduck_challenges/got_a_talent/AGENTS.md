@@ -46,7 +46,8 @@ policy reads:
 - `head`, **4 angles in radians from the default pose**: neck_pitch, head_pitch, head_yaw, head_roll;
 - `body[0]`, the **toprock flag** (hs11): standing footwork — trained twice, never emerged, now
   **parked**: the show keeps it at 0 and the feet stay static;
-- `body[1]`, the **downrock sweep flag** (hs12): 1 sweeps a leg around while the sit crouch holds;
+- `body[1]`, the **downrock sweep flag** (hs12): 1 sweeps a leg around while the sit crouch holds
+  (hs12c, queued: the same flag now demands the kneel-and-blade grinder — see the Runs row);
 - `body[4]`, the **L-kick freeze flag** (hs12b, training): 1 holds the freeze on the head — one leg
   vertical, the other level; 0 the ordinary headstand;
 - `body[2, 3, 5]`, unused (zeros).
@@ -426,7 +427,8 @@ From [The Conversation](https://theconversation.com/how-do-breakdancers-avoid-br
 | hs11 | ca08bcd | toprock on `body[0]`: standing-only 0/1 flag, `toprock_step` paying each alternating landing (2 Hz cap), hip_roll sway, stillness paused under the flag; dead body dims prewarmed in the normalizer (mean 0.25 / var 0.1875, first-layer cols zeroed — `scratch/prewarm_hs11.py`) | **Footwork never discovered: 0 of 12 checkpoints ever stepped** on stage (probe: 1 touchdown, hip_roll ≤ 0.02 rad, flag up or down; `toprock_step` flat 0.004–0.008 for 3000 iters). Spin meanwhile hit record: **1750 +25.88 @ 16.26** (never sat), and **2999 collapsed (+0.01 turns)** | A reward that pays ONE frame per landing amortizes a full step to ~0.004/step — under the posture cost of lifting a foot, so no gradient; the same trap hs6's spin had, which only a DENSE pay fixed. And the final checkpoint of a run can collapse: never archive the last one without judging it |
 | hs11b | ff66846 | dense rhythm window (0.75 s) + mid-step spawn (prob 0.25) to unlock toprock footwork | **Footwork failed again: the probe reads 1 touchdown at all 12 checkpoints, flag up or down** — the step curve grew 40× (0.004 → flat ~0.16 from iter ~50 on) but that is the *spawned* landing harvesting the window, not learned steps. The run's other lines improved: **1250 +24.25 turns @ 15.24 rad/s, hold 12.68 s, sit 0.46 s (fastest on record), dive 0.28 s**; 1500 peaked 18.17 rad/s; no collapse anywhere | Dense pay amplifies whatever the state already contains — a seeded landing included; harvesting the seed is free, so producing a step was never needed. Two mechanisms, two runs, one verdict: footwork on this robot is not reward-shapeable — `body[0]` parked. Sit and spin improved on the way |
 | hs12 | 1419963 | downrock sweep on `body[1]`: `downrock_sweep` (6.0, frontier CCW trunk yaw/sec dense in the crouch band, flag-gated), `downrock_leg` (2.0 straight-leg shape), `spawn_seated_sweep` (35% mid-sweep), stillness pause under the flag, curriculum 2.0→3.5→5.0 rad/s | **Downrock LEARNED: 2250 sweeps 837.2° per crouch (probe), crouch 3.00/3.00 s, quiet crouch 0.8°; +24.01 turns @ 15.09, sit 0.50 s, dive 0.26 s — best show checkpoint yet; on the full timeline 464° inside the 2 s knee drop, committed as the live show.** Neighbours 2000 (837°, sit 0.56) and 2500 (804°) pass; 2750/2999 decayed (+19.55/+18.60, sit missed) at the 2500 stage | The frontier pay + seeded start works where footwork failed because the crouch is a state the robot HOLDS — the seed is a starting position, not the whole move, so producing more of it is the only way to earn. Seasoning died: `downrock_leg` flat 0.004 all run — the duck grinds the sweep without the straight-leg shape; drop dead seasoning terms next run. Late-run decay at the final curriculum stage struck a second run: judge the last stage's checkpoints hardest |
-| hs12b | (this commit) | L-kick freeze on `body[4]`: `l_kick_hold` (6.0, DENSE exp on the measured leg pose — one leg level at hip ±1.42 knee straight, the other the HOME-hip needle — gated on the kick flag riding a headstand with the head planted and trunk z ≥ 0.13), `spawn_l_kick` (30% IN the freeze, at rest, marking the headstand flag too), kick flag rides only a commanded headstand; `downrock_leg` registration RETIRED (hs12's recorded lesson: flat 0.004). Resumed byte-for-byte from `hs12/model_2250` (`scratch/prewarm_hs12b.py` verified body[4] std 0.398 / \|w\| ≤ 0.26) | RUNNING — judged per the backlog bar below | — |
+| hs12b | 7b551e4 | L-kick freeze on `body[4]`: `l_kick_hold` (6.0, DENSE exp on the measured leg pose — one leg level at hip ±1.42 knee straight, the other the HOME-hip needle — gated on the kick flag riding a headstand with the head planted and trunk z ≥ 0.13), `spawn_l_kick` (30% IN the freeze, at rest, marking the headstand flag too), kick flag rides only a commanded headstand; `downrock_leg` registration RETIRED (hs12's recorded lesson: flat 0.004). Resumed byte-for-byte from `hs12/model_2250` (`scratch/prewarm_hs12b.py` verified body[4] std 0.398 / \|w\| ≤ 0.26) | RUNNING — judged per the backlog bar below | — |
+| hs12c | (this commit) | **Grinder sweep — the butt-spin ban** (user's video review of hs12): `downrock_sweep` frontier now REQUIRES a kneel regime (trunk z ≥ 0.085 — flat crouch rests 0.061 — planted knee/foot via body+feet sensors) and pays MULTIPLIED by blade shape (hip ±1.2 knee 0: foot radius 0.089 m vs 0.067 tucked, `scratch/sweep_env_probe.py`); `sweep_progress` (2.0) funds the regime before the turn exists; `sweep_pelvis_contact` (−3.0 STRICT, new `pelvis_ground` sensor: pelvis/trunk geoms ONLY — a planted knee is support, a planted pelvis is the cheat); the sit composite PAUSES under the sweep flag (`unless_sit_rest`); seed shows the shape (blade offset, z 0.095). Resume base: the hs12b winner | QUEUED behind hs12b | — |
 
 Best checkpoints committed in `checkpoints/got_a_talent/`:
 - **`hs12/model_2250`** (live): the first checkpoint with the **downrock sweep**: probe MEAN
@@ -585,6 +587,39 @@ re-run once. *Finish*: same ritual — judge all 12 checkpoints, archive the win
 checkpoint raise `body[4]=1` at 18.0 s in `timeline.json` (widening the guard test then, with the
 measured verification cited).
 
+**hs12c — Grinder sweep (the butt-spin ban)** (`body[1]` unchanged; **IMPLEMENTED, queued behind
+hs12b** — see the Runs row for the change; resume base: the **hs12b winner**, staged byte-for-byte
+into `logs/rsl_rl/got_a_talent/hs12b_base/model_<N>.pt`).
+
+*Hypothesis* (the user's video review, confirmed by measurement): hs12's sweep pays its frontier
+inside z < 0.095 with no shape requirement — so the cheapest earn is the pelvis FLAT at 0.061
+spinning on the butt, which is what the video shows. If the frontier REQUIRES a kneel-height
+regime (trunk z ≥ 0.085, weight on a planted knee/foot) and pays MULTIPLIED by blade shape
+(swept hip ±1.2, knee 0), the duck must grind on its knee with the leg out — and the regime-
+replacement pattern (pause the sit composite under the flag, fund the regime with its own terms)
+is the one this robot has already learned twice (headstand, and hs12's crouch itself).
+
+*Measured* (`scratch/sweep_env_probe.py` — kinematics from static forward(); contact flags read by
+live physics in the terms): the blade foot (hip ±1.2, knee 0) sits at **radius 0.089 m** about the
+trunk axis vs **0.067 m tucked**, and at z 0.085–0.095 it trails the floor by 0.2–1.2 cm — the
+perimeter it should sweep. The flat crouch rests at 0.061 (hs12's measured platform); 0.085 is the
+user's floor and a 2.4 cm lift from it. `pelvis_ground` sensor pattern (trunk_base|hip_l|hip_l_2)
+verified against the model's body names.
+
+*Acceptance* (`scratch/sweep_probe.py`, extended to report the blade foot's world radius, trunk z
+and a pelvis-contact count for the crouch window; seeds 1-3): **≥ 400° per kneel-drop with foot
+radius ≥ 0.08 m for most of the window and pelvis contacts ≈ 0** (the ban), plus `headspin_check`/
+`check.py` holding hs12b levels (+21…+24 turns, sit ~0.5 s, dive ≤ 0.3 s) and the L-kick freeze
+still answering `body[4]` (it rides the resumed winner — verify, don't assume). The live timeline's
+knee-drop window needs NO flag change (body[1]=1 already); its z story line updates after stage
+verification.
+*Fallbacks*: (a) if degrees collapse (< ~300) while the shape holds — the kneel is unreachable
+from the sit pose: relax `SWEEP_Z_MIN` to 0.08 once, nothing else; (b) if the pelvis-contact
+penalty saturates while the frontier still pays — the −3.0 lost the sum against 6.0+2.0: raise to
+−5.0, one rerun; (c) if neither: keep hs12b's honest 837° butt-sweep as the live show, revert the
+timeline window, and record the ban as failed-by-measurement. *Finish*: same ritual — 12
+checkpoints judged, winner archived, Runs row + timeline story updated, pushed.
+
 **hs13 — Headstand Exit & upright freeze** (unlatch `twist[1]`). Problem: the headstand flag is
 latched for the whole episode; the show ends upside down. Implementation: in
 `HeadstandCommand._resample_command`, let the flag go back down (a small probability per
@@ -624,8 +659,8 @@ the 2.6 m × 3.8 m stage:
 - Never edit Pollen's upstream files (`README.md`, `CLAUDE.md`, `tests/test_challenges.py`,
   `pyproject.toml`, `uv.lock`, other challenges' folders); challenge logic lives in this folder
   plus `tests/test_got_a_talent.py`.
-- `uv run --no-sync --group workshop pytest` before every launch: **86 green at this writing**
-  (81 through hs12; the hs12b kick tests added 5).
+- `uv run --no-sync --group workshop pytest` before every launch: **88 green at this writing**
+  (81 through hs12; +5 the hs12b kick tests; +2 the hs12c grinder tests).
 - **Push every milestone to the remote(s) immediately** (user's standing rule, 2026-10-24): every
   commit — launch, judge-record, archive, timeline change — is pushed the moment it is committed,
   never batched to the end of a sprint. Publishing to the Arena still needs the explicit yes.
