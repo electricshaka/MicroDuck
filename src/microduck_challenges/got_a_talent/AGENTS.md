@@ -510,8 +510,12 @@ it 0, timeline foot-static, guard test unchanged), **no more footwork runs until
 idea**. The `toprock_probe` gate (≥ 2 alternating steps) still stands for any future attempt.
 
 **hs12 — Downrock floorwork** (`body[1]` = sweep flag, scissor sweep) — **RUNNING (run `hs12`,
-resumed from an unmodified copy of `hs11b/model_1250` staged by `prewarm_hs12.py`; the run's commit
-hash lands in the Runs table row at completion, as ever)**.
+cwd the hs12 worktree, its run folder junction-linked under main's `logs/`; resumed from a lightly
+PATCHED copy of `hs11b/model_1250` — the pre-rewrite prewarm_hs12.py set body[1..5] normalizer
+dims to mean 0.25/var 0.1875 and zeroed their first-layer columns, which for these alive-but-small
+dims (|w| ≤ 0.13) preserves behaviour within a whisper; the verify-and-stage rewrite only
+overwrites the copy at 11:19, after the load; the run's commit hash lands in the Runs table row at
+completion, as ever)**.
 *Hypothesis*: the knee-drop crouch
 (2–4 s) sits static before the dive; a crouched turn is a state the robot visits and can hold (unlike
 the standing step), so paying the headspin's frontier shape — new counter-clockwise TRUNK yaw per
