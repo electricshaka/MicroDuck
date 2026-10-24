@@ -521,7 +521,7 @@ z 0.045–0.095, flag up, head off the floor) + `downrock_leg` (2.0, one hip 1.1
 near straight, either side — the sweep's visible shape as seasoning, hip yaw's ±22° limit means
 expect a scissor sweep, not a full grinder); `spawn_seated_sweep` seeds 35% of resets mid-sweep
 (SIT keyframe, one leg out, trunk already turning 1.5–3 rad/s CCW; marks both commands so the flags
-match the posture — verified paying from step 0 on a live CPU env, `scratch/sweep_env_test.py`);
+match the posture — verified paying from step 0 on a live CPU env, `scratch/sweep_env_probe.py`);
 stillness now pauses under the sweep flag too; curriculum `sweep_rate_max` 2.0 → 3.5 → 5.0 rad/s
 (quarter-turns-first at seated scale). *Follow it*: `Episode_Reward/downrock_sweep` must grow while
 `headspin`, `posture_composite` and the sit line hold hs11b levels. *Judge*: the trio + the sweep
@@ -567,6 +567,10 @@ the 2.6 m × 3.8 m stage:
 
 - Every commit authored `electricshaka <953027+electricshaka@users.noreply.github.com>`; never
   mention AI assistants in messages or comments.
+- Scratch scripts are named `*_probe.py`, **never** `*_test.py`: bare `pytest` collects `*_test.py`
+  under the repo root as well, and the probes insert training-checkout paths into `sys.path` at
+  import — a bare run then resolved `microduck_challenges` from a stale worktree (7 phantom hs12
+  failures against hs11b's code, while `pytest tests` stayed green). Keep probes out of collection.
 - Never edit Pollen's upstream files (`README.md`, `CLAUDE.md`, `tests/test_challenges.py`,
   `pyproject.toml`, `uv.lock`, other challenges' folders); challenge logic lives in this folder
   plus `tests/test_got_a_talent.py`.
