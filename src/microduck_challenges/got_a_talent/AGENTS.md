@@ -516,23 +516,37 @@ foot's yaw angle about the trunk (again: back-and-forth pays nothing), gated on 
 ±90° front/back): expect a scissor sweep, not a full grinder. Judge on stage: visible leg arc
 during the sit, sit hold and dive timing unchanged.
 
+**hs12b — Inverted "L-Kick" Freeze** (`body[4]` = L-kick flag). B-boy freeze variation held during
+the headstand. Implementation: one leg vertical (needle), the other extended horizontally forward
+at 90° (`hip_pitch ≈ -1.57` rad), held with high stillness and balance weighting before the buzzer.
+
 **hs13 — Headstand Exit & upright freeze** (unlatch `twist[1]`). Problem: the headstand flag is
 latched for the whole episode; the show ends upside down. Implementation: in
 `HeadstandCommand._resample_command`, let the flag go back down (a small probability per
 resample, and always down when the sit/stand draw says so); add recovery rewards gated on
 "flag just went down": hip extension, trunk righting (the REST_STACK powers back on), landing on
-feet/knees within ~1.5 s, then upright stillness for the final freeze. Trap to avoid (hit
-before): a "rise" that is really a lean back at 57° — require the upright stack, not just the
-angle. Then the timeline drops `twist[1]` at 18.0 s (move the brake start earlier so the spin
-stops by ~17.5 s) and the last 2 s are an upright freeze or b-boy bow. Judge: `check.py` must
-PASS with the upright finish, headstand hold unchanged while the flag is up.
+feet/knees within ~1.5 s, then upright stillness for the final freeze pop and b-boy bow. Trap to
+avoid (hit before): a "rise" that is really a lean back at 57° — require the upright stack, not just
+the angle. Then the timeline drops `twist[1]` at 17.0 s (move the brake start earlier so the spin
+stops by ~16.5 s) and the last 3 s are an upright freeze pop. Judge: `check.py` must PASS with the
+upright finish, headstand hold unchanged while the flag is up.
 
-**hs14 — Native audio beatbox** (no training; `timeline.json` only). Add `triggers` (RT quacks,
-LT wheees) synced to the beat-bobs and foot steps, a 4-bar breakbeat `song` through MicroDuck's
-formant voice synth, and a `voice` block. **Read the Arena's
-[Got a Talent guide](https://pollen-robotics-microduck-arena.hf.space/#/e/got-a-talent/guide)
-for the exact trigger/song/voice format first, and confirm the musical taste with the user before
-committing** (sound is a creative choice that needs their yes).
+**hs14 — "Block Rockin' Beats" Breakbeat Cypher Troupe** (`timeline_version: 2`, no policy training;
+`timeline.json` only). Transforms the solo performance into a full 6-duck B-Boy Battle Cypher on
+the 2.6 m × 3.8 m stage:
+- **Spatial Cypher**: Star Breaker Duck (`policy: "self"`, `(0, 0, 0°)`) surrounded by 5 Crew Ducks
+  in a circle ($r \approx 0.8$ m) facing inward, executing synchronized head nods (108 BPM,
+  `neck_pitch = ±0.35` rad) to watch and hype the breaker.
+- **"Block Rockin' Beats" by The Chemical Brothers (108 BPM Big Beat score)**:
+  - *Duck 4 (808 Dirty Acid Bass)*: `voice: {pitch: 0.05, buzz: 0.95, brightness: 0.85}`. Sings the
+    syncopated D-minor riff (D2 ➔ D2 ➔ F2 ➔ G2 ➔ G#2 ➔ A2) with vowel `"oo"`/`"eh"` on dynamic `"f"`.
+  - *Duck 5 (Beakbox Snare)*: `voice: {pitch: 0.70, brightness: 0.98, buzz: 0.60}`. Sings sharp G4 `"ah"`
+    notes on Beats 2 and 4 while pulling `triggers: [1.0, 0]` (mechanical beak snap producing a fat snare quack!).
+  - *Duck 3 (Laser Siren FX)*: Chromatic rising sweep (D5 ➔ A5) with `vibrato: 0.8` pulling `triggers: [0, 1.0]`
+    (screaming resonant wheee siren sweep) right at 3.5–4.5 s as the dancer dives into the headspin!
+  - *Duck 2 (Vocal Hook)*: Chants the iconic hook *"Back with another one of those BLOCK ROCKIN' BEATS!"*
+    (`"ah"`, `"ee"`, `"oh"`, `"ff"` on "BLOCK" / "BEATS").
+  - The drop lands at $t = 2.0$ s as Duck 1 snaps into the 0.52 s Knee Drop, followed by the 172 RPM headspin!
 
 ### Repo duties for every agent (MARS included)
 
