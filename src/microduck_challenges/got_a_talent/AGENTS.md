@@ -83,9 +83,14 @@ stage; never add a duck, nor borrow someone's policy, without asking.
   once the head curriculum has widened (from iteration 2000), a new head target every 2–5 s.
 
 A test (`test_the_reference_timeline_stays_inside_what_training_saw`) holds this folder's
-`timeline.json` well inside that: flags 0 or 1, head angles within 40 % of those ranges, postures
-changing at least 3.5 s apart, head targets at least 2 s apart. A timeline outside it may still play
-well: check it on the stage, and if the user wants it anyway, adjust the test with them.
+`timeline.json` inside a **stage-verified** envelope: flags 0 or 1; per-dim head angles within
+40 % (pitch dims), 55 % (yaw) and 70 % (roll) of the widened ranges; posture segments at least
+2 s apart; head targets at least 0.5 s apart. Those last two are deliberate widenings for the
+verified breakdance choreography (the 2 s knee-drop sit, the 0.6–0.7 s beat-bop nods and 0.7 rad
+judge glances all played the full 20.00 s on the Arena's stage with no fall); the original
+sampling envelope was 3.5 s dwells and 2 s head targets. Do not widen the test further without a
+fresh stage check. A timeline outside it may still play well: check it on the stage, and if the
+user wants it anyway, adjust the test with them.
 
 ## Files
 
@@ -306,24 +311,24 @@ this up from here: the strategy, every run and its lesson, and the open problems
 1. **Get the work**: it lives on the private repo `electricshaka/microduck-private`, branch `main`
    (a checkout of `pollen-robotics/microduck-challenges` on its own `main` has none of it).
 2. **The trained checkpoints are committed** under `checkpoints/got_a_talent/` (training's `logs/`
-   is git-ignored): `hs6/model_250` is the latest (headstand that holds with the spin flag up; no
-   spin yet), `hs5/model_250` the best stand, `hs2/model_1250` the first solid headstand. Each folder
+   is git-ignored): **`hs9/model_1000` is the live performance** (see Best checkpoints below),
+   with `hs8/model_500`, `hs6/model_250`, `hs5/model_250`, `hs2/model_1250` behind it. Each folder
    has the `.pt` (to resume training), the exported `.onnx` (to judge, watch or publish), its
    `judge_<N>.txt` and `provenance.json`.
-3. **Watch it**: `uv run --no-sync --group workshop python -m microduck_challenges.got_a_talent.headspin_view checkpoints/got_a_talent/hs6/model_250.onnx`
+3. **Watch it**: `uv run --no-sync --group workshop python -m microduck_challenges.got_a_talent.headspin_view checkpoints/got_a_talent/hs9/model_1000.onnx --timeline src/microduck_challenges/got_a_talent/timeline.json`
 4. **Judge it**: `headspin_check` and `check.py` on the `.onnx` (see Judging below).
-5. **Resume training** (the next step is hs7, see Runs): mjlab resumes from a run folder, so copy
-   the checkpoint into one first:
+5. **Resume training** (the next step is hs10, code committed, ready to launch — see "The next
+   phase" below): mjlab resumes from a run folder, so copy the checkpoint into one first:
 
    ```bash
-   mkdir -p logs/rsl_rl/got_a_talent/hs6_base && cp checkpoints/got_a_talent/hs6/model_250.pt logs/rsl_rl/got_a_talent/hs6_base/
+   mkdir -p logs/rsl_rl/got_a_talent/hs9_base && cp checkpoints/got_a_talent/hs9/model_1000.pt logs/rsl_rl/got_a_talent/hs9_base/
    PYTHONUTF8=1 MICRODUCK_WARM_START=1 uv run --no-sync train Mjlab-GotATalent-MicroDuck --env.scene.num-envs 4096 \
-       --agent.max-iterations 3000 --agent.seed 1 --agent.logger tensorboard --agent.run-name hs7 \
-       --agent.resume True --agent.load-run hs6_base --agent.load-checkpoint model_250.pt > logs/hs7.log 2>&1 &
+       --agent.max-iterations 3000 --agent.seed 1 --agent.logger tensorboard --agent.run-name hs10 \
+       --agent.resume True --agent.load-run hs9_base --agent.load-checkpoint model_1000.pt > logs/hs10.log 2>&1 &
    ```
 
    Commit the change first (one change per run), and add any checkpoint worth keeping to
-   `checkpoints/got_a_talent/` the same way. Push only to the private repo.
+   `checkpoints/got_a_talent/` the same way. Push only to the user's repos (never `pollen-robotics`).
 
 ### Why a headspin
 
@@ -374,7 +379,10 @@ From [The Conversation](https://theconversation.com/how-do-breakdancers-avoid-br
   and these pay: `headstand_progress` (2, upside down AND trunk off the floor), `headstand_support`
   (2, head-only contact, trunk off the floor), `headstand_hold` (8, the multiplicative goal),
   `headstand_body_contact` (-2, trunk or a leg on the floor), `headspin` (6, new counter-clockwise
-  turn on the head past the furthest so far, capped at 15 rad/s; back-and-forth pays nothing).
+  turn on the head past the furthest so far, `rate_max` curriculum 10 → 20 rad/s at the run's
+  stages; back-and-forth pays nothing), `head_stillness_on_head` (3, exp quiet-pivot on head joints),
+  and since hs10 `head_spindle_penalty` (-1, non-saturating quadratic on joints 5-8 off the spindle
+  pose [0.5, 1.0, 0.0, 0.0] rad — see "The next phase").
 - Always: `head_contact_unless_headstand` (-2, the head on the floor outside a headstand) and
   `action_beyond_limits` (-0.5, squared distance of each joint target past its soft limit).
 
@@ -391,6 +399,7 @@ From [The Conversation](https://theconversation.com/how-do-breakdancers-avoid-br
 | hs7 | d715e29 | "quarter turns first" curriculum (`rate_max` 3.0 → 15.0 rad/s) | **Checkpoint 1000: +12.60 CCW turns @ 7.9 rad/s**, 100% continuous hold on head (12.65 s) | Broke reward trap: early turns pay 2.0/step instead of 0.4. But policy whips neck against floor |
 | hs8 | 4a66303 | `head_stillness_on_head` quiet-pivot regularizer (weight 3.0) | **Checkpoint 500: +13.86 CCW turns @ 8.7 rad/s**, head roll wobble -95%, hold reward peak 2.78 | Stabilized head roll to 0.012 rad; neck yaw still oscillated ±31° because Gaussian tails vanish |
 | hs9 | 09d00fb | scale to 8192 envs on DGX Spark (GB10), `rate_max` 10 → 20 rad/s | **Checkpoint 1000: +23.52 CCW turns @ 14.8 rad/s** (peak 18.0 rad/s), +24.59 turns on full timeline, 18.16 s continuous hold | Unlocked Stage 3 (20 rad/s). Massive power stroke, unbroken hold across seeds |
+| hs10 | (see "The next phase") | `head_spindle_penalty`: −1.0 quadratic on joints 5-8 off [0.5, 1.0, 0, 0] rad while the flag is up, to kill the ±31° neck-yaw whip and force leg-driven spin | **queued for MARS (RTX 4090)** — code + tests committed, launch command in "The next phase" | to fill after judging |
 
 Best checkpoints committed in `checkpoints/got_a_talent/`:
 - **`hs9/model_1000`**: **+23.52 CCW turns @ 14.8 rad/s** (peak 18.0 rad/s / 172 RPM on standard test; +24.59 turns on full timeline), 18.16 s continuous hold (Seeds 2 & 3), Stage 3 unlocked (20 rad/s).
@@ -398,15 +407,125 @@ Best checkpoints committed in `checkpoints/got_a_talent/`:
 - **`hs8/model_500`**: +13.86 CCW turns @ 8.7 rad/s, head roll stabilized.
 - **`hs6/model_250`**: Solid upright headstand hold before spin discovery.
 
-**Choreography & Freeze Finish (`timeline.json`)**:
-- Stand until $t = 1.5\text{ s}$ (`twist: [0, 0, 0]`).
-- Dive to headstand at $t = 1.5\text{ s}$ (`twist: [0, 1, 0]`).
-- Spin kick starts immediately upon floor contact at $t = 2.0\text{ s}$ (`twist: [0, 1, 1]`) through $10.0\text{ s}$, executing +20.7 full CCW rotations at up to 16.3 rad/s.
-- Spin flag drops at $t = 10.0\text{ s}$ (`twist: [0, 1, 0]`), smoothly braking angular momentum until coming to a **complete stop at $t = 18.0\text{ s}$** (2 seconds before the end).
-- Breakdance headstand freeze holds dead still from $t = 18.0\text{ s}$ to $20.0\text{ s}$ (`upz = -0.99`, $z = 0.145\,\text{m}$, spin rate $\le 0.34\,\text{rad/s} \to 0.09\,\text{rad/s}$, head-only contact) until the final buzzer.
-- `check.py` generalizes posture segmenting to support `headstand` (`command[1] >= 0.5`) in addition to `sit` and `stand`.
+**The live choreography (`timeline.json`, verified 20.00 s on the Arena's stage, hs9/model_1000)**:
+- 0.0–2.0 s Toprock opening: upright stance, beat-bop head nods (±0.35 rad pitch) and sharp
+  judge call-out glances (±0.7 rad head_yaw, 0.2 rad roll). Feet static — footwork is hs11.
+- 2.0–4.0 s B-Boy Knee Drop: sit flag up, snaps from z 0.115 m to a low seated crouch z 0.060 m,
+  holds (downrock footwork inside it is hs12).
+- 4.0–4.5 s Inversion Dive: headstand flag up, pops hips and lands on the crown in ~0.3 s.
+- 4.5–11.5 s Power Headspin: spin flag up, +21 to +24.6 CCW turns @ mean 14.8 rad/s (peak
+  18.0 rad/s ≈ 172 RPM).
+- 11.5–18.0 s Deceleration: spin flag drops, legs flare, momentum brakes to a complete stop at
+  18.0 s.
+- 18.0–20.0 s Dead-Still Headstand Freeze: motionless on the head (z 0.1433 m, drift < 0.06 mm,
+  head-only contact) until the buzzer. `check.py` segments `headstand` (`command[1] >= 0.5`)
+  beside `sit` and `stand`.
 
-**Next step (hs10)**: Strict non-saturating quadratic L2 penalty on neck joints `[neck_pitch, head_pitch, head_yaw, head_roll]` measuring deviation from `[0.5, 1.0, 0.0, 0.0]` rad to eliminate the remaining neck yaw whip and lock the head/neck spindle completely, forcing 100% leg-driven b-boy rotation. Resume from `hs9` checkpoint with `MICRODUCK_WARM_START=1` on 8192 envs.
+## The next phase: the full b-boy set, training on MARS
+
+The roadmap turns the headspin into a complete, authentic breakdance set inside 20 s:
+**[1 Toprock] → [2 Downrock] → [3 Dynamic Entry] → [4 Power Headspin] → [5 Freeze & Exit]**,
+one hypothesis per training sprint, every checkpoint judged on the Arena's stage.
+
+**Where the code must run**: training continues on **MARS (RTX 4090 workstation, 24 GB)**:
+use `--env.scene.num-envs 4096` (host RAM tight → 2048). Everything needed is committed on
+`main`: code, `checkpoints/`, timeline. On MARS: clone `electricshaka/microduck-private`,
+`uv sync --group workshop`, then `uv run --no-sync …` for every command. (The DGX Spark box this
+was developed on runs a vLLM container holding ~95 GB VRAM: `cd /home/cheetor/GitHub/qwen3.8-Flash-DGX
+&& ./flash stop` before GPU training there and `./flash start && ./flash wait` after. Not needed on MARS.)
+
+### hs10 — Spindle Lock & pure leg-driven headspin (code committed, ready to launch)
+
+*Hypothesis*: hs9 still pumps the spin by oscillating neck yaw ±31° against the floor — the
+exp-shaped `head_stillness_on_head` grants nothing and costs nothing beyond its ~0.3 rad basin,
+so big neck swings were free. A strict non-saturating quadratic penalty, `rewards.head_spindle_penalty`
+(weight −1.0, paid only while the headstand flag is up) on the 4 head/neck joints (5–8) measuring
+deviation from the spindle pose **[0.5, 1.0, 0.0, 0.0] rad** (absolute, = the spawn pose), will
+kill the yaw whip, lock the head/neck spindle (good for the freeze too) and force 100 % leg-driven
+rotation. The term is registered in `env.py`; tests cover its gate and its quadratic shape.
+
+```bash
+mkdir -p logs/rsl_rl/got_a_talent/hs9_base
+cp checkpoints/got_a_talent/hs9/model_1000.pt logs/rsl_rl/got_a_talent/hs9_base/
+PYTHONUTF8=1 MICRODUCK_WARM_START=1 uv run --no-sync train Mjlab-GotATalent-MicroDuck \
+    --env.scene.num-envs 4096 --agent.max-iterations 3000 --agent.seed 1 \
+    --agent.logger tensorboard --agent.run-name hs10 \
+    --agent.resume True --agent.load-run hs9_base --agent.load-checkpoint model_1000.pt \
+    > logs/hs10.log 2>&1 &
+```
+
+*Follow it*: `Episode_Reward/head_spindle_penalty` must read ≤ 0 and trend toward ~0 while
+`Episode_Reward/headspin` holds hs9 levels; a collapse not recovered in ~500 iterations: stop
+and tell the user. *Judge every checkpoint* (see Judging) with `headspin_check` (seeds 1-3),
+`check.py` and `arena score` against this folder's `timeline.json`.
+*Success bar*: **≥ +20 CCW turns @ ≥ 12 rad/s mean on 3/3 seeds**, continuous hold, and the
+spindle penalty within ~0.1 of its floor (neck quiet through spin, brake and freeze).
+*If the turns collapse below +12*: the penalty is too strict — rerun with weight −0.5
+(run name `hs10b`, change nothing else). *Finish*: commit the best checkpoint to
+`checkpoints/got_a_talent/hs10/` (`.pt`, `.onnx`, `judge_<N>.txt`, `provenance.json`), fill the
+Runs table row, push both remotes.
+
+### Backlog — the remaining skills (one commit + one run each, in order, after hs10)
+
+**hs11 — Active Toprock footwork** (`body[0]` = toprock flag). Problem: in 0–2 s only the neck
+moves; the feet stay planted in STAND. Implementation: repurpose `body` slot 0 (keep the 61-D
+layout: replace the `zero_command_padding` on the actor's `body_command` with a sampled command
+term, zero-padding the remaining 5 slots — never delete the term), sampled 0/1 only while the
+stand posture is commanded; a reward `toprock_footwork` gated on upright (trunk z ≥ 0.11 m, tilt
+≤ 15°) that pays the foot-contact *alternation* (the same frontier trick as `headspin`: a new
+contact by the foot that was not the last one down, capped at ~2 Hz so it cannot hyper-quake)
+plus a light lateral hip/ankle roll term (±0.2 rad). Trap to avoid: the flag carries no beat —
+the oscillation must be self-sustaining, and standing still must earn less than stepping.
+Timeline: raise `body[0]` to 1 during 0–2 s. Judge with `check.py` (stand segment must still
+PASS) + `headspin_view` watching the feet.
+
+**hs12 — Downrock floorwork** (`body[1]` = sweep flag, coffee-grinder / scissor sweep). Problem:
+the knee-drop crouch (2–4 s) sits static before the dive. Implementation: a second `body` slot,
+sampled 1 only with the sit flag; in the seated crouch reward one leg sweeping forward
+(hip_pitch ≈ −1.2 rad, knee ≈ 0) and arcing across the floor — frontier progress on the swept
+foot's yaw angle about the trunk (again: back-and-forth pays nothing), gated on staying seated
+(no head contact, crouch height), ending in the dive tuck. Hip yaw range is limited (±22° side,
+±90° front/back): expect a scissor sweep, not a full grinder. Judge on stage: visible leg arc
+during the sit, sit hold and dive timing unchanged.
+
+**hs13 — Headstand Exit & upright freeze** (unlatch `twist[1]`). Problem: the headstand flag is
+latched for the whole episode; the show ends upside down. Implementation: in
+`HeadstandCommand._resample_command`, let the flag go back down (a small probability per
+resample, and always down when the sit/stand draw says so); add recovery rewards gated on
+"flag just went down": hip extension, trunk righting (the REST_STACK powers back on), landing on
+feet/knees within ~1.5 s, then upright stillness for the final freeze. Trap to avoid (hit
+before): a "rise" that is really a lean back at 57° — require the upright stack, not just the
+angle. Then the timeline drops `twist[1]` at 18.0 s (move the brake start earlier so the spin
+stops by ~17.5 s) and the last 2 s are an upright freeze or b-boy bow. Judge: `check.py` must
+PASS with the upright finish, headstand hold unchanged while the flag is up.
+
+**hs14 — Native audio beatbox** (no training; `timeline.json` only). Add `triggers` (RT quacks,
+LT wheees) synced to the beat-bobs and foot steps, a 4-bar breakbeat `song` through MicroDuck's
+formant voice synth, and a `voice` block. **Read the Arena's
+[Got a Talent guide](https://pollen-robotics-microduck-arena.hf.space/#/e/got-a-talent/guide)
+for the exact trigger/song/voice format first, and confirm the musical taste with the user before
+committing** (sound is a creative choice that needs their yes).
+
+### Repo duties for every agent (MARS included)
+
+- Every commit authored `electricshaka <953027+electricshaka@users.noreply.github.com>`; never
+  mention AI assistants in messages or comments.
+- Never edit Pollen's upstream files (`README.md`, `CLAUDE.md`, `tests/test_challenges.py`,
+  `pyproject.toml`, `uv.lock`, other challenges' folders); challenge logic lives in this folder
+  plus `tests/test_got_a_talent.py`.
+- `uv run --no-sync --group workshop pytest` before every launch: **68 green at this writing**.
+- Never publish, enter the Arena, or launch HF jobs without the user's explicit yes. Pushing
+  `main` to the user's two repos is part of the agreed workflow:
+  `git push private main && git push origin main` (`private` = `electricshaka/microduck-private`,
+  `origin` = the public fork `electricshaka/MicroDuck`; keep timeline + checkpoints identical).
+
+### Open problems and next ideas
+
+1. **Leg-driven spin under hs10**: confirm the legs alone can hold ≥ +20 turns; if not, spawn
+   more episodes already spinning (they seed leg-driven states).
+2. **Coming down** from the headstand on command — now scheduled as hs13 (the flag is latched
+   in training).
+3. **Show**: toprock footwork (hs11), downrock (hs12), exit + bow (hs13), sound (hs14, user's yes).
 
 ### Judging
 
@@ -433,16 +552,6 @@ around.
   `PYTHONUTF8=1` (the warm-start message crashes a cp1252 console), then
   `--agent.resume True --agent.load-run <run folder> --agent.load-checkpoint model_<N>.pt`.
 - 2048 envs, not the recipe's 4096: 4096 ran out of host memory with other jobs running.
-
-### Open problems and next ideas
-
-1. **Stand quality**: get `check.py` to PASS (head within 0.25 rad) while the headstand holds.
-   If hs5/hs6 stall above it: raise the `head_reward` knob (0.75, up to 2.0), with the user.
-2. **Spin**: judge hs6 for turns and rate on the head. If it will not start, more spawns already
-   spinning, or relax `action_rate_l2` on the neck and legs while the spin flag is up (fast
-   reversals are how the spin is pumped).
-3. **Coming down** from the headstand on command (the flag is latched in training).
-4. **Show**: a timeline, stand → headstand → spin → (down) → bow; sound only with the user.
 
 ## The competition
 
