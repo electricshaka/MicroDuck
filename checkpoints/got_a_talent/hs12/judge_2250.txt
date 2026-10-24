@@ -1,0 +1,34 @@
+=== headspin_check (seeds 1-3) ===
+[mdp] Patches 1-2 active: NaN-safe reward/advantage
+[mdp] Patch 4 active: ONNX export filters passive_* joints
+[mdp] Patch 5 active: MICRODUCK_WARM_START=1 restarts curricula after checkpoint load
+seed 1: stood before the flag yes | onto head after 0.34 s | longest hold 12.68 s | on head 12.68 of 13 s | spin: +24.27 turns (ccw +), mean +15.2 rad/s, best 1 s +17.6 rad/s
+seed 2: stood before the flag yes | onto head after 0.34 s | longest hold 12.68 s | on head 12.68 of 13 s | spin: +23.85 turns (ccw +), mean +15.0 rad/s, best 1 s +17.6 rad/s
+seed 3: stood before the flag yes | onto head after 0.34 s | longest hold 12.68 s | on head 12.68 of 13 s | spin: +23.90 turns (ccw +), mean +15.0 rad/s, best 1 s +17.7 rad/s
+mean longest +12.68, total +12.68, turns +24.01, mean_rate +15.09, best_rate +17.64
+
+=== check.py ===
+[mdp] Patches 1-2 active: NaN-safe reward/advantage
+[mdp] Patch 4 active: ONNX export filters passive_* joints
+[mdp] Patch 5 active: MICRODUCK_WARM_START=1 restarts curricula after checkpoint load
+t= 0.00  stand: reached after 0.00 s, held until 2.00 s; head: held under 2 s, not checked
+t= 0.70  head: held under 2 s, not checked
+t= 1.40  head: held under 2 s, not checked
+t= 2.00  sit: reached after 0.50 s, held until 4.00 s; head: held under 2 s, not checked
+t= 3.50  head: held under 2 s, not checked
+t= 4.00  headstand: reached after 0.26 s, held until 20.00 s; head: held under 2 s, not checked
+t= 4.50  head: off by 0.54 rad
+t=11.50  head: off by 0.48 rad
+t=18.00  head: off by 0.47 rad
+fell at 4.46 s
+FAIL: largest head error 0.54 rad
+
+=== arena score ===
+stage: 20.00 s played, timeline.json (9 keyframes)
+duck 0: fell at 4.46 s ┬╖ seated 1.6 s ┬╖ standing 2.4 s
+
+=== sweep probe (stand / quiet crouch / sweep called) ===
+seed 1: swept  838.9 deg in the sweep phase (quiet   0.9 deg), crouch held 3.00 s, min z 0.061 m, played 8.00 s
+seed 2: swept  836.5 deg in the sweep phase (quiet   0.7 deg), crouch held 3.00 s, min z 0.061 m, played 8.00 s
+seed 3: swept  836.1 deg in the sweep phase (quiet   0.9 deg), crouch held 3.00 s, min z 0.061 m, played 8.00 s
+MEAN: swept 837.2 deg | quiet 0.8 deg | crouch 3.00 s | min z 0.061 m
