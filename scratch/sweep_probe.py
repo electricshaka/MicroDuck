@@ -27,9 +27,18 @@ from arena.timeline import solo, load_troupe
 EVENT = "got-a-talent"
 T_STAND, T_SIT, T_SWEEP = 2.5, 5.0, 8.0     # phase ends: stand | quiet crouch | sweep called
 CROUCH_Z_HI = 0.095                          # the reward's seated band's top edge
+# full-choreography mode (argv "full"): the candidate show timeline (sweep flag inside the real
+# 2.0-4.0 s knee drop, nods before, dive after) — the sweep window is measured where the SHOW
+# calls it, plus the standing opening must stay quiet and the dive must still reach the head.
+T_FULL_SWEEP_LO, T_FULL_SWEEP_HI, T_FULL_DIVE_HI = 2.0, 4.0, 8.0
 
 
-def _timeline(path: Path) -> Path:
+def _timeline(path: Path, full: bool = False) -> Path:
+    if full:
+        import json
+        src = Path(__file__).with_name("timeline_sweep.json")
+        path.write_text(src.read_text(encoding="utf-8"), encoding="utf-8")
+        return path
     import json
     data = {
         "timeline_version": 1,
@@ -61,16 +70,25 @@ def _read_frame(model):
     return read
 
 
-def measure(trace, read) -> dict:
+def measure(trace, read, t_lo=None, t_hi=None, t_quiet_lo=None, t_quiet_hi=None,
+            crouch_lo=None, crouch_hi=None) -> dict:
+    """Frontier degrees in the sweep window [t_lo, t_hi], the quiet turn in [quiet], and crouch
+    seconds over [crouch_lo, crouch_hi]. Defaults are the acceptance timeline's phases."""
+    t_lo = T_SIT if t_lo is None else t_lo
+    t_hi = T_SWEEP if t_hi is None else t_hi
+    t_quiet_lo = T_STAND if t_quiet_lo is None else t_quiet_lo
+    t_quiet_hi = T_SIT if t_quiet_hi is None else t_quiet_hi
+    crouch_lo = T_SIT if crouch_lo is None else crouch_lo
+    crouch_hi = T_SWEEP if crouch_hi is None else crouch_hi
     rows = [read(f) for f in trace]
     t = (np.arange(len(rows)) + 1) * CTRL_DT
     z, yaw = (np.array(c) for c in zip(*rows))
     unwrapped = np.unwrap(yaw)
 
-    def frontier(t_lo, t_hi):
+    def frontier(lo, hi):
         """CCW frontier degrees gained within the phase — mirrors rewards.downrock_sweep:
         unwrapped yaw past the running max, so turning back earns nothing."""
-        idx = np.where((t > t_lo) & (t <= t_hi))[0]
+        idx = np.where((t > lo) & (t <= hi))[0]
         if len(idx) == 0:
             return 0.0, 0.0
         base, best, turned = unwrapped[idx[0]], unwrapped[idx[0]], unwrapped[idx[0]]
@@ -80,9 +98,9 @@ def measure(trace, read) -> dict:
             best = max(best, turned)
         return math.degrees(best - base), float(t[idx[-1]] - t[idx[0]])
 
-    swept_deg, swept_s = frontier(T_SIT, T_SWEEP)
-    quiet_deg, _ = frontier(T_STAND, T_SIT)
-    crouch_idx = np.where((t > T_SIT) & (t <= T_SWEEP))[0]
+    swept_deg, swept_s = frontier(t_lo, t_hi)
+    quiet_deg, _ = frontier(t_quiet_lo, t_quiet_hi)
+    crouch_idx = np.where((t > crouch_lo) & (t <= crouch_hi))[0]
     crouch_s = float((z[crouch_idx] < CROUCH_Z_HI).sum() * CTRL_DT)
     return {"swept_deg": swept_deg, "quiet_deg": quiet_deg, "crouch_s": crouch_s,
             "min_z": float(z[crouch_idx].min()) if len(crouch_idx) else float("nan"),
@@ -90,24 +108,45 @@ def measure(trace, read) -> dict:
 
 
 def main(argv=None) -> int:
-    onnx = (argv or sys.argv[1:])[0]
+    argv = list(argv or sys.argv[1:])
+    full = bool(argv and argv[-1] == "full")
+    if full:
+        argv = argv[:-1]
+    onnx = argv[0]
     event = load_event(EVENT)
     policy = load_policy(Path(onnx))
     out = Path(tempfile.mkdtemp()) / "tl.json"
-    timeline = load_troupe(_timeline(out), event, allow_local=True).ducks[0].timeline
+    timeline = load_troupe(_timeline(out, full), event, allow_local=True).ducks[0].timeline
     performers = cast_of(event, solo(timeline), policy, None, {}).performers
     read = _read_frame(compile_stage(event, [(p.rig, p.start) for p in performers]))
     means = []
     for seed in (1, 2, 3):
-        stats = measure(run_stage(event, performers, seed).trace[0], read)
+        result = run_stage(event, performers, seed)
+        if full:
+            stats = measure(result.trace[0], read,
+                            t_lo=T_FULL_SWEEP_LO, t_hi=T_FULL_SWEEP_HI,
+                            t_quiet_lo=0.0, t_quiet_hi=T_FULL_SWEEP_LO,
+                            crouch_lo=T_FULL_SWEEP_LO, crouch_hi=T_FULL_SWEEP_HI)
+            # the dive: trunk height inside the window right after the sweep is released at 4.0 s
+            rows = [read(f) for f in result.trace[0]]
+            zs = np.array([r[0] for r in rows])
+            tt = (np.arange(len(zs)) + 1) * CTRL_DT
+            dive = zs[(tt > T_FULL_SWEEP_HI) & (tt <= T_FULL_DIVE_HI)]
+            stats["dive_min_z"] = float(dive.min()) if len(dive) else float("nan")
+            stats["dive_max_z"] = float(dive.max()) if len(dive) else float("nan")
+        else:
+            stats = measure(result.trace[0], read)
         means.append(stats)
+        extra = (f", dive z {stats['dive_min_z']:.3f}..{stats['dive_max_z']:.3f} m" if full else "")
         print(f"seed {seed}: swept {stats['swept_deg']:6.1f} deg in the sweep phase "
-              f"(quiet crouch {stats['quiet_deg']:5.1f} deg), crouch held {stats['crouch_s']:.2f} s, "
-              f"min z {stats['min_z']:.3f} m, played {stats['played_s']:.2f} s")
+              f"(quiet {stats['quiet_deg']:5.1f} deg), crouch held {stats['crouch_s']:.2f} s, "
+              f"min z {stats['min_z']:.3f} m, played {stats['played_s']:.2f} s{extra}")
+    dive_note = (f" | dive z {np.nanmean([m['dive_min_z'] for m in means]):.3f}"
+                 f"..{np.nanmean([m['dive_max_z'] for m in means]):.3f} m" if full else "")
     print(f"MEAN: swept {np.mean([m['swept_deg'] for m in means]):.1f} deg | "
           f"quiet {np.mean([m['quiet_deg'] for m in means]):.1f} deg | "
           f"crouch {np.mean([m['crouch_s'] for m in means]):.2f} s | "
-          f"min z {np.nanmean([m['min_z'] for m in means]):.3f} m")
+          f"min z {np.nanmean([m['min_z'] for m in means]):.3f} m{dive_note}")
     return 0
 
 
