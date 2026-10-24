@@ -311,20 +311,20 @@ this up from here: the strategy, every run and its lesson, and the open problems
 1. **Get the work**: it lives on the private repo `electricshaka/microduck-private`, branch `main`
    (a checkout of `pollen-robotics/microduck-challenges` on its own `main` has none of it).
 2. **The trained checkpoints are committed** under `checkpoints/got_a_talent/` (training's `logs/`
-   is git-ignored): **`hs9/model_1000` is the live performance** (see Best checkpoints below),
-   with `hs8/model_500`, `hs6/model_250`, `hs5/model_250`, `hs2/model_1250` behind it. Each folder
-   has the `.pt` (to resume training), the exported `.onnx` (to judge, watch or publish), its
-   `judge_<N>.txt` and `provenance.json`.
-3. **Watch it**: `uv run --no-sync --group workshop python -m microduck_challenges.got_a_talent.headspin_view checkpoints/got_a_talent/hs9/model_1000.onnx --timeline src/microduck_challenges/got_a_talent/timeline.json`
+   is git-ignored): **`hs10/model_1750` is the live performance** (see Best checkpoints below),
+   with `hs9/model_1000`, `hs8/model_500`, `hs6/model_250`, `hs5/model_250`, `hs2/model_1250`
+   behind it. Each folder has the `.pt` (to resume training), the exported `.onnx` (to judge,
+   watch or publish), its `judge_<N>.txt` and `provenance.json`.
+3. **Watch it**: `uv run --no-sync --group workshop python -m microduck_challenges.got_a_talent.headspin_view checkpoints/got_a_talent/hs10/model_1750.onnx --timeline src/microduck_challenges/got_a_talent/timeline.json`
 4. **Judge it**: `headspin_check` and `check.py` on the `.onnx` (see Judging below).
-5. **Resume training** (the next step is hs10, code committed, ready to launch — see "The next
-   phase" below): mjlab resumes from a run folder, so copy the checkpoint into one first:
+5. **Resume training** (hs10 is done — the next step is hs11, the toprock backlog entry below):
+   mjlab resumes from a run folder, so copy the checkpoint into one first:
 
    ```bash
-   mkdir -p logs/rsl_rl/got_a_talent/hs9_base && cp checkpoints/got_a_talent/hs9/model_1000.pt logs/rsl_rl/got_a_talent/hs9_base/
+   mkdir -p logs/rsl_rl/got_a_talent/hs10_base && cp checkpoints/got_a_talent/hs10/model_1750.pt logs/rsl_rl/got_a_talent/hs10_base/
    PYTHONUTF8=1 MICRODUCK_WARM_START=1 uv run --no-sync train Mjlab-GotATalent-MicroDuck --env.scene.num-envs 4096 \
-       --agent.max-iterations 3000 --agent.seed 1 --agent.logger tensorboard --agent.run-name hs10 \
-       --agent.resume True --agent.load-run hs9_base --agent.load-checkpoint model_1000.pt > logs/hs10.log 2>&1 &
+       --agent.max-iterations 3000 --agent.seed 1 --agent.logger tensorboard --agent.run-name hs11 \
+       --agent.resume True --agent.load-run hs10_base --agent.load-checkpoint model_1750.pt > logs/hs11.log 2>&1 &
    ```
 
    Commit the change first (one change per run), and add any checkpoint worth keeping to
@@ -399,9 +399,13 @@ From [The Conversation](https://theconversation.com/how-do-breakdancers-avoid-br
 | hs7 | d715e29 | "quarter turns first" curriculum (`rate_max` 3.0 → 15.0 rad/s) | **Checkpoint 1000: +12.60 CCW turns @ 7.9 rad/s**, 100% continuous hold on head (12.65 s) | Broke reward trap: early turns pay 2.0/step instead of 0.4. But policy whips neck against floor |
 | hs8 | 4a66303 | `head_stillness_on_head` quiet-pivot regularizer (weight 3.0) | **Checkpoint 500: +13.86 CCW turns @ 8.7 rad/s**, head roll wobble -95%, hold reward peak 2.78 | Stabilized head roll to 0.012 rad; neck yaw still oscillated ±31° because Gaussian tails vanish |
 | hs9 | 09d00fb | scale to 8192 envs on DGX Spark (GB10), `rate_max` 10 → 20 rad/s | **Checkpoint 1000: +23.52 CCW turns @ 14.8 rad/s** (peak 18.0 rad/s), +24.59 turns on full timeline, 18.16 s continuous hold | Unlocked Stage 3 (20 rad/s). Massive power stroke, unbroken hold across seeds |
-| hs10 | (see "The next phase") | `head_spindle_penalty`: −1.0 quadratic on joints 5-8 off [0.5, 1.0, 0, 0] rad while the flag is up, to kill the ±31° neck-yaw whip and force leg-driven spin | **queued for MARS (RTX 4090)** — code + tests committed, launch command in "The next phase" | to fill after judging |
+| hs10 | 7d12e27 | `head_spindle_penalty`: −1.0 quadratic on joints 5-8 off [0.5, 1.0, 0, 0] rad while the flag is up, to kill the ±31° neck-yaw whip and force leg-driven spin | **Checkpoint 1750: +23.95 CCW turns @ mean 15.1 rad/s, 3/3 seeds, hold 12.68 s, sit 0.64 s** — spindle penalty −0.07 at its floor: the neck is quiet and the legs carry the spin | Spindle lock holds turns AND kills the whip (penalty ~0 vs hs9's ±31° oscillation); but the deterministic-stage **sit flickers checkpoint to checkpoint** (250, 500, 1000, 2000, 2500, 2750, 2999 sat late/never; 750, 1250, 1500, 1750, 2250 sat in 0.6–1.2 s): judge the sit line per checkpoint, and pick one whose neighbours pass too |
 
 Best checkpoints committed in `checkpoints/got_a_talent/`:
+- **`hs10/model_1750`** (live): **+23.95 CCW turns @ mean 15.1 rad/s** (best 1 s 17.7 rad/s), 3/3 seeds,
+  continuous hold 12.68 s, spindle penalty at its floor (neck quiet through spin, brake and freeze),
+  knee-drop sit reached in 0.64 s on the stage. Neighbours 1500 (+23.34, sit 0.74 s) and 1250
+  (+22.79, sit 0.68 s) pass too.
 - **`hs9/model_1000`**: **+23.52 CCW turns @ 14.8 rad/s** (peak 18.0 rad/s / 172 RPM on standard test; +24.59 turns on full timeline), 18.16 s continuous hold (Seeds 2 & 3), Stage 3 unlocked (20 rad/s).
 - **`hs9/model_750`**: +20.17 CCW turns @ 12.7 rad/s (peak 15.7 rad/s), 100% continuous hold, 150° leg drive.
 - **`hs8/model_500`**: +13.86 CCW turns @ 8.7 rad/s, head roll stabilized.
@@ -434,7 +438,10 @@ use `--env.scene.num-envs 4096` (host RAM tight → 2048). Everything needed is 
 was developed on runs a vLLM container holding ~95 GB VRAM: `cd /home/cheetor/GitHub/qwen3.8-Flash-DGX
 && ./flash stop` before GPU training there and `./flash start && ./flash wait` after. Not needed on MARS.)
 
-### hs10 — Spindle Lock & pure leg-driven headspin (code committed, ready to launch)
+### hs10 — Spindle Lock & pure leg-driven headspin (DONE — model_1750 committed, live)
+
+Done: the bar was met (3/3 seeds ≥ +20 @ ≥ 12 rad/s, penalty at its floor, hold continuous) —
+see the Runs table for the numbers. The `hs10b` fallback was not needed. Results below kept as the record.
 
 *Hypothesis*: hs9 still pumps the spin by oscillating neck yaw ±31° against the floor — the
 exp-shaped `head_stillness_on_head` grants nothing and costs nothing beyond its ~0.3 rad basin,
