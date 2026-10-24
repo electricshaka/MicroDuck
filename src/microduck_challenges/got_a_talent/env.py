@@ -171,13 +171,16 @@ HEADSTAND_SPAWN_PROB = 0.2
 # flag up also raises the spin flag in twist[2]; drawn afresh at each resample, so
 # spins start and stop on the head.
 SPIN_PROB            = 0.5
-# Toprock (hs11, rewards.ToprockCommand): the probability a resample raises the toprock flag in
-# body[0]. It is forced down while a sit or a headstand is commanded, so the flag only ever rides
-# a standing posture — the stage raises it exactly there (the 0-2 s opening).
-TOPROCK_PROB         = 0.5
-# hs11: no checkpoint ever stepped (the alternation is never visited from a planted stand).
-# This share of toprock episodes starts MID-STEP so the first landing pays (rewards.spawn_toprock).
-TOPROCK_SPAWN_PROB   = 0.25
+# Bounce (hs13 overhaul, rewards.ToprockCommand): the probability a resample raises the BOUNCE
+# flag in body[0] (the slot hs11/hs11b used for the failed standing footwork; hs13 re-purposes it
+# for the rhythmic knee bounce, whose timeline route bounce_probe.py measured FLAT). It rides only
+# a standing posture, and the CROSS-STEP flag in body[2] rides only the bounce flag. The stage
+# raises both in the 0-2 s opening once the regime is trained and stage-verified.
+BOUNCE_PROB          = 0.5
+STEP_PROB            = 0.5
+# hs11 learned that the cycle never emerges from a planted stand: this share of episodes starts
+# MID-BOUNCE, at the measured trough with one hip shown forward (rewards.spawn_mid_bounce).
+BOUNCE_SPAWN_PROB    = 0.30
 # Downrock sweep (hs12, rewards.downrock_sweep): the probability a resample raises the sweep flag
 # in body[1]. It is forced down unless a sit is commanded — downrock is a floor move, the stage
 # raises it in the 2-4 s crouch. This share of episodes starts MID-CROUCH already turning, one leg
@@ -576,21 +579,35 @@ def make_env_cfg(
         params={"command_name": "twist", "head_sensor": head_ground_cfg.name},
     )
 
-    # ── Toprock footwork (body[0], hs11 → hs11b) ──────────────────────────────
-    # hs11 paid each alternating landing ONCE and no policy ever stepped (amortized ~0.004, under
-    # the posture it costs to lift a foot). hs11b pays DENSE: a valid alternating step (in tempo,
-    # never airborne) opens a hold window paid every step (rewards.toprock_step), the headstand's
-    # learnable shape. Light lateral hip_roll shapes the rock. The trap this encodes: the flag
-    # carries no beat and standing still must earn less than stepping — so posture_stillness,
-    # which pays quiet feet at the commanded height, is switched off while the flag is up
-    # (unless_toprock, the same pattern as the headstand pausing the rest stack). Every other term
-    # keeps paying: a step stays upright at stand height and tracks its head command.
-    cfg.rewards["toprock_step"] = RewardTermCfg(
-        func=headstand.toprock_step, weight=2.0,
+    # ── The breakdance overhaul (body[0] bounce, body[2] cross-steps, hs13) ────
+    # The user's review: the opening "just looks side to top with head". bounce_probe.py measured
+    # the timeline route FLAT (the sit flag at 108 BPM moves the trunk 0.003 m — the 2 s-ramped
+    # reference cannot oscillate at 1.8 Hz), and hs11/hs11b measured standing footwork NOT
+    # reward-shapeable from a planted stand. The overhaul answers both with ONE new state: the
+    # knee BOUNCE, a cycle the robot HOLDS the way the crouch holds a sweep (the lesson that made
+    # hs12 work), measured in scratch/bounce_env_probe.py (knees ±0.35-0.50 flexed, mirrored hip
+    # bend: trunk drops 1.5-2.2 cm, stays vertical, feet stay planted, trough z 0.093-0.105 —
+    # clear of the crouch floor). bounce_hold (6.0, the move's weight) pays DENSE inside a window
+    # that only a VALID completed cycle (drop, rise, knees, planted foot, tempo) opens — the
+    # headstand_hold learnable shape on a rhythm; posture_stillness, which pays quiet feet, stays
+    # paused under the flag (the unless_toprock wrapper below already does it: body[0] semantics
+    # moved, the pause hs11 built is exactly what the bounce needs to out-earn a quiet stand).
+    # posture_composite KEEPS paying: the bounce's top pose IS the stand pose (unlike the grinder,
+    # this regime replaces no rest target). bounce_step (4.0) then pays alternating hip_pitch
+    # peaks ON the bounce (Indian cross-steps, left negative / right positive, the downrock signs;
+    # 0.45 rad forward reaches the foot 2.3-3.2 cm forward, probe-measured) — the steps the
+    # standing flag never bought ride the bouncing body this time. The hs11/hs11b toprock_step
+    # and toprock_sway registrations are RETIRED (hs12's lesson: dead seasoning is graph weight;
+    # functions and their tests stay in rewards.py). Counter-sway, honest: no torso joints exist —
+    # the sway the eye reads is the bounce itself, the beat nods the head command already carries,
+    # and the steps' mirrored hip swing rocking the pelvis.
+    cfg.rewards["bounce_hold"] = RewardTermCfg(
+        func=headstand.bounce_hold, weight=6.0,
         params={"command_name": "body_pose", "feet_sensor": feet_ground_cfg.name},
     )
-    cfg.rewards["toprock_sway"] = RewardTermCfg(
-        func=headstand.toprock_sway, weight=0.5, params={"command_name": "body_pose"},
+    cfg.rewards["bounce_step"] = RewardTermCfg(
+        func=headstand.bounce_step, weight=4.0,
+        params={"command_name": "body_pose"},
     )
     term = cfg.rewards["posture_stillness"]  # already headstand-gated; params carry its "term"
     term.params = {"flag_command": "body_pose", **term.params}
@@ -809,13 +826,16 @@ def make_env_cfg(
         }
     )
 
-    # ── Command: the dance flags in body[0] (toprock), body[1] (sweep), body[4] (L-kick) ──
-    # (hs11, hs12, hs12b, rewards.ToprockCommand) Resampled on its own 2-5 s timer, drawn 0/1
-    # only, each forced down unless its posture is commanded (toprock: standing; sweep: seated;
-    # L-kick: headstand). The flags carry no beat: the tempo lives in the payouts.
+    # ── Command: the dance flags in body[0] (bounce), body[1] (sweep), body[2] (cross-steps),
+    #    body[4] (L-kick) ──
+    # (hs13 overhaul, rewards.ToprockCommand) Resampled on its own 2-5 s timer, drawn 0/1 only,
+    # each forced down unless its posture is commanded (bounce: standing; cross-steps: the bounce
+    # flag itself; sweep: seated; L-kick: headstand). The flags carry no beat: the tempo lives in
+    # the payouts (bounce_hold's tempo floor, bounce_step's peak cap).
     cfg.commands["body_pose"] = headstand.ToprockCommandCfg(
         resampling_time_range=(2.0, 5.0),
-        toprock_prob=TOPROCK_PROB,
+        bounce_prob=BOUNCE_PROB,
+        step_prob=STEP_PROB,
         sweep_prob=SWEEP_PROB,
         kick_prob=KICK_PROB,
     )
@@ -876,18 +896,10 @@ def make_env_cfg(
         mode="reset",
         params={"prob": HEADSTAND_SPAWN_PROB},
     )
-    # And a share of the standing ones start MID-STEP with the toprock flag up
-    # (rewards.spawn_toprock — the seeded state that broke the headstand's same wall;
-    # registered after spawn_headstand, whose picks it leaves alone).
-    cfg.events["spawn_toprock"] = EventTermCfg(
-        func=headstand.spawn_toprock,
-        mode="reset",
-        params={"prob": TOPROCK_SPAWN_PROB},
-    )
     # And a share start MID-SWEEP at kneel height, blade leg out (hip 1.2, knee straight) and
     # already turning, the sweep flag up (rewards.spawn_seated_sweep — the same seeded-state
     # lever; the seed SHOWS the shape the pay now requires, hs11b's harvest lesson; it replaces
-    # any toprock seed on those envs and leaves the head-down spawns alone).
+    # any bounce seed on those envs and leaves the head-down spawns alone).
     cfg.events["spawn_seated_sweep"] = EventTermCfg(
         func=headstand.spawn_seated_sweep,
         mode="reset",
@@ -901,6 +913,17 @@ def make_env_cfg(
         func=headstand.spawn_l_kick,
         mode="reset",
         params={"prob": KICK_SPAWN_PROB},
+    )
+    # And a share start MID-BOUNCE at the measured trough (knees flexed, trunk vertical), one hip
+    # shown forward as the cross-step seed, sinking slightly so the first valid cycle completes
+    # almost at once (rewards.spawn_mid_bounce — the seeded-state lever on a CYCLE this time;
+    # registered LAST: it skips the headstand, sweep and kick seeds, and nothing overwrites its
+    # marks. The hs11/hs11b spawn_toprock registration is retired with its reward terms; the
+    # function and its tests stay in rewards.py).
+    cfg.events["spawn_mid_bounce"] = EventTermCfg(
+        func=headstand.spawn_mid_bounce,
+        mode="reset",
+        params={"prob": BOUNCE_SPAWN_PROB},
     )
 
     # MuJoCo physics robustness (sit env's contact NaN fix). The standup XML

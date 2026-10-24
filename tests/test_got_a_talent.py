@@ -105,7 +105,7 @@ def test_got_a_talent_plays_on_after_a_fall_like_the_stage(cfg):
 
 
 def test_got_a_talent_reads_what_a_timeline_carries(cfg):
-    """twist.vx is the sit flag, head_pose the 4 head deltas, body[0] the toprock flag:
+    """twist.vx is the sit flag, head_pose the 4 head deltas, body[0] the bounce flag:
     a keyframe's 13 numbers, in the 61-D observation's command slot."""
     from microduck_challenges.got_a_talent import rewards as R
 
@@ -172,7 +172,8 @@ def test_head_spindle_pose_is_the_spawn_pose(cfg):
 
 
 def _toprock_cmd(n: int = 1):
-    """The footwork and sweep state ToprockCommand carries (see its __init__), sans the mjlab base."""
+    """The footwork, sweep and bounce/step state ToprockCommand carries (see its __init__),
+    sans the mjlab base."""
     return types.SimpleNamespace(
         command=torch.zeros(n, 6),
         last_foot=-torch.ones(n, dtype=torch.long),
@@ -182,6 +183,13 @@ def _toprock_cmd(n: int = 1):
         airborne_run=torch.zeros(n, dtype=torch.long),
         swept_turned=torch.zeros(n),
         swept_frontier=torch.zeros(n),
+        b_z_top=torch.zeros(n),
+        b_prev_falling=torch.zeros(n, dtype=torch.bool),
+        b_since_valid=torch.full((n,), 10.0),
+        b_since_beat=torch.full((n,), 10.0),
+        s_side=-torch.ones(n, dtype=torch.long),
+        s_since_valid=torch.full((n,), 10.0),
+        s_since_peak=torch.full((n,), 10.0),
     )
 
 
@@ -210,14 +218,17 @@ def _toprock_env(cmd, gravity_z=-1.0, z=0.115):
 
 
 def test_toprock_flag_only_rides_a_standing_posture():
-    """body[0] is forced down every step while a sit or a headstand is commanded — the stage
-    only ever raises it during the standing opening, and training never shows it elsewhere.
-    body[1] (hs12) is its mirror image: it rides ONLY a commanded sit (downrock is floorwork).
-    body[4] (hs12b) rides ONLY a commanded headstand (the L-kick is a freeze held on the head)."""
+    """body[0] (the hs13 bounce flag) is forced down every step while a sit or a headstand is
+    commanded — the stage only ever raises it during the standing opening, and training never
+    shows it elsewhere. body[2] (the cross-step flag) rides ONLY the bounce flag itself: steps
+    are steps ON the rhythm, never on a quiet stand or a floor move. body[1] (hs12) is the mirror
+    image of body[0]: it rides ONLY a commanded sit (downrock is floorwork). body[4] (hs12b)
+    rides ONLY a commanded headstand (the L-kick is a freeze held on the head)."""
     from microduck_challenges.got_a_talent import rewards as R
 
     cmd = R.ToprockCommand.__new__(R.ToprockCommand)
     cmd._flag = torch.ones(3)
+    cmd._step_flag = torch.ones(3)
     cmd._sweep_flag = torch.ones(3)
     cmd._kick_flag = torch.ones(3)
     cmd._command = torch.zeros(3, 6)
@@ -227,10 +238,11 @@ def test_toprock_flag_only_rides_a_standing_posture():
     cmd._env = types.SimpleNamespace(command_manager=types.SimpleNamespace(
         get_command=lambda name: twist))
     R.ToprockCommand._update_command(cmd)
-    assert cmd._command[:, 0].tolist() == [1.0, 0.0, 0.0]   # toprock rides the stand
+    assert cmd._command[:, 0].tolist() == [1.0, 0.0, 0.0]   # bounce rides the stand
+    assert cmd._command[:, R.STEP].tolist() == [1.0, 0.0, 0.0]  # steps ride the bounce, nothing else
     assert cmd._command[:, 1].tolist() == [0.0, 1.0, 0.0]   # sweep rides the sit
     assert cmd._command[:, R.KICK].tolist() == [0.0, 0.0, 1.0]  # L-kick rides the headstand
-    assert cmd._command[:, [2, 3, 5]].abs().max() == 0.0    # the other three slots stay zero
+    assert cmd._command[:, [3, 5]].abs().max() == 0.0       # the last two slots stay zero
 
 
 def test_toprock_step_pays_dense_while_the_rhythm_holds():
@@ -283,12 +295,24 @@ def test_toprock_step_needs_a_standing_duck():
     assert float(R.toprock_step(low)) == 0.0
 
 
-def test_toprock_pays_more_than_standing_still_and_the_sway_is_seasoning(cfg):
-    step, sway = cfg.rewards["toprock_step"], cfg.rewards["toprock_sway"]
-    assert step.func.__name__ == "toprock_step" and step.weight > 0.0
-    assert sway.weight < step.weight  # a held lean cannot out-earn the steps
-    # Standing still must earn LESS than stepping: stillness rests while the flag is up,
-    # and its headstand gate (gate_command="twist") survives the second wrapping.
+def test_the_bounce_wiring_lives_in_the_env(cfg):
+    """hs13's config: the bounce pays the move's weight (6.0), the cross-steps pay under it, the
+    old toprock footwork terms and their seed are RETIRED registrations (hs12's lesson: dead
+    seasoning; the functions stay tested), standing still must earn LESS than bouncing —
+    posture_stillness still rests while body[0] is up (the hs11 wrapper, semantics moved), and
+    its headstand gate (gate_command="twist") survives the wrapping."""
+    from microduck_challenges.got_a_talent import rewards as R
+
+    bounce = cfg.rewards["bounce_hold"]
+    assert bounce.func is R.bounce_hold and bounce.weight == 6.0
+    step = cfg.rewards["bounce_step"]
+    assert step.func is R.bounce_step and 0.0 < step.weight < bounce.weight
+    assert "toprock_step" not in cfg.rewards and "toprock_sway" not in cfg.rewards
+    assert "spawn_toprock" not in cfg.events
+    seed = cfg.events["spawn_mid_bounce"]
+    assert seed.func is R.spawn_mid_bounce and seed.params["prob"] > 0.0
+    assert cfg.commands["body_pose"].bounce_prob > 0.0
+    assert cfg.commands["body_pose"].step_prob > 0.0
     still = cfg.rewards["posture_stillness"]
     assert still.func.__name__ == "unless_toprock"
     assert still.params["gate_command"] == "twist"
@@ -829,6 +853,257 @@ def test_the_feet_sensor_column_order(cfg):
     assert li != -1 and ri != -1
 
 
+# ── hs13: the breakdance overhaul — the beat bounce (body[0]) and cross-steps (body[2]) ──
+
+
+def _bounce_env(cmd):
+    """A standing duck on a flat stage, seen by rewards.bounce_hold / bounce_step: trunk z and
+    vertical velocity, tilt, knee flexion and the feet sensor's found row are set per step by the
+    test (joint_pos relative to a zero default_joint_pos — the tests speak in offsets)."""
+    sensor = types.SimpleNamespace(data=types.SimpleNamespace(
+        found=torch.tensor([[1.0, 1.0]])))
+    robot = types.SimpleNamespace(data=types.SimpleNamespace(
+        projected_gravity_b=torch.tensor([[0.0, 0.0, -1.0]]),
+        root_link_pos_w=torch.tensor([[0.0, 0.0, 0.115]]),
+        root_link_lin_vel_w=torch.tensor([[0.0, 0.0, 0.0]]),
+        joint_pos=torch.zeros(1, 14),
+        default_joint_pos=torch.zeros(1, 14),
+    ))
+
+    class Scene(dict):
+        def __init__(self, robot, sensors):
+            super().__init__(robot=robot)
+            self.sensors = {"feet_ground_contact": sensors}
+            self.terrain = types.SimpleNamespace(env_origins=torch.zeros(1, 3))
+
+    return types.SimpleNamespace(
+        scene=Scene(robot, sensor),
+        step_dt=0.02,
+        command_manager=types.SimpleNamespace(
+            get_term=lambda name: cmd,
+            get_command=lambda name: cmd.command),
+    )
+
+
+def test_bounce_hold_opens_its_window_only_on_a_real_cycle():
+    """hs13's rhythm contract: one VALID cycle (fell >= 1.2 cm from its own top, having REACHED
+    the top, knees flexed, a foot planted, in tempo) opens a dense window paid every step; the
+    window lapses unless the next real cycle comes. A twitch, a sag with no rise back, straight
+    knees, a hop, spam and standing still never open it, and the flag down closes everything."""
+    from microduck_challenges.got_a_talent import rewards as R
+
+    cmd = _toprock_cmd()
+    cmd.command[0, 0] = 1.0  # bounce up
+    env = _bounce_env(cmd)
+    step = lambda **kw: float(R.bounce_hold(_apply(env, **kw)))
+
+    def _apply(env, **kw):
+        d = env.scene["robot"].data
+        d.root_link_pos_w[0, 2] = kw.get("z", 0.115)
+        d.root_link_lin_vel_w[0, 2] = kw.get("vz", 0.0)
+        d.projected_gravity_b[0, 2] = kw.get("gravity_z", -1.0)
+        knee = kw.get("knee", 0.35)
+        d.joint_pos[0, 3] = knee
+        d.joint_pos[0, 12] = -knee
+        feet = kw.get("feet", (1.0, 1.0))
+        env.scene.sensors["feet_ground_contact"].data.found = torch.tensor([[feet[0], feet[1]]])
+        return env
+
+    assert step(z=0.115, vz=-0.05) == 0.0      # sinking from the stand: no cycle yet, cold window
+    assert step(z=0.096, vz=+0.05) == 1.0      # the trough: 1.9 cm drop, knees, planted, tempo:
+    assert step(z=0.115, vz=0.0) == 1.0         # DENSE — the rise pays too (headstand_hold shape)
+    cmd.b_since_valid[0] = 0.8                  # the window lapses...
+    assert step(z=0.115, vz=0.0) == 0.0         # ...with no new cycle: stillness earns nothing
+
+    cmd2 = _toprock_cmd(); cmd2.command[0, 0] = 1.0; env2 = _bounce_env(cmd2)
+    s2 = lambda **kw: float(R.bounce_hold(_apply(env2, **kw)))
+    assert s2(z=0.115, vz=-0.05) == 0.0
+    assert s2(z=0.109, vz=+0.05) == 0.0         # a 0.6 cm twitch: below the drop bar, no window
+    cmd3 = _toprock_cmd(); cmd3.command[0, 0] = 1.0; env3 = _bounce_env(cmd3)
+    s3 = lambda **kw: float(R.bounce_hold(_apply(env3, **kw)))
+    assert s3(z=0.106, vz=-0.05) == 0.0
+    assert s3(z=0.093, vz=+0.05) == 0.0         # drop enough, but never reached the top (0.106):
+    cmd4 = _toprock_cmd(); cmd4.command[0, 0] = 1.0; env4 = _bounce_env(cmd4)
+    s4 = lambda **kw: float(R.bounce_hold(_apply(env4, **kw)))
+    assert s4(z=0.115, vz=-0.05, knee=0.05) == 0.0
+    assert s4(z=0.096, vz=+0.05, knee=0.05) == 0.0   # straight knees: a hip-hinge, not a bounce
+    assert s4(z=0.115, vz=-0.05) == 0.0
+    assert s4(z=0.096, vz=+0.05, feet=(0.0, 0.0)) == 0.0  # both feet airborne: a HOP, not a bounce
+    cmd5 = _toprock_cmd(); cmd5.command[0, 0] = 1.0; env5 = _bounce_env(cmd5)
+    s5 = lambda **kw: float(R.bounce_hold(_apply(env5, **kw)))
+    assert s5(z=0.115, vz=-0.05) == 0.0
+    assert s5(z=0.096, vz=+0.05) == 1.0         # one real cycle: the window is open...
+    cmd5.b_since_beat[0] = 0.04                 # ...but a SECOND trough this fast is spam
+    assert s5(z=0.115, vz=-0.05) == 1.0         # (window still open — paying, no new cycle yet)
+    cmd5.b_since_valid[0] = 10.0                # close the window by hand to watch the beat gate
+    assert s5(z=0.096, vz=+0.05) == 0.0         # real drop, off the beat: no cycle, stays closed
+    cmd5.b_since_beat[0] = 0.5                  # now on the beat: the cycle counts again
+    assert s5(z=0.115, vz=-0.05) == 0.0
+    assert s5(z=0.096, vz=+0.05) == 1.0
+    cmd5.command[0, 0] = 0.0                    # flag down: even a fresh window earns nothing
+    cmd5.b_since_valid[0] = 0.1
+    assert s5(z=0.110, vz=0.0) == 0.0
+    cmd5.command[0, 0] = 1.0
+    cmd5.b_since_valid[0] = 0.1
+    assert s5(z=0.060, vz=0.0) == 0.0           # at crouch height the bounce regime is closed
+    assert s5(z=0.110, vz=0.0, gravity_z=-0.9) == 0.0  # and tilted past 25.8°
+
+
+def test_bounce_step_counts_alternating_hips_only():
+    """The cross-steps (body[2], riding the bounce): a peak is one hip 0.45 rad forward of home,
+    then the OTHER side's peak counts (hs11's alternation rule), capped in tempo; each peak
+    refreshes a dense window. Same side twice, half-hearted shuffles, spam and the flag down
+    leave the window to lapse. Left forward is NEGATIVE, right POSITIVE (the downrock signs)."""
+    from microduck_challenges.got_a_talent import rewards as R
+
+    cmd = _toprock_cmd()
+    cmd.command[0, 0] = 1.0
+    cmd.command[0, 2] = 1.0  # step up (it only ever rides the bounce)
+    env = _bounce_env(cmd)
+
+    def step(l_dev=0.0, r_dev=0.0, z=0.115, gravity_z=-1.0):
+        d = env.scene["robot"].data
+        d.joint_pos[0, 2] = l_dev
+        d.joint_pos[0, 11] = r_dev
+        d.root_link_pos_w[0, 2] = z
+        d.projected_gravity_b[0,2] = gravity_z
+        return float(R.bounce_step(env))
+
+    assert step(l_dev=-0.55) == 1.0        # LEFT hip forward: first peak opens the window
+    assert step(l_dev=-0.55) == 1.0        # inside the window: DENSE
+    cmd.s_since_valid[0] = 1.2             # window lapses...
+    assert step(l_dev=-0.55) == 0.0        # ...and the SAME side again never reopens it
+    cmd.s_since_peak[0] = 0.5
+    assert step(r_dev=+0.55) == 1.0        # the RIGHT side, past the cap: alternation pays
+    cmd.s_since_valid[0] = 1.2
+    assert step(l_dev=-0.30) == 0.0        # 0.30 < 0.45: a shuffle is not a step
+    cmd.s_since_peak[0] = 0.5
+    assert step(l_dev=-0.55) == 1.0        # a real left peak: the window reopens
+    cmd.s_since_valid[0] = 1.2             # lapse it again...
+    assert step(r_dev=+0.55) == 0.0        # ...this right peak is due, but:
+    cmd.s_since_peak[0] = 0.0
+    assert step(r_dev=+0.55) == 0.0        # 0.0 s after the last: faster than the cap, not counted
+    cmd.command[0, 2] = 0.0                # step flag down: the bounce alone earns this nothing
+    cmd.s_since_valid[0] = 0.1
+    assert step(l_dev=-0.55) == 0.0
+    cmd.command[0, 2] = 1.0
+    cmd.s_since_valid[0] = 0.1
+    assert step(l_dev=-0.55, z=0.06) == 0.0        # regime gates: not at crouch height...
+    assert step(l_dev=-0.55, gravity_z=-0.9) == 0.0  # ...and not leaning
+
+
+def test_spawn_mid_bounce_marks_both_flags_and_shows_a_step(monkeypatch):
+    """The seed puts episodes IN the trough: knees flexed, both hips bent the bounce way, exactly
+    one hip a full step forward (the shown cross-step), a small sink to start the first cycle —
+    and it marks BOTH flags (its reset raises bounce and step from them). The headstand, sweep and
+    kick seeds are left exactly as they made it."""
+    from microduck_challenges.got_a_talent import rewards as R
+
+    monkeypatch.setattr("mjlab_microduck.tasks.mdp._servo_joint_ids",
+                        lambda env, asset: list(range(14)))
+    monkeypatch.setattr("mjlab_microduck.tasks.mdp._env_origin_z",
+                        lambda env, ids: torch.zeros(len(ids), device="cpu"))
+    n = 5
+    taken_twist = torch.tensor([False, True, False, False, False])   # env 1 on its head
+    body = types.SimpleNamespace(
+        spawned=torch.zeros(n, dtype=torch.bool),
+        step_spawned=torch.zeros(n, dtype=torch.bool),
+        sweep_spawned=torch.tensor([False, False, True, False, False]),  # env 2 mid-sweep
+        kick_spawned=torch.tensor([False, False, False, False, True]))   # env 4 in the freeze
+    env = types.SimpleNamespace(
+        device="cpu",
+        scene={"robot": types.SimpleNamespace(data=types.SimpleNamespace(
+            default_joint_pos=torch.zeros(n, 14)))},
+        sim=types.SimpleNamespace(data=types.SimpleNamespace(
+            qpos=torch.zeros(n, 21), qvel=torch.zeros(n, 6))),
+        command_manager=types.SimpleNamespace(get_term=lambda name: {
+            "twist": types.SimpleNamespace(spawned=taken_twist), "body_pose": body}[name]),
+    )
+    R.spawn_mid_bounce(env, torch.arange(n), prob=1.0, joint_noise_std=0.0)
+
+    assert body.spawned.tolist() == [True, False, False, True, False]      # taken seeds skipped
+    assert body.step_spawned.tolist() == [True, False, False, True, False]  # step rides the bounce
+    for i in (0, 3):
+        assert float(env.sim.data.qpos[i, 2]) == pytest.approx(R.BOUNCE_SPAWN_Z)
+        assert float(env.sim.data.qvel[i, 2]) == pytest.approx(R.BOUNCE_SPAWN_VZ)     # trough fast
+        q = env.sim.data.qpos[i, 7:21]
+        hl, hr = float(q[2]), float(q[11])
+        assert (hl <= -0.5) ^ (hr >= 0.5)          # exactly one hip shown a full step forward
+        assert hl < -0.1 and hr > 0.1              # both hips bent the upright-keeping way
+        assert 0.1 <= float(q[3]) <= 0.4 and -0.4 <= float(q[12]) <= -0.1  # knees flexed together
+    for i in (1, 2, 4):                             # untouched: every number still zero
+        assert torch.equal(env.sim.data.qpos[i], torch.zeros(21))
+
+
+def adr_of(robot, name):
+    """qpos address of one joint on the training model."""
+    import mujoco
+
+    return int(robot.jnt_qposadr[mujoco.mj_name2id(robot, mujoco.mjtObj.mjOBJ_JOINT, name)])
+
+
+def test_the_seed_bounce_pose_is_a_real_crouch_free_squat(cfg):
+    """The seed pose's SIGNS, measured on the training model at mjlab's HOME pose (the entity's
+    init_state, not the model's zero-default): flexing the knees (left +, right −, the lift signs)
+    plus the mirrored hip bend buys back the root drop — at the seed z the planted foot stays at
+    the floor (a planted squat the physics can hold), the shown stepping foot lifts a touch more,
+    and the seed z is a real drop below the stand, past the drop bar."""
+    import re
+
+    import mujoco
+
+    from microduck_challenges.got_a_talent import rewards as R
+
+    robot = _training_model(cfg.scene.entities["robot"])
+    data = mujoco.MjData(robot)
+    home = data.qpos.copy()
+    for pat, val in cfg.scene.entities["robot"].init_state.joint_pos.items():
+        for n in JOINT_NAMES:
+            if re.fullmatch(pat, n):
+                home[adr_of(robot, n)] = val
+    trunk = mujoco.mj_name2id(robot, mujoco.mjtObj.mjOBJ_BODY, "trunk_base")
+    free = int(robot.jnt_qposadr[robot.body_jntadr[trunk]])
+    adr = {n: adr_of(robot, n) for n in JOINT_NAMES}
+    foot = {s: mujoco.mj_name2id(robot, mujoco.mjtObj.mjOBJ_GEOM, f"{s}_foot_collision")
+            for s in ("left", "right")}
+
+    def foot_zs(z):
+        data.qpos[:] = home
+        data.qpos[free + 2] = z
+        data.qpos[free + 3] = 1.0
+        mujoco.mj_forward(robot, data)
+        return {s: float(data.geom_xpos[foot[s], 2]) for s in ("left", "right")}
+
+    stand = foot_zs(0.115)
+    sagged = foot_zs(R.BOUNCE_SPAWN_Z)           # same legs, root dropped: feet punch down
+    assert sagged["left"] < stand["left"] - 0.010
+
+    def seed(step_left):
+        data.qpos[:] = home
+        if step_left:
+            data.qpos[adr[JOINT_NAMES[3]]] += R.BOUNCE_KNEE_FLEX - 0.20
+            data.qpos[adr[JOINT_NAMES[2]]] -= R.BOUNCE_HIP_BEND + R.BOUNCE_STEP_SHOW
+            data.qpos[adr[JOINT_NAMES[12]]] -= R.BOUNCE_KNEE_FLEX
+            data.qpos[adr[JOINT_NAMES[11]]] += R.BOUNCE_HIP_BEND
+        else:
+            data.qpos[adr[JOINT_NAMES[12]]] -= R.BOUNCE_KNEE_FLEX - 0.20
+            data.qpos[adr[JOINT_NAMES[11]]] += R.BOUNCE_HIP_BEND + R.BOUNCE_STEP_SHOW
+            data.qpos[adr[JOINT_NAMES[3]]] += R.BOUNCE_KNEE_FLEX
+            data.qpos[adr[JOINT_NAMES[2]]] -= R.BOUNCE_HIP_BEND
+        data.qpos[free + 2] = R.BOUNCE_SPAWN_Z
+        data.qpos[free + 3] = 1.0
+        mujoco.mj_forward(robot, data)
+        return {s: float(data.geom_xpos[foot[s], 2]) for s in ("left", "right")}
+
+    for step_left, lifted_side in ((True, "left"), (False, "right")):
+        z = seed(step_left)
+        planted = "right" if step_left else "left"
+        assert z[planted] > sagged[planted] + 0.010   # the knees bought the drop back...
+        assert z[planted] > stand[planted] - 0.012    # ...to the floor, not deep through it
+        assert z[lifted_side] >= z[planted] + 0.005   # the shown step lifts a touch (a shuffle)
+    assert 0.115 - R.BOUNCE_SPAWN_Z >= R.BOUNCE_DROP  # the seed sits below a full drop bar
+
+
 TIMELINE = Path(microduck_challenges.__file__).parent / "got_a_talent" / "timeline.json"
 
 
@@ -993,4 +1268,4 @@ def test_the_manifest_says_what_the_policy_reads():
     command = ch.for_task("Mjlab-GotATalent-MicroDuck").command
     assert command["twist"].startswith("[sit flag")
     assert "head_yaw" in command["head"]
-    assert command["body"].startswith("[toprock flag")
+    assert command["body"].startswith("[bounce flag")

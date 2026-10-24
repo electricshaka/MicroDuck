@@ -32,8 +32,10 @@ from mjlab_microduck.tasks import mdp as microduck_mdp
 
 HEADSTAND = 1  # twist slot of the headstand flag
 SPIN = 2       # twist slot of the spin flag: 1 = spin counter-clockwise (seen from above) on the head
-TOPROCK = 0    # body slot of the toprock flag: 1 = step in place to the beat while standing
+TOPROCK = 0    # body slot of the bounce flag (hs13): 1 = knee-bounce to the beat while standing
+               # (the slot hs11/hs11b used for the failed footwork — kept, the semantics moved)
 SWEEP = 1      # body slot of the downrock sweep flag: 1 = sweep a leg around in the seated crouch
+STEP = 2       # body slot of the cross-step flag (hs13): 1 = alternate hip steps ON the bounce
 KICK = 4       # body slot of the L-kick freeze flag: 1 = one leg up, one leg level, on the head
 
 HEADSTAND_Z = 0.15            # trunk height resting on the head (measured, see above)
@@ -315,35 +317,40 @@ def head_spindle_penalty(env, command_name: str = "twist") -> torch.Tensor:
 
 
 class ToprockCommand(CommandTerm):
-    """The dance flags in the body command: toprock in body[0], downrock sweep in body[1],
-    L-kick freeze in body[4]; body 2, 3 and 5 stay zero.
+    """The dance flags in the body command: BOUNCE in body[0], downrock sweep in body[1],
+    cross-step in body[2], L-kick freeze in body[4]; body 3 and 5 stay zero.
 
-    Each resample draws all three flags Bernoulli(prob). Every step each is forced down unless
-    its posture is commanded: toprock rides ONLY a standing posture (top-rock is a standing
-    move), the sweep ONLY a commanded sit (downrock is a floor move), the L-kick ONLY a
-    commanded headstand (it is a freeze held on the head). The policy never sees a flag up
-    in a posture the move cannot happen in, and one slot never carries two moves at once.
+    Each resample draws all four flags Bernoulli(prob). Every step each is forced down unless its
+    posture is commanded: the bounce rides ONLY a standing posture (it is a standing knee bounce —
+    the slot's old toprock meaning, hs13's overhaul; bounce_probe.py measured that the timeline
+    alone cannot bounce, so this flag now carries a TRAINED regime), the cross-step rides ONLY the
+    bounce flag (Indian steps are steps ON the rhythm — no bounce, no steps), the sweep ONLY a
+    commanded sit (downrock is a floor move), the L-kick ONLY a commanded headstand (a freeze held
+    on the head). The policy never sees a flag up in a posture the move cannot happen in, and one
+    slot never carries two moves at once.
     """
 
     def __init__(self, cfg, env):
         super().__init__(cfg, env)
-        self._flag_prob = float(getattr(cfg, "toprock_prob", 0.5))
+        self._flag_prob = float(getattr(cfg, "bounce_prob", 0.5))
+        self._step_prob = float(getattr(cfg, "step_prob", 0.5))
         self._sweep_prob = float(getattr(cfg, "sweep_prob", 0.5))
         self._kick_prob = float(getattr(cfg, "kick_prob", 0.5))
         self._flag = torch.zeros(self.num_envs, device=self.device)
+        self._step_flag = torch.zeros(self.num_envs, device=self.device)
         self._sweep_flag = torch.zeros(self.num_envs, device=self.device)
         self._kick_flag = torch.zeros(self.num_envs, device=self.device)
         self._command = torch.zeros(self.num_envs, 6, device=self.device)
-        # spawn_toprock marks the episodes it starts mid-step and spawn_seated_sweep the ones it
-        # starts mid-crouch; the reset raises each flag from its mark (the HeadstandCommand.spawned
-        # pattern: mjlab applies reset events before commands).
+        # spawn_mid_bounce marks the episodes it starts mid-bounce (one hip already forward, the
+        # way the sweep seed shows the blade), spawn_seated_sweep the mid-crouch ones and
+        # spawn_l_kick the freeze ones; the reset raises each flag from its mark (the
+        # HeadstandCommand.spawned pattern: mjlab applies reset events before commands).
         self.spawned = torch.zeros(self.num_envs, dtype=torch.bool, device=self.device)
+        self.step_spawned = torch.zeros(self.num_envs, dtype=torch.bool, device=self.device)
         self.sweep_spawned = torch.zeros(self.num_envs, dtype=torch.bool, device=self.device)
         self.kick_spawned = torch.zeros(self.num_envs, dtype=torch.bool, device=self.device)
-        # Footwork state for rewards.toprock_step (the frontier trick, as with the headspin's
-        # turned/frontier): which foot landed last (-1 = neither yet), each foot's contact on the
-        # previous step, seconds since a step counted (the ~2 Hz cap and the dense hold window),
-        # and the airborne streak that tells a hop from a step.
+        # Footwork state for rewards.toprock_step (RETIRED term, kept for its unit tests): the
+        # hs11/hs11b bookkeeping stays registered here so the dormant function still runs.
         self.last_foot = -torch.ones(self.num_envs, dtype=torch.long, device=self.device)
         self.prev_down = torch.zeros(self.num_envs, 2, dtype=torch.bool, device=self.device)
         self.since_paid = torch.full((self.num_envs,), 10.0, device=self.device)
@@ -357,6 +364,20 @@ class ToprockCommand(CommandTerm):
         # the sweep gate is open, and the furthest it has reached — turning back pays nothing.
         self.swept_turned = torch.zeros(self.num_envs, device=self.device)
         self.swept_frontier = torch.zeros(self.num_envs, device=self.device)
+        # Bounce-cycle state for rewards.bounce_hold (hs13): the highest trunk z since the last
+        # trough (a cycle must return UP, not just sag), whether the trunk was falling last step
+        # (a trough is the falling→rising edge), seconds since the last VALID bounce (the tempo
+        # floor) and since the last one that PAID (the dense window, the headstand_hold shape).
+        self.b_z_top = torch.zeros(self.num_envs, device=self.device)
+        self.b_prev_falling = torch.zeros(self.num_envs, dtype=torch.bool, device=self.device)
+        self.b_since_valid = torch.full((self.num_envs,), 10.0, device=self.device)
+        self.b_since_beat = torch.full((self.num_envs,), 10.0, device=self.device)
+        # Cross-step state for rewards.bounce_step (hs13): which hip was forward last (−1 none,
+        # 0 left, 1 right — only ALTERNATION counts, the hs11 frontier rule), seconds since the
+        # last counted peak (the beat cap) and since the window last refreshed.
+        self.s_side = -torch.ones(self.num_envs, dtype=torch.long, device=self.device)
+        self.s_since_valid = torch.full((self.num_envs,), 10.0, device=self.device)
+        self.s_since_peak = torch.full((self.num_envs,), 10.0, device=self.device)
 
     @property
     def command(self) -> torch.Tensor:
@@ -364,11 +385,13 @@ class ToprockCommand(CommandTerm):
 
     def reset(self, env_ids):
         extras = super().reset(env_ids)
-        # A spawn_toprock episode starts with the toprock flag up, a spawn_seated_sweep one with
-        # the sweep flag up and a spawn_l_kick one with the kick flag up (mjlab applies reset
-        # events first, so the spawns have marked these env_ids); every other episode starts
-        # flag-down and waits for its first draw.
+        # A spawn_mid_bounce episode starts with the bounce flag up (and the step flag, when the
+        # seed shows a stepping hip — they ride together), a spawn_seated_sweep one with the sweep
+        # flag up and a spawn_l_kick one with the kick flag up (mjlab applies reset events first,
+        # so the spawns have marked these env_ids); every other episode starts flag-down and waits
+        # for its first draw.
         self._flag[env_ids] = self.spawned[env_ids].float()
+        self._step_flag[env_ids] = self.step_spawned[env_ids].float()
         self._sweep_flag[env_ids] = self.sweep_spawned[env_ids].float()
         self._kick_flag[env_ids] = self.kick_spawned[env_ids].float()
         self.last_foot[env_ids] = -1
@@ -378,7 +401,15 @@ class ToprockCommand(CommandTerm):
         self.airborne_run[env_ids] = 0
         self.swept_turned[env_ids] = 0.0
         self.swept_frontier[env_ids] = 0.0
+        self.b_z_top[env_ids] = 0.0
+        self.b_prev_falling[env_ids] = False
+        self.b_since_valid[env_ids] = 10.0
+        self.b_since_beat[env_ids] = 10.0
+        self.s_side[env_ids] = -1
+        self.s_since_valid[env_ids] = 10.0
+        self.s_since_peak[env_ids] = 10.0
         self.spawned[env_ids] = False
+        self.step_spawned[env_ids] = False
         self.sweep_spawned[env_ids] = False
         self.kick_spawned[env_ids] = False
         return extras
@@ -386,6 +417,9 @@ class ToprockCommand(CommandTerm):
     def _resample_command(self, env_ids: torch.Tensor) -> None:
         self._flag[env_ids] = (
             torch.rand(len(env_ids), device=self.device) < self._flag_prob
+        ).float()
+        self._step_flag[env_ids] = (
+            torch.rand(len(env_ids), device=self.device) < self._step_prob
         ).float()
         self._sweep_flag[env_ids] = (
             torch.rand(len(env_ids), device=self.device) < self._sweep_prob
@@ -395,16 +429,22 @@ class ToprockCommand(CommandTerm):
         ).float()
         self.since_paid[env_ids] = 10.0  # a new segment may count its first step at once
         self.since_valid[env_ids] = 10.0  # and never inherits the previous segment's hold window
+        self.b_since_valid[env_ids] = 10.0  # same for the bounce and step windows: a fresh
+        self.b_since_beat[env_ids] = 10.0   # segment may open its window at once, but only by
+        self.s_since_valid[env_ids] = 10.0  # completing a real cycle or a real alternating peak
+        self.s_since_peak[env_ids] = 10.0
 
     def _update_command(self) -> None:
         twist = self._env.command_manager.get_command("twist")
         standing = (twist[:, 0] < 0.5) & (twist[:, 1] < 0.5)
         sitting = twist[:, 0] >= 0.5
         headstanding = twist[:, 1] >= 0.5
-        self._command[:, TOPROCK] = self._flag * standing
+        bounce = self._flag * standing
+        self._command[:, TOPROCK] = bounce
+        self._command[:, STEP] = self._step_flag * bounce  # steps ride the bounce, nothing else
         self._command[:, SWEEP] = self._sweep_flag * sitting
         self._command[:, KICK] = self._kick_flag * headstanding
-        self._command[:, [2, 3, 5]] = 0.0
+        self._command[:, [3, 5]] = 0.0
 
     def _update_metrics(self) -> None:
         pass
@@ -413,8 +453,12 @@ class ToprockCommand(CommandTerm):
 @_dataclass(kw_only=True)
 class ToprockCommandCfg(CommandTermCfg):
     class_type: type = ToprockCommand
-    # Probability a resample raises the toprock flag (it then holds to the next resample).
-    toprock_prob: float = 0.5
+    # Probability a resample raises the bounce flag in body[0] (it then holds to the next
+    # resample, carried every step only while standing).
+    bounce_prob: float = 0.5
+    # Probability a resample raises the cross-step flag in body[2] (it holds to the next
+    # resample, carried only while the bounce flag itself is carried — steps ride the rhythm).
+    step_prob: float = 0.5
     # Probability a resample raises the sweep flag (it holds to the next resample, and every step
     # in between carries it only while a sit is commanded).
     sweep_prob: float = 0.5
@@ -512,6 +556,151 @@ def toprock_sway(
         + torch.abs(robot.data.joint_pos[:, 10] - home[:, 10])
     ) * 0.5
     return _toprock_gate(env, command_name) * torch.exp(-torch.square(dev - target) / std**2)
+
+
+# ── The breakdance overhaul (hs13): the beat BOUNCE on body[0], CROSS-STEPS on body[2] ──
+# The user's review of the live show: "the first move is just looking side to top with head —
+# doesn't look like break dancing", and the fix: an ACTIVE rhythmic knee bounce at 108 BPM with
+# alternating Indian cross-steps riding it. bounce_probe.py measured the timeline route FLAT (the
+# sit flag pulsed at beat rate moves the trunk 0.003 m — 0 of 42 beats reach 2 cm: the 2 s-ramped
+# reference cannot oscillate at 1.8 Hz, and dwells < 2 s were never trained), and hs11/hs11b
+# measured standing footwork unlearnable (a stand earns the same before and after a step). Both
+# walls point the same way: the bounce is a TRAINED REGIME, and the steps must ride a bouncing,
+# already-moving body. Measured for the numbers (scratch/bounce_env_probe.py, static forward):
+#   * KNEE BOUNCE: symmetric knee flexion (left +, right −, the lift signs) with a small mirrored
+#     hip_pitch bend keeps the trunk VERTICAL (projected gravity −1.00 in every pose tried) and
+#     takes the feet off the floor: knees +0.35 ∓ hips −0.15 lifts them ~1 cm (trough z 0.105),
+#     knees +0.50 ∓ hips −0.15 ~2.2 cm (trough z 0.093-0.095). So a REAL bounce cycle runs
+#     z 0.115 (top, the stand) down to ~0.095 and back — a 1.5-2 cm drop on a 0.115 m trunk is
+#     15% of body height, plainly visible — and stays clear above the crouch floor (0.061) and
+#     the grinder floor (0.085). A cycle therefore must: fall at least BOUNCE_DROP from its own
+#     top, have REACHED the top (>= BOUNCE_Z_TOP, i.e. come back UP — a sag into a squat is not a
+#     bounce), flex the KNEES (this is a knee bounce, not a hip hinge or a collapse), keep a foot
+#     on the floor (a knee bounce, not a hop), and arrive on tempo (>= BOUNCE_BEAT_S after the
+#     last, so it cannot spam; at 108 BPM a beat is 0.555 s, 0.30 s allows the tempo and caps it).
+#   * CROSS-STEP: from the trough, swinging one hip forward (left NEGATIVE / right POSITIVE, the
+#     downrock signs) 0.40-0.55 rad puts that foot 2.3-3.2 cm FORWARD and shuffles it up to
+#     1.4 cm off the floor while the other stays planted. A peak is that hip 0.45 rad forward of
+#     its home value; only ALTERNATION counts (hs11's rule — a metronome twitch pays nothing).
+# The dense-window contract (the hs11b lesson applied WITH the state this time): completing one
+# valid bounce opens a hold window paid every step; the window dies unless the next cycle
+# completes — a few seeded cycles teach it, standing still cannot farm it. posture_stillness
+# pauses under the flag (unless_toprock, still wired: the pause hs11 built is exactly what the
+# bounce needs to beat quiet standing); posture_composite KEEPS paying — the bounce's top pose
+# IS the stand pose, so unlike the grinder, this regime replaces no rest target.
+# Counter-sway, honest: this robot has no torso joints. The sway the eye reads comes from the
+# bounce itself plus the beat nods the head command already carries (neck ±0.35 on the timeline);
+# the step's mirrored hip swing rocks the pelvis. Nothing here pretends at a chest sway.
+
+BOUNCE_Z_TOP = 0.108    # a cycle's peak must reach here (the stand is 0.115; return UP or no cyc)
+BOUNCE_Z_FLOOR = 0.088  # below this it is a squat/crouch, not a bounce (grinder floor is 0.085)
+BOUNCE_DROP = 0.012     # trough this far below the cycle's own top (probe: 1.5-2.2 cm reachable)
+BOUNCE_KNEE = 0.20      # mean |knee − home| (rad) the trough must flex (probe: 0.35 pose)
+BOUNCE_BEAT_S = 0.30    # min s between counted troughs (108 BPM = 0.555 s; spam cannot earn)
+BOUNCE_HOLD_S = 0.75    # the dense window: ~1.3 beats — keep bouncing to keep earning
+BOUNCE_TILT_COS = math.cos(math.radians(20.0))  # the regime: a bounce, not a lean
+
+STEP_HIP_FWD = 0.45     # hip_pitch forward of HOME to count a step peak (probe: 0.50-0.55 reach)
+STEP_PERIOD_S = 0.25    # min s between counted peaks (≈ the hs11 2 Hz cap, one side per 8th beat)
+STEP_HOLD_S = 1.1       # cross-steps window: two beats — keep ALTERNATING to keep earning
+
+
+def _bounce_flag(env, command_name: str = "body_pose") -> torch.Tensor:
+    return env.command_manager.get_command(command_name)[:, TOPROCK]
+
+
+def _step_flag(env, command_name: str = "body_pose") -> torch.Tensor:
+    return env.command_manager.get_command(command_name)[:, STEP]
+
+
+def _bounce_regime(env, command_name: str) -> torch.Tensor:
+    """Flag up, trunk near vertical, and in the standing-to-bounce band (never the crouch, never
+    the headstand — the command mask already hides both flags outside a standing posture)."""
+    grav_z = env.scene["robot"].data.projected_gravity_b[:, 2]
+    upright = torch.clamp((-grav_z - BOUNCE_TILT_COS) / 0.034, 0.0, 1.0)
+    z = _trunk_z(env)
+    in_band = torch.clamp((z - BOUNCE_Z_FLOOR) / 0.005, 0.0, 1.0)
+    return _bounce_flag(env, command_name) * upright * in_band
+
+
+def bounce_hold(
+    env,
+    command_name: str = "body_pose",
+    feet_sensor: str = "feet_ground_contact",
+) -> torch.Tensor:
+    """The 108 BPM knee bounce (hs13, body[0]). A VALID cycle — fell >= BOUNCE_DROP from its own
+    peak, had REACHED the peak (BOUNCE_Z_TOP: it came back UP), flexed the knees, kept a foot
+    planted, inside the regime — opens a dense window paid every step until BOUNCE_HOLD_S after
+    the last one. The headstand_hold learnable shape on a rhythm: complete cycles earn, a sag,
+    a hop, a squat, a lean or a pause pays nothing. State lives on ToprockCommand (b_*)."""
+    cmd = env.command_manager.get_term(command_name)
+    dt = env.step_dt
+    robot = env.scene["robot"].data
+    z = _trunk_z(env)
+    falling = robot.root_link_lin_vel_w[:, 2] < 0.0
+
+    flag = _bounce_flag(env, command_name) > 0.5
+    # The cycle's own high-water mark: tracked only while the flag rides; flag down, it follows z.
+    cmd.b_z_top = torch.where(flag, torch.maximum(cmd.b_z_top, z), z)
+    trough = falling.logical_not() & cmd.b_prev_falling       # the fall→rise edge: the trough
+    cmd.b_prev_falling = falling
+
+    home = robot.default_joint_pos
+    knees = (torch.abs(robot.joint_pos[:, 3] - home[:, 3])
+             + torch.abs(robot.joint_pos[:, 12] - home[:, 12])) * 0.5
+    planted = _found(env, feet_sensor)                          # a knee bounce, not a hop
+    drop = cmd.b_z_top - z
+    valid = (
+        trough & flag
+        & (drop >= BOUNCE_DROP)
+        & (cmd.b_z_top >= BOUNCE_Z_TOP)
+        & (z >= BOUNCE_Z_FLOOR)
+        & (knees >= BOUNCE_KNEE)
+        & (planted > 0.0)
+        & (cmd.b_since_beat >= BOUNCE_BEAT_S)
+    )
+    cmd.b_since_valid = torch.where(valid, torch.zeros_like(cmd.b_since_valid),
+                                    cmd.b_since_valid + dt)
+    cmd.b_since_beat = torch.where(valid, torch.zeros_like(cmd.b_since_beat),
+                                   cmd.b_since_beat + dt)
+    cmd.b_z_top = torch.where(valid, z, cmd.b_z_top)          # the next cycle starts from here
+
+    return _bounce_regime(env, command_name) * (cmd.b_since_valid < BOUNCE_HOLD_S).float()
+
+
+def bounce_step(
+    env,
+    command_name: str = "body_pose",
+    period_s: float = STEP_PERIOD_S,
+    hold_s: float = STEP_HOLD_S,
+) -> torch.Tensor:
+    """Indian cross-steps ON the bounce (hs13, body[2], which the command only ever carries while
+    the bounce flag rides). A peak is one hip_pitch STEP_HIP_FWD rad forward of its home value
+    (left negative / right positive, the downrock signs); only ALTERNATION counts (hs11's rule)
+    and two peaks need period_s between them. Each peak refreshes the dense window — kick one leg
+    out forward, then the other, on the beat, from the bouncing body. State on ToprockCommand."""
+    cmd = env.command_manager.get_term(command_name)
+    dt = env.step_dt
+    robot = env.scene["robot"].data
+    home = robot.default_joint_pos
+    dev_l = robot.joint_pos[:, 2] - home[:, 2]   # left forward is NEGATIVE (hs12's sign)
+    dev_r = robot.joint_pos[:, 11] - home[:, 11]  # right forward is POSITIVE (mirrored mount)
+    fwd_l = dev_l <= -STEP_HIP_FWD
+    fwd_r = dev_r >= STEP_HIP_FWD
+    fresh = cmd.s_since_peak >= period_s
+    peak_l = fwd_l & (cmd.s_side != 0) & fresh
+    peak_r = fwd_r & (cmd.s_side != 1) & fresh
+    peak = peak_l | peak_r
+    cmd.s_since_valid = torch.where(peak, torch.zeros_like(cmd.s_since_valid),
+                                    cmd.s_since_valid + dt)
+    cmd.s_since_peak = torch.where(peak, torch.zeros_like(cmd.s_since_peak),
+                                   cmd.s_since_peak + dt)
+    cmd.s_side = torch.where(peak_l, torch.zeros_like(cmd.s_side),
+                             torch.where(peak_r, torch.ones_like(cmd.s_side), cmd.s_side))
+
+    regime = _bounce_regime(env, command_name)
+    stepping = _step_flag(env, command_name)
+    return regime * stepping * (cmd.s_since_valid < hold_s).float()
 
 
 # ── Downrock sweep (body[1], hs12; reshaped to a coffee grinder by hs12c) ──────
@@ -936,3 +1125,68 @@ def spawn_l_kick(
     body.kick_spawned[ids] = True
     body.spawned[ids] = False                  # a kick seed replaces any toprock seed
     env.command_manager.get_term(posture_command).spawned[ids] = True
+
+
+# The seeded bounce (hs13, scratch/bounce_env_probe.py): the trough pose the static probe measured
+# — knees +0.35 (left) / −0.35 (right, mirrored), a small mirrored hip bend (−0.15/+0.15) that
+# keeps the trunk vertical, one hip a further 0.40 FORWARD (the shown kick-out, the downrock
+# signs) with that knee straighter (the step, not a crouch) — at trunk z 0.100, just above the
+# measured contact height, with a small SINK (vz −0.02 m/s) so the first trough lands within a
+# few steps of the spawn and the window opens almost at once.
+BOUNCE_KNEE_FLEX = 0.35
+BOUNCE_HIP_BEND = 0.15
+BOUNCE_STEP_SHOW = 0.40                        # extra hip forward on the shown stepping leg
+BOUNCE_SPAWN_Z = 0.100
+BOUNCE_SPAWN_VZ = -0.02
+
+
+def spawn_mid_bounce(
+    env,
+    env_ids: torch.Tensor,
+    prob: float = 0.3,
+    command_name: str = "body_pose",
+    joint_noise_std: float = 0.02,
+) -> None:
+    """Start episodes already IN a bounce: the measured squat trough, one hip shown forward (the
+    cross-step seed — the sweep-seed lesson: show the shape, harvest teaches it), a small sink so
+    the first valid cycle completes almost at once. Marks BOTH the bounce and the step flags (the
+    command rides the step flag only on the bounce anyway). Skips episodes the headstand, sweep or
+    kick seeds already took; registers LAST, so nothing overwrites these marks.
+
+    mjlab applies event terms with mode="reset" right after the resets, when the pose is already
+    the standing one set_ground_state chose; qpos cols 7:21 are the 14 position servos in order
+    (0-4 left leg, 5 neck_pitch, 6 head_pitch, 7 head_yaw, 8 head_roll, 9-13 right leg)."""
+    if len(env_ids) == 0:
+        return
+    body = env.command_manager.get_term(command_name)
+    twist = env.command_manager.get_term("twist")
+    taken = (twist.spawned | body.sweep_spawned | body.kick_spawned)[env_ids]
+    chosen = (torch.rand(len(env_ids), device=env.device) < prob) & ~taken
+    ids = env_ids[chosen]
+    n = len(ids)
+    if n == 0:
+        return
+
+    asset = env.scene["robot"]
+    servo_ids = microduck_mdp._servo_joint_ids(env, asset)
+    cols = torch.tensor([7 + j for j in servo_ids], device=env.device, dtype=torch.long)
+    pose = asset.data.default_joint_pos[ids][:, servo_ids].clone()
+    pose[:, 3] = pose[:, 3] + BOUNCE_KNEE_FLEX        # knees flex together (left +, right −)
+    pose[:, 12] = pose[:, 12] - BOUNCE_KNEE_FLEX
+    pose[:, 2] = pose[:, 2] - BOUNCE_HIP_BEND         # mirrored hip bend keeps the trunk upright
+    pose[:, 11] = pose[:, 11] + BOUNCE_HIP_BEND
+    side = torch.randint(0, 2, (n,), device=env.device)   # 0 steps with the LEFT leg, 1 the RIGHT
+    step_l = (side == 0)
+    pose[step_l, 2] = pose[step_l, 2] - BOUNCE_STEP_SHOW   # left forward is NEGATIVE
+    pose[step_l, 3] = pose[step_l, 3] - 0.20               # a straighter knee: a step, not a crouch
+    pose[~step_l, 11] = pose[~step_l, 11] + BOUNCE_STEP_SHOW  # right forward is POSITIVE
+    pose[~step_l, 12] = pose[~step_l, 12] + 0.20
+
+    pose += torch.randn_like(pose) * joint_noise_std
+    env.sim.data.qpos[ids.unsqueeze(1).long(), cols.unsqueeze(0)] = pose
+    env.sim.data.qpos[ids, 2] = BOUNCE_SPAWN_Z + microduck_mdp._env_origin_z(env, ids)
+    env.sim.data.qvel[ids] = 0.0
+    env.sim.data.qvel[ids, 2] = BOUNCE_SPAWN_VZ       # a small sink: the first trough comes fast
+
+    body.spawned[ids] = True                          # the bounce flag
+    body.step_spawned[ids] = True                     # and the step flag: the seed shows a step

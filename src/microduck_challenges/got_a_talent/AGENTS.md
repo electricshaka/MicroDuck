@@ -44,14 +44,19 @@ policy reads:
 - `twist[2]`, the **spin flag**: with the headstand flag, 1 spins counter-clockwise (seen from above)
   on the head;
 - `head`, **4 angles in radians from the default pose**: neck_pitch, head_pitch, head_yaw, head_roll;
-- `body[0]`, the **toprock flag** (hs11): standing footwork — trained twice, never emerged, now
-  **parked**: the show keeps it at 0 and the feet stay static;
+- `body[0]`, the **bounce flag** (hs13): 1 knee-bounces to the beat while standing — a TRAINED
+  regime (the user's 108 BPM request; `scratch/bounce_probe.py` measured the timeline route FLAT,
+  0.003 m, 0 of 42 beats). It replaces hs11/hs11b's parked footwork on this slot; the show keeps
+  it 0 until the regime is trained AND stage-verified, then the 0-2 s opening raises it;
 - `body[1]`, the **downrock sweep flag** (hs12): 1 sweeps a leg around while the sit crouch holds
   (hs12c, queued: the same flag now demands the kneel-and-blade grinder — see the Runs row);
+- `body[2]`, the **cross-step flag** (hs13): 1 alternates hip_pitch steps (Indian cross-steps /
+  kick-outs) ON the bounce — the command carries it only while the bounce flag itself rides, so
+  steps never stand alone (hs11's lesson applied: footwork needs a moving body);
 - `body[4]`, the **L-kick freeze flag** (hs12b, trained — the live show raises it at 18.0 s): 1 holds
   the freeze on the head — one leg back to the vertical needle, the other level; 0 the ordinary
   two-level headstand;
-- `body[2, 3, 5]`, unused (zeros).
+- `body[3, 5]`, unused (zeros).
 
 A short `timeline.json` (Pollen's, 9 keyframes over 20 s, is in this folder):
 
@@ -328,7 +333,10 @@ this up from here: the strategy, every run and its lesson, and the open problems
    window freezes under the CUDA load of a 4096-env training run sharing the GPU.
 4. **Judge it**: `headspin_check` and `check.py` on the `.onnx` (see Judging below); the downrock sweep: `scratch/sweep_probe.py <onnx>` (acceptance) and `... full` (the sweep measured inside the real show); the L-kick freeze: `scratch/kick_probe.py <onnx>` (quiet headstand window then the flag — acceptance reads the freeze window).
 5. **Resume training** (hs12b is done — L-kick freeze learned and live; **hs12c, the grinder
-   sweep, is next** — same `body[1]`, the backlog entry says what it changes). No prewarm surgery:
+   sweep, is RUNNING** (launched 2026-10-24 from `hs12b_base`); **hs13, the breakdance overhaul,
+   is QUEUED and launches the moment hs12c ends, resuming from the hs12c WINNER** — judge hs12c
+   first per its backlog bar; if hs12c fell to fallback (c), the overhaul's base is
+   `hs12b/model_2000` again). No prewarm surgery:
    the `hs10_base` prewarm woke the WHOLE body block and every run since trained on it, so all body
    dims are alive in `hs12b/model_2000` (hs12c opens no new command slot — body[1] is alive from
    hs12; stage the archive byte-for-byte, no verification script needed). The verify-then-copy rule
@@ -394,6 +402,19 @@ From [The Conversation](https://theconversation.com/how-do-breakdancers-avoid-br
   raised with `HEADSTAND_PROB` 0.15 per resample, and `HEADSTAND_SPAWN_PROB` 0.2 of episodes start
   on the head (some spinning up to ±6 rad/s). `twist[2]` **spin flag**, drawn with `SPIN_PROB` 0.5
   at every resample while the headstand flag is up.
+- `body[0]` **bounce flag** (hs13): drawn with `BOUNCE_PROB` 0.5 per resample, rides only a
+  standing posture. While it rides, `bounce_hold` (6.0) pays a DENSE window (0.75 s) that only a
+  VALID cycle opens — drop ≥ 0.012 m from the cycle's own top, top ≥ 0.108 (it came back UP),
+  mean |knee−home| ≥ 0.20, a foot planted, ≥ 0.30 s since the last (cycle state lives on the
+  command term). `spawn_mid_bounce` (30%) starts episodes at the measured trough, one hip shown
+  forward, a small sink, marking the bounce AND step flags. The hs11/hs11b toprock terms
+  (`toprock_step`, `toprock_sway`) and `spawn_toprock` are RETIRED registrations (hs13: the
+  functions and their tests stay in `rewards.py`, unregistered). `body[2]` **cross-step flag**
+  (hs13): drawn with `STEP_PROB` 0.5, carried ONLY while the bounce flag itself rides —
+  `bounce_step` (4.0) pays the dense window opened by ALTERNATING hip_pitch peaks 0.45 rad past
+  home (left negative/right positive), ≥ 0.25 s apart. `posture_stillness` stays paused under
+  body[0] (`unless_toprock`, now the bounce flag); the sit composite KEEPS paying: the bounce's
+  top IS the stand, this regime replaces no rest target.
 - `body[4]` **L-kick freeze flag** (hs12b): drawn with `KICK_PROB` 0.5 per resample and forced down
   unless the headstand flag is up (`ToprockCommand` masks it, as the sweep rides the sit). While it
   rides, `l_kick_hold` (6.0) pays DENSE: exp on the leg pose — one leg level (hip 1.42 the measured
@@ -432,6 +453,7 @@ From [The Conversation](https://theconversation.com/how-do-breakdancers-avoid-br
 | hs12 | 1419963 | downrock sweep on `body[1]`: `downrock_sweep` (6.0, frontier CCW trunk yaw/sec dense in the crouch band, flag-gated), `downrock_leg` (2.0 straight-leg shape), `spawn_seated_sweep` (35% mid-sweep), stillness pause under the flag, curriculum 2.0→3.5→5.0 rad/s | **Downrock LEARNED: 2250 sweeps 837.2° per crouch (probe), crouch 3.00/3.00 s, quiet crouch 0.8°; +24.01 turns @ 15.09, sit 0.50 s, dive 0.26 s — best show checkpoint yet; on the full timeline 464° inside the 2 s knee drop, committed as the live show.** Neighbours 2000 (837°, sit 0.56) and 2500 (804°) pass; 2750/2999 decayed (+19.55/+18.60, sit missed) at the 2500 stage | The frontier pay + seeded start works where footwork failed because the crouch is a state the robot HOLDS — the seed is a starting position, not the whole move, so producing more of it is the only way to earn. Seasoning died: `downrock_leg` flat 0.004 all run — the duck grinds the sweep without the straight-leg shape; drop dead seasoning terms next run. Late-run decay at the final curriculum stage struck a second run: judge the last stage's checkpoints hardest |
 | hs12b | 7b551e4 | L-kick freeze on `body[4]`: `l_kick_hold` (6.0, DENSE exp on the measured leg pose — one leg level at hip ±1.42 knee straight, the other the HOME-hip needle — gated on the kick flag riding a headstand with the head planted and trunk z ≥ 0.13), `spawn_l_kick` (30% IN the freeze, at rest, marking the headstand flag too), kick flag rides only a commanded headstand; `downrock_leg` registration RETIRED (hs12's recorded lesson: flat 0.004). Resumed byte-for-byte from `hs12/model_2250` (`scratch/prewarm_hs12b.py` verified body[4] std 0.398 / \|w\| ≤ 0.26) | **L-KICK FREEZE LEARNED: 2000 freeze kick err 0.01 rad, NEEDLE 0.10 rad (baseline ~1.7 — the flag pulls one leg back to vertical), up 3.00 s, drift 11°, quiet window keeps the two-level pencil (needle 1.74); +21.67 turns @ 13.62, hold 12.69, dive 0.30, sit 0.34; head 0.42/0.37/0.37 the only checkpoint UNDER the hs12 baseline. Sweep survived (show 419° inside the window, probe 777°/crouch), arena 20.00 s — committed as the live show; timeline now raises `body[4]=1` at 18.0 s (guard test widened citing the verification).** Ladder: 1000–2000 all gates (5 consecutive; 1000 spun +23.47 but head 0.62 at 4.5 s), 2250/2500/2750 freeze passes with spin dips (+19.4/+19.1/+17.8), 2999 decayed (+13.66) | The seeded-hold recipe worked a third time (hold this time, not a turn): 500 already had the needle (0.10) — the seed + dense pay find the shape fast, the long run then refines balance around it. Cost measured honestly: the freeze pay trades ~2–4 spin turns (24.0 → 21.7) for the leg shape; head error IMPROVED (kicking one leg stabilises the spindle?). And the final-stage decay struck a THIRD run — the 2500-stage curriculum is a proven hazard, judge those checkpoints hardest |
 | hs12c | fb19d43 | **Grinder sweep — the butt-spin ban** (user's video review of hs12): `downrock_sweep` frontier now REQUIRES a kneel regime (trunk z ≥ 0.085 — flat crouch rests 0.061 — planted knee/foot via body+feet sensors) and pays MULTIPLIED by blade shape (hip ±1.2 knee 0: foot radius 0.089 m vs 0.067 tucked, `scratch/sweep_env_probe.py`); `sweep_progress` (2.0) funds the regime before the turn exists; `sweep_pelvis_contact` (−3.0 STRICT, new `pelvis_ground` sensor: pelvis/trunk geoms ONLY — a planted knee is support, a planted pelvis is the cheat); the sit composite PAUSES under the sweep flag (`unless_sit_rest`); seed shows the shape (blade offset, z 0.095). Resumed byte-for-byte from `hs12b/model_2000` | RUNNING — judged per the backlog bar below | — |
+| hs13 | (this commit) | **Breakdance overhaul — the user's Phase-1 fix** (their review: the opening "just looks side to top with head"; bounce_probe.py: the timeline bounce is FLAT): body[0] re-purposed to the **knee BOUNCE** as a trained regime — `bounce_hold` (6.0) pays a DENSE window that only VALID cycles open (drop ≥ 1.2 cm from the cycle's own top, REACHED top ≥ 0.108, knees flexed ≥ 0.20 rad, foot planted, ≥ 0.30 s apart; `scratch/bounce_env_probe.py`: knees ±0.35-0.50 + mirrored hip bend drop the trunk 1.5-2.2 cm, stay VERTICAL, feet planted, trough z 0.093-0.105 clear of the crouch); body[2] **cross-steps** ride ONLY the bounce flag — `bounce_step` (4.0) pays alternating hip_pitch peaks (0.45 rad forward, left negative/right positive, 0.25 s cap; probe: reaches the foot 2.3-3.2 cm forward, a shuffle not a hop); `spawn_mid_bounce` (30%) seeds the measured trough with one hip shown forward and a small sink; the hs11/hs11b toprock terms + seed are RETIRED registrations (functions/tests stay); stillness pause kept under body[0]; the sit composite KEEPS paying (the bounce's top IS the stand — this regime replaces no rest target). Resumes byte-for-byte from the hs12c winner (body dims alive; body[2] at prewarm values — zero first-layer weight, normalizer std ≈ 0.433, near-neutral, weights learn to grow) | QUEUED — launches the moment hs12c's 3000 iterations end | — |
 
 Best checkpoints committed in `checkpoints/got_a_talent/`:
 - **`hs12b/model_2000`** (live): the first checkpoint with the **L-kick freeze** — the flag pulls
@@ -638,19 +660,71 @@ penalty saturates while the frontier still pays — the −3.0 lost the sum agai
 *Finish*: same ritual — 12
 checkpoints judged, winner archived, Runs row + timeline story updated, pushed.
 
-**hs13 — Headstand Exit & upright freeze** (unlatch `twist[1]`). Problem: the headstand flag is
-latched for the whole episode; the show ends upside down. Implementation: in
-`HeadstandCommand._resample_command`, let the flag go back down (a small probability per
-resample, and always down when the sit/stand draw says so); add recovery rewards gated on
-"flag just went down": hip extension, trunk righting (the REST_STACK powers back on), landing on
-feet/knees within ~1.5 s, then upright stillness for the final freeze pop and b-boy bow. Trap to
-avoid (hit before): a "rise" that is really a lean back at 57° — require the upright stack, not just
-the angle. Then the timeline drops `twist[1]` at 17.0 s (move the brake start earlier so the spin
-stops by ~16.5 s) and the last 3 s are an upright freeze pop. Judge: `check.py` must PASS with the
-upright finish, headstand hold unchanged while the flag is up.
+**hs13 — Breakdance Overhaul** (`body[0]` = BOUNCE flag, `body[2]` = CROSS-STEP flag;
+**IMPLEMENTED, QUEUED at the hs12c handoff** — the user's direct order: the show's Phase-1 fix,
+train the moment hs12c's 3000 iterations end; see the Runs row for the change).
 
-**hs14 — "Block Rockin' Beats" Breakbeat Cypher Troupe** (`timeline_version: 2`, no policy training;
-`timeline.json` only). Transforms the solo performance into a full 6-duck B-Boy Battle Cypher on
+*Hypothesis* (the user's review, and two measurements): the opening "just looks side to top with
+head" because the body is static — and it CANNOT be fixed from the timeline (`bounce_probe.py`:
+the sit flag flipped every half-beat at 108 BPM moves the trunk 0.003 m, 0 of 42 beats reach
+2 cm — the 2 s-ramped reference cannot oscillate at 1.8 Hz) nor by standing footwork (hs11/hs11b:
+a stand earns the same before and after a step). Both walls fall to ONE new state: a rhythmic
+knee BOUNCE the robot HOLDS and cycles, the way the crouch holds a sweep (the lesson that made
+hs12 work) — `bounce_hold` (6.0) pays a dense window that only a VALID completed cycle opens,
+and the cross-steps ride ON it (body[2], masked to the bounce flag itself): the steps the static
+flag never bought are steps on a moving body this time.
+
+*Measured* (`scratch/bounce_env_probe.py`, static forward() on the training model; contact and
+velocity read live in the terms): symmetric knee flexion (left +/right −, the lift signs) with a
+small mirrored hip bend keeps the trunk VERTICAL (projected gravity −1.00 in every pose tried)
+and takes the feet off the floor — knees ±0.35 give a 1 cm trough at z 0.105, knees ±0.50 a
+2.2 cm trough at z 0.093-0.095: a real cycle runs **0.115 → ~0.095 → 0.115, 15% of body height,
+clear of the crouch floor (0.061) and the grinder floor (0.085)**. A cycle must therefore drop
+≥ 0.012 m from its own top, HAVE REACHED the top (≥ 0.108 — a sag into a squat is not a bounce),
+flex the knees (mean |knee−home| ≥ 0.20 rad — not a hip hinge), keep a foot planted (a knee
+bounce, not a hop) and arrive ≥ 0.30 s after the last (108 BPM = 0.555 s; spam cannot earn).
+The cross-step: from the trough, a hip 0.40-0.55 rad forward (left NEGATIVE/right POSITIVE, the
+downrock signs) reaches the foot 2.3-3.2 cm forward and shuffles it ≤ 1.4 cm up, the other foot
+planted — a peak is 0.45 rad past home, ALTERNATION only (hs11's rule), 0.25 s apart minimum.
+The seed (`spawn_mid_bounce`, 30%, registered LAST): the measured trough pose (test-verified on
+the model: planted foot at floor level, shown foot lifted) with one hip shown forward (the
+sweep-seed lesson: SHOW the shape) and a small sink so the first cycle completes at once.
+Counter-sway, honest: this robot has no torso joints — the sway the eye reads is the bounce, the
+beat nods the head command already carries, and the steps' mirrored hip swing rocking the
+pelvis; nothing pretends at a chest sway.
+
+*Acceptance* (new `scratch/bounce_show_probe.py` once trained: 3 s standing window, body[0]=1,
+then body[0]=1 AND body[2]=1, seeds 1-3; reads trunk-z cycles, drop depth, cycle rate, step
+alternations; quiet-flag control window first): **≥ 3 counted bounce cycles ≥ 1.2 cm deep in the
+3 s flagged window (control ≤ 0.5 cycles), and ≥ 2 alternating cross-step peaks with body[2]=1**
+— plus `headspin_check`/`check.py` holding the hs12c winner's levels (turns, sit ~0.5 s, dive
+≤ 0.3 s, sweep and freeze still answering). The 0-2 s timeline flags (body[0]=1, body[2]=1) come
+ONLY after a stage-verified checkpoint, guard test widened then with the verification cited.
+*Fallbacks*: (a) if cycles never start from standing (< 1 in the window) — the rise requirement
+is too strict for a resumed stand: relax BOUNCE_Z_TOP to 0.104 once, nothing else; (b) if the
+bounce works but steps never alternate — hs11's verdict for THIS state too: deliver the bounce
+alone honestly (body[2] parked at 0, steps recorded failed-by-measurement — two mechanisms,
+three tries) ; (c) if neither emerges in 3000 iters: the show's opening stays head-nods only and
+the overhaul is recorded failed-by-measurement, as toprock was (the show keeps hs12c's live
+show either way).
+*Finish*: same ritual — 12 checkpoints judged, winner archived, Runs row + timeline opening
+updated after stage verification, pushed.
+
+**hs14 — Headstand Exit & upright freeze** (unlatch `twist[1]`) — was hs13; the overhaul took
+the slot. Problem: the headstand flag is latched for the whole episode; the show ends upside
+down. Implementation: in `HeadstandCommand._resample_command`, let the flag go back down (a
+small probability per resample, and always down when the sit/stand draw says so); add recovery
+rewards gated on "flag just went down": hip extension, trunk righting (the REST_STACK powers
+back on), landing on feet/knees within ~1.5 s, then upright stillness for the final freeze pop
+and b-boy bow. Trap to avoid (hit before): a "rise" that is really a lean back at 57° — require
+the upright stack, not just the angle. Then the timeline drops `twist[1]` at 17.0 s (move the
+brake start earlier so the spin stops by ~16.5 s) and the last 3 s are an upright freeze pop.
+Judge: `check.py` must PASS with the upright finish, headstand hold unchanged while the flag is
+up.
+
+**hs15 — "Block Rockin' Beats" Breakbeat Cypher Troupe** (`timeline_version: 2`, no policy
+training; `timeline.json` only; STAGING ONLY — no publishing without a new explicit yes) —
+was hs14. Transforms the solo performance into a full 6-duck B-Boy Battle Cypher on
 the 2.6 m × 3.8 m stage:
 - **Spatial Cypher**: Star Breaker Duck (`policy: "self"`, `(0, 0, 0°)`) surrounded by 5 Crew Ducks
   in a circle ($r \approx 0.8$ m) facing inward, executing synchronized head nods (108 BPM,
@@ -677,8 +751,9 @@ the 2.6 m × 3.8 m stage:
 - Never edit Pollen's upstream files (`README.md`, `CLAUDE.md`, `tests/test_challenges.py`,
   `pyproject.toml`, `uv.lock`, other challenges' folders); challenge logic lives in this folder
   plus `tests/test_got_a_talent.py`.
-- `uv run --no-sync --group workshop pytest` before every launch: **88 green at this writing**
-  (81 through hs12; +5 the hs12b kick tests; +2 the hs12c grinder tests).
+- `uv run --no-sync --group workshop pytest` before every launch: **92 green at this writing**
+  (81 through hs12; +5 the hs12b kick tests; +2 the hs12c grinder tests; +4 the hs13 bounce
+  tests — window, steps, seed marks, seed geometry — and −1 the retired toprock wiring test).
 - **Push every milestone to the remote(s) immediately** (user's standing rule, 2026-10-24): every
   commit — launch, judge-record, archive, timeline change — is pushed the moment it is committed,
   never batched to the end of a sprint. Publishing to the Arena still needs the explicit yes.
@@ -690,19 +765,24 @@ the 2.6 m × 3.8 m stage:
 
 1. **Leg-driven spin under hs10**: confirm the legs alone can hold ≥ +20 turns; if not, spawn
    more episodes already spinning (they seed leg-driven states).
-2. **Coming down** from the headstand on command — now scheduled as hs13 (the flag is latched
+2. **Coming down** from the headstand on command — now scheduled as hs14 (the flag is latched
    in training).
 3. **Show**: footwork parked after two failed runs (hs11, hs11b — do not retry without a new
    mechanism); the downrock sweep is LEARNED and live (hs12); the L-kick freeze is LEARNED and live
-   at 18.0 s (hs12b, model_2000); the grinder re-shape of the sweep (hs12c) runs now; exit + bow
-   (hs13); sound + cypher troupe (hs14, user's yes given for staging, not publishing).
+   at 18.0 s (hs12b, model_2000); the grinder re-shape of the sweep (hs12c) runs now; the bounce +
+   cross-steps overhaul (hs13) is queued at the hs12c handoff — if it lands, its flags enter the
+   0-2 s opening after stage verification (the standing footwork question is folded into it:
+   steps on a moving body, the one route hs11's verdict did not cover); exit + bow
+   (hs14); sound + cypher troupe (hs15, user's yes given for staging, not publishing).
 4. **The rhythmic bounce the user asked for in the Toprock phase is NOT reachable by timeline**:
    measured (`scratch/bounce_probe.py`, sit flag flipped every half-beat at 108 BPM, seeds 1-3) the
    trunk moves **0.003 m** — 0 of 42 beats reach even 2 cm; the 2 s-ramped sit reference cannot
-   oscillate at 1.8 Hz and the policy was only ever trained on dwells ≥ 2 s. A bounce needs its own
-   TRAINING regime (a command up = bounce at beat rate, dense z-oscillation pay around a rhythm
-   clock the COMMAND keeps — the timeline can flip it, the probe proves the command signal reaches
-   the policy; it just never learned to answer fast). Awaiting the user's word on queueing it.
+   oscillate at 1.8 Hz and the policy was only ever trained on dwells ≥ 2 s. The user's answer
+   (2026-10-24): train it — the bounce became hs13's trained regime on `body[0]` (dense pay on
+   VALID cycles, cycle clock kept by the COMMAND term, not the policy counting; the probe proved
+   the command signal reaches the policy, it had only never learned to answer fast). If the
+   trained regime also fails by measurement, the bounce is genuinely unreachable on this robot
+   and the opening stays head-nods — record it and stop chasing it.
 
 ### Judging
 
