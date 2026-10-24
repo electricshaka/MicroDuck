@@ -1,0 +1,33 @@
+=== headspin_check (seeds 1-3) ===
+[mdp] Patches 1-2 active: NaN-safe reward/advantage
+[mdp] Patch 4 active: ONNX export filters passive_* joints
+[mdp] Patch 5 active: MICRODUCK_WARM_START=1 restarts curricula after checkpoint load
+seed 1: stood before the flag yes | onto head after 0.32 s | longest hold 12.70 s | on head 12.70 of 13 s | spin: +22.06 turns (ccw +), mean +13.9 rad/s, best 1 s +16.2 rad/s
+seed 2: stood before the flag yes | onto head after 0.34 s | longest hold 12.68 s | on head 12.68 of 13 s | spin: +21.69 turns (ccw +), mean +13.6 rad/s, best 1 s +15.6 rad/s
+seed 3: stood before the flag yes | onto head after 0.34 s | longest hold 12.68 s | on head 12.68 of 13 s | spin: +21.26 turns (ccw +), mean +13.4 rad/s, best 1 s +15.7 rad/s
+mean longest +12.69, total +12.69, turns +21.67, mean_rate +13.62, best_rate +15.82
+
+=== check.py (live timeline) ===
+[mdp] Patches 1-2 active: NaN-safe reward/advantage
+[mdp] Patch 4 active: ONNX export filters passive_* joints
+[mdp] Patch 5 active: MICRODUCK_WARM_START=1 restarts curricula after checkpoint load
+t= 0.00  stand: reached after 0.00 s, held until 2.00 s; head: held under 2 s, not checked
+t= 0.70  head: held under 2 s, not checked
+t= 1.40  head: held under 2 s, not checked
+t= 2.00  sit: reached after 0.34 s, held until 4.00 s; head: held under 2 s, not checked
+t= 3.50  head: held under 2 s, not checked
+t= 4.00  headstand: reached after 0.30 s, held until 20.00 s; head: held under 2 s, not checked
+t= 4.50  head: off by 0.42 rad
+t=11.50  head: off by 0.37 rad
+t=18.00  head: off by 0.37 rad
+fell at 4.48 s
+FAIL: largest head error 0.42 rad
+
+=== kick_probe (acceptance) ===
+seed 1: quiet window kick err 0.13 rad (needle 1.74, up 2.18 s) | freeze window kick err 0.01 rad (needle 0.10), up 3.00 s, drift 13 deg
+    raw hips quiet L +1.34 R -1.27 | freeze L +1.43 R +0.40
+seed 2: quiet window kick err 0.14 rad (needle 1.75, up 2.20 s) | freeze window kick err 0.01 rad (needle 0.10), up 3.00 s, drift 11 deg
+    raw hips quiet L +1.35 R -1.27 | freeze L +1.43 R +0.40
+seed 3: quiet window kick err 0.13 rad (needle 1.75, up 2.20 s) | freeze window kick err 0.01 rad (needle 0.10), up 3.00 s, drift 10 deg
+    raw hips quiet L +1.35 R -1.27 | freeze L +1.42 R +0.40
+MEAN: quiet kick err 0.14 rad (needle 1.74, up 2.19 s) | freeze kick err 0.01 rad (needle 0.10), up 3.00 s, drift 11 deg

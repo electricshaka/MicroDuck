@@ -845,7 +845,11 @@ def test_the_reference_timeline_stays_inside_what_training_saw(cfg):
     never trained on stay zero, and each head angle stays inside the widened curriculum's
     own range. Since hs12 the sweep flag (body[1]) is a trained command: it may rise in the
     timeline, only ever to 1 — the knee-drop sweep played 464 deg on the Arena's stage with
-    hs12/model_2250 (full 20.00 s, dive and headstand unchanged, 2026-10-24).
+    hs12/model_2250 (full 20.00 s, dive and headstand unchanged, 2026-10-24). Since hs12b the
+    L-kick freeze flag (body[4]) may rise too: at 18.0 s it turns the dead-still headstand
+    into the freeze pop — one leg back to the needle — stage-verified with hs12b/model_2000
+    (kick_probe 3/3 seeds: freeze kick 0.01 rad, needle 0.10 rad, drift 11 deg, up 3.00 s;
+    arena score full 20.00 s played, 2026-10-24).
     What the choreography adds — the toprock beat-bop (head targets 0.5–0.7 s apart,
     a 0.7 rad judge glance = 50 % of the ±1.4 rad yaw, a 0.2 rad nod roll = 65 % of
     ±0.31 rad) and the 2 s knee-drop sit — sits outside the *sampling* envelope
@@ -861,7 +865,8 @@ def test_the_reference_timeline_stays_inside_what_training_saw(cfg):
     for command in timeline.commands:
         assert set(command[:3]) <= {0.0, 1.0}
         assert set(command[8:9]) <= {0.0, 1.0}              # sweep flag: trained by hs12
-        assert command[7:8] + command[9:] == (0.0,) * 5     # every other body slot
+        assert set(command[11:12]) <= {0.0, 1.0}            # L-kick freeze flag: trained by hs12b
+        assert command[7:8] + command[9:11] + command[12:] == (0.0,) * 4  # every other body slot
         for value, cap, (_, hi) in zip(command[3:7], head_allowance, final):
             assert abs(value) <= cap * hi
     postures = ["headstand" if c[1] >= 0.5 else ("sit" if c[0] else "stand")
