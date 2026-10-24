@@ -626,8 +626,10 @@ the 2.6 m × 3.8 m stage:
   plus `tests/test_got_a_talent.py`.
 - `uv run --no-sync --group workshop pytest` before every launch: **86 green at this writing**
   (81 through hs12; the hs12b kick tests added 5).
-- Never publish, enter the Arena, or launch HF jobs without the user's explicit yes. Pushing
-  `main` to the user's two repos is part of the agreed workflow:
+- **Push every milestone to the remote(s) immediately** (user's standing rule, 2026-10-24): every
+  commit — launch, judge-record, archive, timeline change — is pushed the moment it is committed,
+  never batched to the end of a sprint. Publishing to the Arena still needs the explicit yes.
+  Pushing `main` to the user's two repos is part of the agreed workflow:
   `git push private main && git push origin main` (`private` = `electricshaka/microduck-private`,
   `origin` = the public fork `electricshaka/MicroDuck`; keep timeline + checkpoints identical).
 
