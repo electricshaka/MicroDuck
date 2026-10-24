@@ -178,6 +178,13 @@ TOPROCK_PROB         = 0.5
 # hs11: no checkpoint ever stepped (the alternation is never visited from a planted stand).
 # This share of toprock episodes starts MID-STEP so the first landing pays (rewards.spawn_toprock).
 TOPROCK_SPAWN_PROB   = 0.25
+# Downrock sweep (hs12, rewards.downrock_sweep): the probability a resample raises the sweep flag
+# in body[1]. It is forced down unless a sit is commanded — downrock is a floor move, the stage
+# raises it in the 2-4 s crouch. This share of episodes starts MID-CROUCH already turning, one leg
+# swept forward (rewards.spawn_seated_sweep — the seeded state, the lever that has broken every
+# discovery wall so far).
+SWEEP_PROB           = 0.5
+SWEEP_SPAWN_PROB     = 0.35
 # The sit/stand terms switched off while the headstand flag is up: each says
 # "stay upright" (or "stay still at a height"), the opposite of going over.
 REST_STACK = (
@@ -568,7 +575,24 @@ def make_env_cfg(
     )
     term = cfg.rewards["posture_stillness"]  # already headstand-gated; params carry its "term"
     term.params = {"flag_command": "body_pose", **term.params}
-    term.func = headstand.unless_toprock  # same flat contract, both gates in one wrapper
+    term.func = headstand.unless_toprock  # same flat contract, all gates in one wrapper
+    # (hs12: the wrapper now also rests under the sweep flag in body[1], so a sweep can out-earn
+    # a quiet crouch the same way a step out-earns a quiet stand.)
+
+    # ── Downrock sweep (body[1], hs12) ────────────────────────────────────────
+    # The knee-drop crouch (2-4 s on stage) sits STATIC before the dive. hs12 turns it into a
+    # scissor sweep: the trunk turns counter-clockwise over the planted leg — a coffee grinder
+    # without the hand post — paying the FRONTIER shape that made the headspin learnable (each new
+    # degree pays, densely, every step; back-and-forth pays nothing) — see rewards.downrock_sweep.
+    # downrock_leg gives the arc its visible shape (one hip 1.15 rad forward, knee near straight)
+    # at seasoning weight, the toprock_sway pattern: it must not out-earn the turning itself.
+    cfg.rewards["downrock_sweep"] = RewardTermCfg(
+        func=headstand.downrock_sweep, weight=6.0,
+        params={"command_name": "body_pose", "head_sensor": head_ground_cfg.name, "rate_max": 2.0},
+    )
+    cfg.rewards["downrock_leg"] = RewardTermCfg(
+        func=headstand.downrock_leg, weight=2.0, params={"command_name": "body_pose"},
+    )
 
     # ── Sim2real regularisers — MATCHED to velocity ─────────────────────────
     # velocity's exact set and absolute weights:
@@ -690,8 +714,9 @@ def make_env_cfg(
     )
 
     # Command obs slots. head_command is the real head_pose command; body_command carries the
-    # toprock flag in its first slot (hs11) — the same six numbers the stage feeds from a
-    # keyframe's "body" group, so the term stays, only its content changes.
+    # toprock flag in slot 0 (hs11) and the downrock sweep flag in slot 1 (hs12) — the same six
+    # numbers the stage feeds from a keyframe's "body" group, so the term stays, only its content
+    # changes.
     # Layout parity with velocity/standup: [twist(3), head_pose(4), body_pose(6)].
     for group in ("actor", "critic"):
         cfg.observations[group].terms["head_command"] = ObservationTermCfg(
@@ -727,12 +752,14 @@ def make_env_cfg(
         }
     )
 
-    # ── Command: toprock flag in body[0] (hs11, rewards.ToprockCommand) ───────
-    # Resampled on its own 2-5 s timer, drawn 0/1 only, forced down while sit or headstand is
-    # commanded. The flag carries no beat: the tempo lives in toprock_step's payout cap.
+    # ── Command: the dance flags in body[0] (toprock) and body[1] (sweep) ─────
+    # (hs11, hs12, rewards.ToprockCommand) Resampled on its own 2-5 s timer, drawn 0/1 only, each
+    # forced down unless its posture is commanded (toprock: standing; sweep: seated). The flags
+    # carry no beat: the tempo lives in the payouts.
     cfg.commands["body_pose"] = headstand.ToprockCommandCfg(
         resampling_time_range=(2.0, 5.0),
         toprock_prob=TOPROCK_PROB,
+        sweep_prob=SWEEP_PROB,
     )
 
     # ── Terminations ──────────────────────────────────────────────────────────
@@ -798,6 +825,14 @@ def make_env_cfg(
         func=headstand.spawn_toprock,
         mode="reset",
         params={"prob": TOPROCK_SPAWN_PROB},
+    )
+    # And a share start MID-SWEEP in the crouch, a leg out and already turning, the sweep flag
+    # up (rewards.spawn_seated_sweep — the same seeded-state lever; it replaces any toprock
+    # seed on those envs and leaves the head-down spawns alone).
+    cfg.events["spawn_seated_sweep"] = EventTermCfg(
+        func=headstand.spawn_seated_sweep,
+        mode="reset",
+        params={"prob": SWEEP_SPAWN_PROB},
     )
 
     # MuJoCo physics robustness (sit env's contact NaN fix). The standup XML
@@ -1046,6 +1081,21 @@ def make_env_cfg(
                 {"step": 0,         "rate_max": 10.0},
                 {"step": 500 * 24,  "rate_max": 15.0},
                 {"step": 1000 * 24, "rate_max": 20.0},
+            ],
+        },
+    )
+
+    # Sweep rate_max curriculum (hs12, hs7's "quarter turns first" lesson at seated scale): a slow
+    # turn pays FULL at 2 rad/s from step 0; the bar rises only once the motion exists. A seated
+    # grinder at 3-5 rad/s is already the show; this is no headspin, it just has to SWEEP.
+    cfg.curriculum["sweep_rate_max"] = CurriculumTermCfg(
+        func=headstand.headspin_rate_max_curriculum,
+        params={
+            "reward_name": "downrock_sweep",
+            "stages": [
+                {"step": 0,          "rate_max": 2.0},
+                {"step": 1500 * 24,  "rate_max": 3.5},
+                {"step": 2500 * 24,  "rate_max": 5.0},
             ],
         },
     )

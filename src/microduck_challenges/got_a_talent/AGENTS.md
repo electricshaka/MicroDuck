@@ -321,11 +321,12 @@ this up from here: the strategy, every run and its lesson, and the open problems
 3. **Watch it**: `uv run --no-sync --group workshop python -m microduck_challenges.got_a_talent.headspin_view checkpoints/got_a_talent/hs11/model_1250.onnx --timeline src/microduck_challenges/got_a_talent/timeline.json`
 4. **Judge it**: `headspin_check` and `check.py` on the `.onnx` (see Judging below).
 5. **Resume training** (hs11b is done, footwork parked — **hs12, the downrock sweep, is running**;
-   the backlog entry below says what it changes). hs12 resumes from the **prewarmed** hs11b winner:
-   body[1..5] are dead in every hs11b-era checkpoint (body[0] was woken in hs11, the rest never), so
-   rebuild that base first (`scratch/prewarm_hs12.py` patches a copy of
-   `checkpoints/got_a_talent/hs11b/model_1250.pt` into
-   `logs/rsl_rl/got_a_talent/hs11b_base/model_1250.pt`):
+   the backlog entry below says what it changes). No prewarm surgery for hs12: the `hs10_base`
+   prewarm woke the WHOLE body block and hs11b trained on it, so body[1..5] are alive in
+   `hs11b/model_1250` (normalizer std ~0.41, first-layer |w| ≤ 0.07 — a raised flag lands at ~+1.9
+   and the sweep starts from near-neutral). `scratch/prewarm_hs12.py` VERIFIES that healthy state
+   and stages an unmodified copy (patching alive dims would shift the hidden units and break the
+   "resume starts at hs11b's measured behaviour" promise):
 
    ```bash
    uv run --no-sync python scratch/prewarm_hs12.py
@@ -414,7 +415,8 @@ Best checkpoints committed in `checkpoints/got_a_talent/`:
 - **`hs11b/model_1250`**: **+24.25 CCW turns @ mean 15.24 rad/s** (best 1 s 17.75 rad/s), 3/3 seeds,
   continuous hold 12.68 s, knee-drop sit reached in **0.46 s** (fastest on record), dive onto the head
   in 0.28 s. Spins marginally less than hs11/1250, so the live show stays hs11; **this is the resume
-  base for hs12** (wake its dead body[1..5] dims first, `scratch/prewarm_hs12.py`).
+  base for hs12** (its body dims are ALIVE — the hs10 prewarm woke the whole block and hs11b trained
+  on that copy; `scratch/prewarm_hs12.py` verifies that and stages an unmodified copy).
 - **`hs11/model_1250`** (live): **+25.22 CCW turns @ mean 15.9 rad/s** (best 1 s 18.4 rad/s), 3/3 seeds,
   hold 12.68 s, knee-drop sit reached in **0.52 s** (fastest sit yet) — beats hs10/model_1750 on every
   line. Same run's 1750 spins more (+25.88 @ 16.26, longest 12.37 s) but **never sits** — a spin
@@ -507,8 +509,10 @@ was never needed. Per the written fallback: `body[0]` stays untrained-used (flag
 it 0, timeline foot-static, guard test unchanged), **no more footwork runs until a new mechanism
 idea**. The `toprock_probe` gate (≥ 2 alternating steps) still stands for any future attempt.
 
-**hs12 — Downrock floorwork** (`body[1]` = sweep flag, scissor sweep) — **RUNNING (commit 435fbe8,
-run `hs12`, resumed from prewarmed `hs11b_base/model_1250`)**. *Hypothesis*: the knee-drop crouch
+**hs12 — Downrock floorwork** (`body[1]` = sweep flag, scissor sweep) — **RUNNING (run `hs12`,
+resumed from an unmodified copy of `hs11b/model_1250` staged by `prewarm_hs12.py`; the run's commit
+hash lands in the Runs table row at completion, as ever)**.
+*Hypothesis*: the knee-drop crouch
 (2–4 s) sits static before the dive; a crouched turn is a state the robot visits and can hold (unlike
 the standing step), so paying the headspin's frontier shape — new counter-clockwise TRUNK yaw per
 second, dense every step, capped, back-and-forth nothing — with a seeded mid-sweep start will make

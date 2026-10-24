@@ -172,7 +172,7 @@ def test_head_spindle_pose_is_the_spawn_pose(cfg):
 
 
 def _toprock_cmd(n: int = 1):
-    """The footwork state ToprockCommand carries (see its __init__), sans the mjlab base."""
+    """The footwork and sweep state ToprockCommand carries (see its __init__), sans the mjlab base."""
     return types.SimpleNamespace(
         command=torch.zeros(n, 6),
         last_foot=-torch.ones(n, dtype=torch.long),
@@ -180,6 +180,8 @@ def _toprock_cmd(n: int = 1):
         since_paid=torch.full((n,), 10.0),
         since_valid=torch.full((n,), 10.0),
         airborne_run=torch.zeros(n, dtype=torch.long),
+        swept_turned=torch.zeros(n),
+        swept_frontier=torch.zeros(n),
     )
 
 
@@ -209,11 +211,13 @@ def _toprock_env(cmd, gravity_z=-1.0, z=0.115):
 
 def test_toprock_flag_only_rides_a_standing_posture():
     """body[0] is forced down every step while a sit or a headstand is commanded — the stage
-    only ever raises it during the standing opening, and training never shows it elsewhere."""
+    only ever raises it during the standing opening, and training never shows it elsewhere.
+    body[1] (hs12) is its mirror image: it rides ONLY a commanded sit (downrock is floorwork)."""
     from microduck_challenges.got_a_talent import rewards as R
 
     cmd = R.ToprockCommand.__new__(R.ToprockCommand)
     cmd._flag = torch.ones(3)
+    cmd._sweep_flag = torch.ones(3)
     cmd._command = torch.zeros(3, 6)
     twist = torch.tensor([[0.0, 0.0, 0.0],   # stand
                           [1.0, 0.0, 0.0],   # sit
@@ -221,8 +225,9 @@ def test_toprock_flag_only_rides_a_standing_posture():
     cmd._env = types.SimpleNamespace(command_manager=types.SimpleNamespace(
         get_command=lambda name: twist))
     R.ToprockCommand._update_command(cmd)
-    assert cmd._command[:, 0].tolist() == [1.0, 0.0, 0.0]
-    assert cmd._command[:, 1:].abs().max() == 0.0
+    assert cmd._command[:, 0].tolist() == [1.0, 0.0, 0.0]   # toprock rides the stand
+    assert cmd._command[:, 1].tolist() == [0.0, 1.0, 0.0]   # sweep rides the sit
+    assert cmd._command[:, 2:].abs().max() == 0.0           # the rest stay zero
 
 
 def test_toprock_step_pays_dense_while_the_rhythm_holds():
@@ -288,13 +293,14 @@ def test_toprock_pays_more_than_standing_still_and_the_sway_is_seasoning(cfg):
 
 
 def test_unless_toprock_rests_for_either_flag():
-    """posture_stillness pauses for the headstand flag AND the toprock flag — both gates live in
-    one flat wrapper, since the reward params are a flat dict and cannot nest wrappers."""
+    """posture_stillness pauses for the headstand flag AND either dance flag (toprock, sweep) —
+    all gates live in one flat wrapper, since the reward params are a flat dict and cannot nest
+    wrappers."""
     from microduck_challenges.got_a_talent import rewards as R
 
-    def env_with(twist_flag: float, body_flag: float):
+    def env_with(twist_flag: float, body_flag: float, sweep_flag: float = 0.0):
         cmds = {"twist": torch.tensor([[0.0, twist_flag, 0.0]]),
-                "body_pose": torch.tensor([[body_flag, 0.0, 0.0, 0.0, 0.0, 0.0]])}
+                "body_pose": torch.tensor([[body_flag, sweep_flag, 0.0, 0.0, 0.0, 0.0]])}
         return types.SimpleNamespace(command_manager=types.SimpleNamespace(
             get_command=lambda name: cmds[name]))
 
@@ -303,6 +309,8 @@ def test_unless_toprock_rests_for_either_flag():
     assert pay(env_with(0.0, 0.0)) == 1.0      # neither flag: the still stand earns its stillness
     assert pay(env_with(1.0, 0.0)) == 0.0      # headstand up: rests, as unless_headstand did
     assert pay(env_with(0.0, 1.0)) == 0.0      # toprock up: rests now, so stepping can out-earn it
+    assert pay(env_with(0.0, 0.0, 1.0)) == 0.0  # sweep up (hs12): a quiet crouch must not
+    # out-earn the sweep                                        sweep the crouch
 
 
 def test_spawn_toprock_marks_the_flag_and_skips_the_headstand(monkeypatch):
@@ -371,6 +379,178 @@ def test_the_spawn_pose_really_lifts_one_foot_off_the_floor(cfg):
     mujoco.mj_forward(robot, data)
     lifted = float(data.geom_xpos[foot["right"], 2])
     assert lifted > base + 0.02  # the foot is clearly off the floor (probe: ~0.05 m vs 0.015)
+
+
+# ── hs12: the downrock sweep (body[1]) ─────────────────────────────────────────
+
+
+def _sweep_env(cmd, z: float = 0.06, yaw: float = 3.0, head_found: float = 0.0):
+    """A duck in the crouch on a flat stage, seen by rewards.downrock_*: trunk height, trunk yaw
+    rate and the head sensor are set per step by the test (joint_pos for the leg shape)."""
+    head = types.SimpleNamespace(data=types.SimpleNamespace(found=torch.full((1, 1), head_found)))
+    robot = types.SimpleNamespace(data=types.SimpleNamespace(
+        root_link_pos_w=torch.tensor([[0.0, 0.0, z]]),
+        root_link_ang_vel_w=torch.tensor([[0.0, 0.0, yaw]]),
+        joint_pos=torch.zeros(1, 14)))
+
+    class Scene(dict):
+        def __init__(self, robot, head):
+            super().__init__(robot=robot)
+            self.sensors = {"head_ground": head}
+            self.terrain = types.SimpleNamespace(env_origins=torch.zeros(1, 3))
+
+    return types.SimpleNamespace(
+        scene=Scene(robot, head),
+        step_dt=0.02,
+        command_manager=types.SimpleNamespace(
+            get_term=lambda name: cmd,
+            get_command=lambda name: cmd.command),
+    )
+
+
+def test_downrock_sweep_pays_frontier_only_in_the_crouch():
+    """hs12's pay is the headspin's frontier shape at seated speed: NEW counter-clockwise turn,
+    past the furthest so far, capped — so a slow real sweep pays FULL at the curriculum's start
+    (rate_max 2.0). Turning back pays nothing, and reclaiming the ground pays nothing until the
+    frontier moves again. Standing, head-down or flag-down, the same turning earns zero."""
+    from microduck_challenges.got_a_talent import rewards as R
+
+    cmd = _toprock_cmd()
+    cmd.command[0, 1] = 1.0  # sweep up
+    env = _sweep_env(cmd)    # crouched at z 0.06, trunk turning CCW at 3 rad/s
+
+    assert float(R.downrock_sweep(env)) == 1.0   # 3 rad/s capped at 2: full pay
+    assert float(R.downrock_sweep(env)) == 1.0   # dense: every step of the arc
+    env.scene["robot"].data.root_link_ang_vel_w = torch.tensor([[0.0, 0.0, -3.0]])
+    assert all(float(R.downrock_sweep(env)) == 0.0 for _ in range(4))  # turning back: nothing
+    env.scene["robot"].data.root_link_ang_vel_w = torch.tensor([[0.0, 0.0, 3.0]])
+    assert all(float(R.downrock_sweep(env)) == 0.0 for _ in range(4))  # reclaiming: frontier static
+    assert float(R.downrock_sweep(env)) == 1.0   # past the frontier again: it pays
+
+    fresh = _toprock_cmd(); fresh.command[0, 1] = 1.0
+    standing = _sweep_env(fresh, z=0.115)
+    assert float(R.downrock_sweep(standing)) == 0.0    # not the crouch: not downrock
+    fresh2 = _toprock_cmd(); fresh2.command[0, 1] = 1.0
+    on_head = _sweep_env(fresh2, head_found=1.0)
+    assert float(R.downrock_sweep(on_head)) == 0.0     # that's a headspin, not a sweep
+    none = _toprock_cmd()                              # flag down
+    assert float(R.downrock_sweep(_sweep_env(none))) == 0.0
+
+
+def test_downrock_leg_pays_one_leg_forward_either_side():
+    """The arc's SHAPE: hip ~1.15 rad forward and knee near straight, either leg (the right side
+    is mounted mirrored). A deep crouch with both legs folded pays ~0 — the shape is seasoning
+    on the turn, not a pose to park in (and the seated gate closes it outside the crouch)."""
+    from microduck_challenges.got_a_talent import rewards as R
+
+    cmd = _toprock_cmd()
+    cmd.command[0, 1] = 1.0
+    env = _sweep_env(cmd, yaw=0.0)
+
+    folded = env.scene["robot"].data.joint_pos
+    folded[0, 2], folded[0, 3] = -0.4079, 1.35       # the SIT crouch on the left
+    folded[0, 11], folded[0, 12] = 0.4079, -1.35     # and on the right
+    assert float(R.downrock_leg(env)) < 0.01
+
+    env.scene["robot"].data.joint_pos[0, 2] = -1.15  # left leg swept out
+    env.scene["robot"].data.joint_pos[0, 3] = 0.25
+    assert float(R.downrock_leg(env)) == pytest.approx(1.0)
+
+    env.scene["robot"].data.joint_pos = torch.zeros(1, 14)
+    env.scene["robot"].data.joint_pos[0, 11] = 1.15  # right leg (mirrored signs)
+    env.scene["robot"].data.joint_pos[0, 12] = -0.25
+    assert float(R.downrock_leg(env)) == pytest.approx(1.0)
+
+    cmd.command[0, 1] = 0.0                          # flag down: the shape is just sitting
+    assert float(R.downrock_leg(env)) == 0.0
+
+
+def test_spawn_seated_sweep_marks_both_terms_and_sweeps_one_leg(monkeypatch):
+    """rewards.spawn_seated_sweep seeds the crouch MID-SWEEP: the twist command's seated mark
+    (its reset forces the sit flag up, headstand down), this command's sweep mark, the SIT
+    keyframe with exactly ONE leg swept out, crouch height and a live counter-clockwise trunk
+    rate — while a head-down spawn is left exactly as it was and any toprock mark is dropped."""
+    from microduck_challenges.got_a_talent import rewards as R
+
+    monkeypatch.setattr("mjlab_microduck.tasks.mdp._servo_joint_ids",
+                        lambda env, asset: list(range(14)))
+    n = 4
+    head_down = torch.tensor([False, True, False, False])   # env 1 is on its head already
+    twist = types.SimpleNamespace(spawned=head_down,
+                                  seated_spawned=torch.zeros(n, dtype=torch.bool))
+    body = types.SimpleNamespace(spawned=torch.tensor([True, False, True, False]),  # toprock seeds
+                                 sweep_spawned=torch.zeros(n, dtype=torch.bool))
+
+    class Scene(dict):
+        def __init__(self, robot):
+            super().__init__(robot=robot)
+            self.env_origins = torch.zeros(n, 3)   # _env_origin_z reads scene.env_origins directly
+
+    env = types.SimpleNamespace(
+        device="cpu",
+        scene=Scene(types.SimpleNamespace(data=types.SimpleNamespace(
+            default_joint_pos=torch.zeros(n, 14)))),
+        sim=types.SimpleNamespace(data=types.SimpleNamespace(
+            qpos=torch.zeros(n, 21), qvel=torch.zeros(n, 6))),
+        command_manager=types.SimpleNamespace(
+            get_term=lambda name: {"twist": twist, "body_pose": body}[name]),
+    )
+    R.spawn_seated_sweep(env, torch.arange(n), prob=1.0, joint_noise_std=0.0)
+
+    assert twist.seated_spawned.tolist() == [True, False, True, True]   # head-down env skipped
+    assert body.sweep_spawned.tolist() == [True, False, True, True]
+    assert body.spawned.tolist() == [False, False, False, False]        # toprock seeds replaced
+    assert env.sim.data.qpos[1].abs().max() == 0.0                      # env 1 untouched, all of it
+    for i in (0, 2, 3):
+        assert env.sim.data.qpos[i, 2] == pytest.approx(R.SWEEP_SPAWN_Z)  # the crouch height
+        assert 1.5 <= float(env.sim.data.qvel[i, 5]) <= 3.0               # already turning CCW
+        l_hip, l_knee = float(env.sim.data.qpos[i, 9]), float(env.sim.data.qpos[i, 10])
+        r_hip, r_knee = float(env.sim.data.qpos[i, 18]), float(env.sim.data.qpos[i, 19])
+        left_out = abs(l_hip + 1.15) < 1e-6 and abs(l_knee - 0.25) < 1e-6
+        right_out = abs(r_hip - 1.15) < 1e-6 and abs(r_knee + 0.25) < 1e-6
+        assert left_out != right_out                                   # exactly one leg swept out
+        if left_out:                                                   # the planted leg holds the crouch
+            assert (r_hip, r_knee) == pytest.approx((0.4079, -1.35))
+        else:
+            assert (l_hip, l_knee) == pytest.approx((-0.4079, 1.35))
+
+
+def test_the_seed_sweep_pose_fits_the_robot(cfg):
+    """Every joint angle the sweep seed writes — crouch keyframe and swept-leg offsets, both
+    mirrored sides — sits inside the training model's joint limits. A sign slip here would spawn
+    the duck through itself, not mid-sweep."""
+    import mujoco
+
+    from microduck_challenges.got_a_talent import rewards as R
+
+    robot = _training_model(cfg.scene.entities["robot"])
+    qid = {n: mujoco.mj_name2id(robot, mujoco.mjtObj.mjOBJ_JOINT, n) for n in JOINT_NAMES}
+
+    def fits(j, value):
+        lo, hi = robot.jnt_range[qid[JOINT_NAMES[j]]]
+        return lo <= value <= hi
+
+    assert all(fits(j, v) for j, v in R.SWEEP_SIT_POSE.items())
+    hip, knee = R.SWEEP_LEG_OFFSET
+    assert fits(2, hip) and fits(3, knee)              # left side, as seeded
+    assert fits(11, -hip) and fits(12, -knee)          # right side, mirrored
+
+
+def test_the_downrock_wiring_lives_in_the_env(cfg):
+    """hs12's config: frontier sweep pays 6.0 (the headspin's weight), the leg shape 2.0 (must
+    not out-earn the turn), the seed event is registered, the sweep flag is drawn, and the
+    quarter-turns-first rate_max curriculum starts at a slow turn paying FULL."""
+    from microduck_challenges.got_a_talent import rewards as R
+
+    sweep, leg = cfg.rewards["downrock_sweep"], cfg.rewards["downrock_leg"]
+    assert sweep.func is R.downrock_sweep and leg.func is R.downrock_leg
+    assert sweep.weight == 6.0 and 0.0 < leg.weight < sweep.weight
+    assert sweep.params["command_name"] == "body_pose" and sweep.params["rate_max"] == 2.0
+    assert cfg.commands["body_pose"].sweep_prob > 0.0
+    event = cfg.events["spawn_seated_sweep"]
+    assert event.func is R.spawn_seated_sweep and event.params["prob"] > 0.0
+    stages = cfg.curriculum["sweep_rate_max"].params["stages"]
+    assert stages[0]["rate_max"] == 2.0 and stages[-1]["rate_max"] > stages[0]["rate_max"]
 
 
 def test_the_feet_sensor_column_order(cfg):
