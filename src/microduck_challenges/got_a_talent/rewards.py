@@ -27,10 +27,12 @@ from dataclasses import dataclass as _dataclass
 
 import torch
 
+from mjlab.managers import CommandTerm, CommandTermCfg
 from mjlab_microduck.tasks import mdp as microduck_mdp
 
 HEADSTAND = 1  # twist slot of the headstand flag
 SPIN = 2       # twist slot of the spin flag: 1 = spin counter-clockwise (seen from above) on the head
+TOPROCK = 0    # body slot of the toprock flag: 1 = step in place to the beat while standing
 
 HEADSTAND_Z = 0.15            # trunk height resting on the head (measured, see above)
 HEADSTAND_NECK_PITCH = 0.5    # the measured balance pose, rad from 0 (not from HOME)
@@ -293,6 +295,141 @@ def head_spindle_penalty(env, command_name: str = "twist") -> torch.Tensor:
     pos = robot.data.joint_pos[:, 5:9]
     err = pos - torch.tensor(SPINDLE_POSE, device=pos.device, dtype=pos.dtype)
     return headstand_flag(env, command_name) * torch.sum(torch.square(err), dim=-1)
+
+
+# ── Toprock (body[0], hs11) ────────────────────────────────────────────────────
+
+
+class ToprockCommand(CommandTerm):
+    """The toprock flag in body[0] (1 = step in place, 0 = stand still); body 1-5 stay zero.
+
+    A resample draws the flag Bernoulli(toprock_prob). Every step it is forced down while a sit or
+    a headstand is commanded: top-rock is a standing move, and the policy never sees the flag up
+    in a posture it cannot step in — the same slot never carries two moves at once.
+    """
+
+    def __init__(self, cfg, env):
+        super().__init__(cfg, env)
+        self._flag_prob = float(getattr(cfg, "toprock_prob", 0.5))
+        self._flag = torch.zeros(self.num_envs, device=self.device)
+        self._command = torch.zeros(self.num_envs, 6, device=self.device)
+        # Footwork state for rewards.toprock_step (the frontier trick, as with the headspin's
+        # turned/frontier): which foot landed last (-1 = neither yet), each foot's contact on the
+        # previous step, and seconds since a step was last paid (the ~2 Hz cap).
+        self.last_foot = -torch.ones(self.num_envs, dtype=torch.long, device=self.device)
+        self.prev_down = torch.zeros(self.num_envs, 2, dtype=torch.bool, device=self.device)
+        self.since_paid = torch.full((self.num_envs,), 10.0, device=self.device)
+
+    @property
+    def command(self) -> torch.Tensor:
+        return self._command
+
+    def reset(self, env_ids):
+        extras = super().reset(env_ids)
+        self.last_foot[env_ids] = -1
+        self.prev_down[env_ids] = False
+        self.since_paid[env_ids] = 10.0
+        return extras
+
+    def _resample_command(self, env_ids: torch.Tensor) -> None:
+        self._flag[env_ids] = (
+            torch.rand(len(env_ids), device=self.device) < self._flag_prob
+        ).float()
+        self.since_paid[env_ids] = 10.0  # a new segment may pay its first step at once
+
+    def _update_command(self) -> None:
+        twist = self._env.command_manager.get_command("twist")
+        standing = (twist[:, 0] < 0.5) & (twist[:, 1] < 0.5)
+        self._command[:, TOPROCK] = self._flag * standing
+        self._command[:, 1:] = 0.0
+
+    def _update_metrics(self) -> None:
+        pass
+
+
+@_dataclass(kw_only=True)
+class ToprockCommandCfg(CommandTermCfg):
+    class_type: type = ToprockCommand
+    # Probability a resample raises the toprock flag (it then holds to the next resample).
+    toprock_prob: float = 0.5
+
+    def build(self, env) -> "ToprockCommand":
+        return ToprockCommand(self, env)
+
+
+TOPROCK_TILT_COS = math.cos(math.radians(15.0))  # the gate: trunk within 15 degrees of vertical
+
+
+def toprock_flag(env, command_name: str = "body_pose") -> torch.Tensor:
+    return env.command_manager.get_command(command_name)[:, TOPROCK]
+
+
+def unless_toprock(env, term, gate_command: str = "twist", flag_command: str = "body_pose",
+                   **params) -> torch.Tensor:
+    """A sit/stand term, switched off while the headstand flag OR the toprock flag is up: the
+    headstand gate of ``unless_headstand`` with the footwork gate added on (one flat wrapper —
+    the reward params are a flat dict, so ``unless_headstand`` cannot nest inside it).
+    posture_stillness uses this: a b-boy's stand stills, but under a toprock command standing
+    still must earn LESS than stepping — unpaused, stillness pays quiet feet and the step is
+    never started."""
+    off = torch.maximum(headstand_flag(env, gate_command), toprock_flag(env, flag_command))
+    return term(env, **params) * (1.0 - off)
+
+
+def _toprock_gate(env, command_name: str) -> torch.Tensor:
+    """The toprock flag up AND the duck truly standing: trunk at stand height and within 15° of
+    vertical — footwork low, tilted or upside down earns nothing (a flat gate, not a soft one:
+    the reward must not pay a state that is not the move)."""
+    robot = env.scene["robot"]
+    upright = torch.clamp(
+        (-robot.data.projected_gravity_b[:, 2] - TOPROCK_TILT_COS) / 0.034, 0.0, 1.0
+    )
+    tall = torch.clamp((_trunk_z(env) - 0.10) / 0.01, 0.0, 1.0)  # full from z 0.11, standing is 0.115
+    return toprock_flag(env, command_name) * upright * tall
+
+
+def toprock_step(
+    env,
+    command_name: str = "body_pose",
+    feet_sensor: str = "feet_ground_contact",
+    period_s: float = 0.5,
+) -> torch.Tensor:
+    """The footwork itself, while the toprock flag is up and the duck stands: 1.0 for a NEW contact
+    made by the foot that was NOT the last one down — an alternating step, the same frontier trick
+    as the headspin: hopping twice on the same foot pays nothing, only real steps advance it. And no
+    more than one step is paid per ``period_s`` (at 0.5 s, 2 steps per second: a beat, not a
+    hyper-quake). The command carries no clock, so this cap is what puts the move on tempo."""
+    cmd = env.command_manager.get_term(command_name)
+    gate = _toprock_gate(env, command_name)
+    found = env.scene.sensors[feet_sensor].data.found > 0  # (N, 2): left and right foot on the floor
+    landed = found & ~cmd.prev_down
+    fresh = (landed[:, 0] & (cmd.last_foot != 0)) | (landed[:, 1] & (cmd.last_foot != 1))
+    cmd.since_paid += env.step_dt
+    pay = fresh & (cmd.since_paid >= period_s)
+    cmd.since_paid = torch.where(pay, torch.zeros_like(cmd.since_paid), cmd.since_paid)
+    cmd.last_foot = torch.where(landed[:, 0], torch.zeros_like(cmd.last_foot), cmd.last_foot)
+    cmd.last_foot = torch.where(landed[:, 1], torch.ones_like(cmd.last_foot), cmd.last_foot)
+    cmd.prev_down = found
+    return gate * pay.float()
+
+
+def toprock_sway(
+    env,
+    command_name: str = "body_pose",
+    target: float = 0.15,
+    std: float = 0.1,
+) -> torch.Tensor:
+    """Light seasoning on the step: hip_roll held about ``target`` rad off HOME (both legs, the
+    lateral weight shift of rocking side to side). Small next to toprock_step — it gives the steps
+    their shape, it must not become the move (a held lean pays this and no steps: at weight 0.5 it
+    cannot out-earn 2.0 per step at 2 Hz)."""
+    robot = env.scene["robot"]
+    home = robot.data.default_joint_pos
+    dev = (
+        torch.abs(robot.data.joint_pos[:, 1] - home[:, 1])
+        + torch.abs(robot.data.joint_pos[:, 10] - home[:, 10])
+    ) * 0.5
+    return _toprock_gate(env, command_name) * torch.exp(-torch.square(dev - target) / std**2)
 
 
 # ── Events ─────────────────────────────────────────────────────────────────────

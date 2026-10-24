@@ -105,15 +105,18 @@ def test_got_a_talent_plays_on_after_a_fall_like_the_stage(cfg):
 
 
 def test_got_a_talent_reads_what_a_timeline_carries(cfg):
-    """twist.vx is the sit flag, head_pose the 4 head deltas, body zeros: a
-    keyframe's 13 numbers, in the 61-D observation's command slot."""
+    """twist.vx is the sit flag, head_pose the 4 head deltas, body[0] the toprock flag:
+    a keyframe's 13 numbers, in the 61-D observation's command slot."""
+    from microduck_challenges.got_a_talent import rewards as R
+
     assert isinstance(cfg.commands["twist"], microduck_mdp.SitStandCommandCfg)
+    assert isinstance(cfg.commands["body_pose"], R.ToprockCommandCfg)
     assert len(cfg.commands["head_pose"].ranges) == 4
     actor = cfg.observations["actor"].terms
     assert list(actor)[-3:] == ["command", "head_command", "body_command"]
     assert actor["head_command"].params == {"command_name": "head_pose"}
-    assert actor["body_command"].func is microduck_mdp.zero_command_padding
-    assert actor["body_command"].params == {"dim": 6}
+    assert actor["body_command"].func is not microduck_mdp.zero_command_padding
+    assert actor["body_command"].params == {"command_name": "body_pose"}
 
 
 def test_checks_head_joint_order_matches_head_pose_trackings_own(cfg):
@@ -166,6 +169,147 @@ def test_head_spindle_pose_is_the_spawn_pose(cfg):
     term = cfg.rewards["head_spindle_penalty"]
     assert term.weight < 0.0
     assert term.params == {"command_name": "twist"}
+
+
+def _toprock_cmd(n: int = 1):
+    """The footwork state ToprockCommand carries (see its __init__), sans the mjlab base."""
+    return types.SimpleNamespace(
+        command=torch.zeros(n, 6),
+        last_foot=-torch.ones(n, dtype=torch.long),
+        prev_down=torch.zeros(n, 2, dtype=torch.bool),
+        since_paid=torch.full((n,), 10.0),
+    )
+
+
+def _toprock_env(cmd, gravity_z=-1.0, z=0.115):
+    """A standing duck stepping on a flat stage, seen by rewards.toprock_step: the feet sensor's
+    found tensor is filled per step by the test."""
+    sensor = types.SimpleNamespace(data=types.SimpleNamespace(found=torch.zeros(1, 2)))
+    robot = types.SimpleNamespace(data=types.SimpleNamespace(
+        projected_gravity_b=torch.tensor([[0.0, 0.0, gravity_z]]),
+        root_link_pos_w=torch.tensor([[0.0, 0.0, z]]),
+    ))
+
+    class Scene(dict):  # like the real env's scene: scene["robot"] and scene.sensors
+        def __init__(self, robot, sensors):
+            super().__init__(robot=robot)
+            self.sensors = {"feet_ground_contact": sensors}
+            self.terrain = types.SimpleNamespace(env_origins=torch.zeros(1, 3))
+
+    return types.SimpleNamespace(
+        scene=Scene(robot, sensor),
+        step_dt=0.02,
+        command_manager=types.SimpleNamespace(
+            get_term=lambda name: cmd,
+            get_command=lambda name: cmd.command),
+    )
+
+
+def test_toprock_flag_only_rides_a_standing_posture():
+    """body[0] is forced down every step while a sit or a headstand is commanded — the stage
+    only ever raises it during the standing opening, and training never shows it elsewhere."""
+    from microduck_challenges.got_a_talent import rewards as R
+
+    cmd = R.ToprockCommand.__new__(R.ToprockCommand)
+    cmd._flag = torch.ones(3)
+    cmd._command = torch.zeros(3, 6)
+    twist = torch.tensor([[0.0, 0.0, 0.0],   # stand
+                          [1.0, 0.0, 0.0],   # sit
+                          [0.0, 1.0, 0.0]])  # headstand
+    cmd._env = types.SimpleNamespace(command_manager=types.SimpleNamespace(
+        get_command=lambda name: twist))
+    R.ToprockCommand._update_command(cmd)
+    assert cmd._command[:, 0].tolist() == [1.0, 0.0, 0.0]
+    assert cmd._command[:, 1:].abs().max() == 0.0
+
+
+def test_toprock_step_pays_alternations_only_and_at_the_cap():
+    """hs11's frontier trick: a new contact by the foot that was NOT last down pays; the same
+    foot landing twice pays nothing; and no payment is closer than the 0.5 s tempo cap."""
+    from microduck_challenges.got_a_talent import rewards as R
+
+    cmd = _toprock_cmd()
+    cmd.command[0, 0] = 1.0  # toprock up
+    env = _toprock_env(cmd)
+
+    def step(left, right):
+        env.scene.sensors["feet_ground_contact"].data.found = torch.tensor(
+            [[float(left), float(right)]])
+        return float(R.toprock_step(env))
+
+    assert step(1, 0) == 1.0        # the first foot down starts the show
+    assert step(0, 0) == 0.0         # lifting costs nothing
+    assert step(1, 0) == 0.0         # the SAME foot down again: no step, no pay
+    cmd.since_paid[0] = 0.5          # the tempo timer has run out
+    assert step(0, 1) == 1.0         # the OTHER foot, in tempo: paid, timer restarts
+    assert step(1, 1) == 0.0         # both down, nothing new
+    cmd.since_paid[0] = 0.1          # too soon again
+    assert step(0, 0) == 0.0
+    assert step(1, 0) == 0.0         # a fresh foot in a hurry: fresh, but off-tempo → unpaid
+    cmd.command[0, 0] = 0.0          # flag down: a full clean step earns nothing
+    cmd.since_paid[0] = 10.0
+    assert step(0, 1) == 0.0
+
+
+def test_toprock_step_needs_a_standing_duck():
+    """The gate is flat: tilted past 15° or off stand height, even a perfect step pays nothing."""
+    from microduck_challenges.got_a_talent import rewards as R
+
+    cmd = _toprock_cmd()
+    cmd.command[0, 0] = 1.0
+    tilted = _toprock_env(cmd, gravity_z=-0.9)  # 25.8° off vertical
+    tilted.scene.sensors["feet_ground_contact"].data.found = torch.tensor([[1.0, 0.0]])
+    assert float(R.toprock_step(tilted)) == 0.0
+    low = _toprock_env(cmd, z=0.06)             # seated height
+    low.scene.sensors["feet_ground_contact"].data.found = torch.tensor([[1.0, 0.0]])
+    assert float(R.toprock_step(low)) == 0.0
+
+
+def test_toprock_pays_more_than_standing_still_and_the_sway_is_seasoning(cfg):
+    step, sway = cfg.rewards["toprock_step"], cfg.rewards["toprock_sway"]
+    assert step.func.__name__ == "toprock_step" and step.weight > 0.0
+    assert sway.weight < step.weight  # a held lean cannot out-earn the steps
+    # Standing still must earn LESS than stepping: stillness rests while the flag is up,
+    # and its headstand gate (gate_command="twist") survives the second wrapping.
+    still = cfg.rewards["posture_stillness"]
+    assert still.func.__name__ == "unless_toprock"
+    assert still.params["gate_command"] == "twist"
+    assert "term" in still.params
+
+
+def test_unless_toprock_rests_for_either_flag():
+    """posture_stillness pauses for the headstand flag AND the toprock flag — both gates live in
+    one flat wrapper, since the reward params are a flat dict and cannot nest wrappers."""
+    from microduck_challenges.got_a_talent import rewards as R
+
+    def env_with(twist_flag: float, body_flag: float):
+        cmds = {"twist": torch.tensor([[0.0, twist_flag, 0.0]]),
+                "body_pose": torch.tensor([[body_flag, 0.0, 0.0, 0.0, 0.0, 0.0]])}
+        return types.SimpleNamespace(command_manager=types.SimpleNamespace(
+            get_command=lambda name: cmds[name]))
+
+    quiet = lambda env: torch.full((1,), 1.0)  # a stillness that always pays 1.0
+    pay = lambda env: float(R.unless_toprock(env, quiet))
+    assert pay(env_with(0.0, 0.0)) == 1.0      # neither flag: the still stand earns its stillness
+    assert pay(env_with(1.0, 0.0)) == 0.0      # headstand up: rests, as unless_headstand did
+    assert pay(env_with(0.0, 1.0)) == 0.0      # toprock up: rests now, so stepping can out-earn it
+
+
+def test_the_feet_sensor_column_order(cfg):
+    """rewards.toprock_step treats found[:, 0] and found[:, 1] as the two feet; the alternation
+    is order-agnostic, but pin the actual columns so the docs stay true."""
+    import mujoco
+
+    from microduck_challenges.got_a_talent import rewards as R
+
+    assert R.TOPROCK == 0  # the flag slot the check plays from a keyframe's body[0]
+    entity = cfg.scene.entities["robot"].build()
+    ids, names = entity.find_geoms([r"^(left_foot_collision|right_foot_collision)$"])
+    assert sorted(names) == ["left_foot_collision", "right_foot_collision"]
+    robot = _training_model(cfg.scene.entities["robot"])
+    li = mujoco.mj_name2id(robot, mujoco.mjtObj.mjOBJ_GEOM, "left_foot_collision")
+    ri = mujoco.mj_name2id(robot, mujoco.mjtObj.mjOBJ_GEOM, "right_foot_collision")
+    assert li != -1 and ri != -1
 
 
 TIMELINE = Path(microduck_challenges.__file__).parent / "got_a_talent" / "timeline.json"
@@ -322,3 +466,4 @@ def test_the_manifest_says_what_the_policy_reads():
     command = ch.for_task("Mjlab-GotATalent-MicroDuck").command
     assert command["twist"].startswith("[sit flag")
     assert "head_yaw" in command["head"]
+    assert command["body"].startswith("[toprock flag")

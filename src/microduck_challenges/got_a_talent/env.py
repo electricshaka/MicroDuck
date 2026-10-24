@@ -171,6 +171,10 @@ HEADSTAND_SPAWN_PROB = 0.2
 # flag up also raises the spin flag in twist[2]; drawn afresh at each resample, so
 # spins start and stop on the head.
 SPIN_PROB            = 0.5
+# Toprock (hs11, rewards.ToprockCommand): the probability a resample raises the toprock flag in
+# body[0]. It is forced down while a sit or a headstand is commanded, so the flag only ever rides
+# a standing posture — the stage raises it exactly there (the 0-2 s opening).
+TOPROCK_PROB         = 0.5
 # The sit/stand terms switched off while the headstand flag is up: each says
 # "stay upright" (or "stay still at a height"), the opposite of going over.
 REST_STACK = (
@@ -543,6 +547,24 @@ def make_env_cfg(
         params={"command_name": "twist", "head_sensor": head_ground_cfg.name},
     )
 
+    # ── Toprock footwork (body[0], hs11) ──────────────────────────────────────
+    # Alternating foot contacts under the toprock flag, at most 2 per second (rewards.toprock_step),
+    # plus light lateral hip_roll to shape the rock. The trap this encodes: the flag carries no
+    # beat and standing still must earn less than stepping — so posture_stillness, which pays quiet
+    # feet at the commanded height, is switched off while the flag is up (unless_toprock, the same
+    # pattern as the headstand pausing the rest stack). Every other term keeps paying: a step stays
+    # upright at stand height and tracks its head command.
+    cfg.rewards["toprock_step"] = RewardTermCfg(
+        func=headstand.toprock_step, weight=2.0,
+        params={"command_name": "body_pose", "feet_sensor": feet_ground_cfg.name},
+    )
+    cfg.rewards["toprock_sway"] = RewardTermCfg(
+        func=headstand.toprock_sway, weight=0.5, params={"command_name": "body_pose"},
+    )
+    term = cfg.rewards["posture_stillness"]  # already headstand-gated; params carry its "term"
+    term.params = {"flag_command": "body_pose", **term.params}
+    term.func = headstand.unless_toprock  # same flat contract, both gates in one wrapper
+
     # ── Sim2real regularisers — MATCHED to velocity ─────────────────────────
     # velocity's exact set and absolute weights:
     #   • action_rate_l2: -0.1 at stage 0, ramped -0.1 → -1.0 by iter 1500
@@ -662,15 +684,16 @@ def make_env_cfg(
         ),
     )
 
-    # Command obs slots. head_command is the real head_pose command;
-    # body_command stays zero-padded (body control not used here).
+    # Command obs slots. head_command is the real head_pose command; body_command carries the
+    # toprock flag in its first slot (hs11) — the same six numbers the stage feeds from a
+    # keyframe's "body" group, so the term stays, only its content changes.
     # Layout parity with velocity/standup: [twist(3), head_pose(4), body_pose(6)].
     for group in ("actor", "critic"):
         cfg.observations[group].terms["head_command"] = ObservationTermCfg(
             func=mdp.generated_commands, params={"command_name": "head_pose"},
         )
         cfg.observations[group].terms["body_command"] = ObservationTermCfg(
-            func=microduck_mdp.zero_command_padding, params={"dim": 6},
+            func=mdp.generated_commands, params={"command_name": "body_pose"},
         )
 
     # ── Command: sit/stand posture flag in the twist slot ────────────────────
@@ -697,6 +720,14 @@ def make_env_cfg(
             "headstand_prob": HEADSTAND_PROB,
             "spin_prob":      SPIN_PROB,
         }
+    )
+
+    # ── Command: toprock flag in body[0] (hs11, rewards.ToprockCommand) ───────
+    # Resampled on its own 2-5 s timer, drawn 0/1 only, forced down while sit or headstand is
+    # commanded. The flag carries no beat: the tempo lives in toprock_step's payout cap.
+    cfg.commands["body_pose"] = headstand.ToprockCommandCfg(
+        resampling_time_range=(2.0, 5.0),
+        toprock_prob=TOPROCK_PROB,
     )
 
     # ── Terminations ──────────────────────────────────────────────────────────
