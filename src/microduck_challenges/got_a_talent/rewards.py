@@ -274,6 +274,27 @@ def head_stillness_on_head(
     return headstand_flag(env, command_name) * vel_still * pose_still
 
 
+# The spindle pose for the headstand pivot, absolute joint angles of joints 5-8:
+# neck_pitch, head_pitch (the measured balance pose, see spawn_headstand) and
+# head_yaw, head_roll centered.
+SPINDLE_POSE = (HEADSTAND_NECK_PITCH, HEADSTAND_HEAD_PITCH, 0.0, 0.0)
+
+
+def head_spindle_penalty(env, command_name: str = "twist") -> torch.Tensor:
+    """Summed squared deviation of the 4 head/neck joints (5-8) from SPINDLE_POSE while a
+    headstand is commanded (use a negative weight). The strict counterpart of
+    head_stillness_on_head: its exp reward bottoms out within ~0.3 rad of the pose, so beyond
+    that basin a big neck swing costs nothing and gains nothing — hs8/hs9 kept pumping the
+    spin with a neck yaw of ±31° even at its weight 3.0. A quadratic never saturates: every
+    extra rad of yaw is paid for, so rotation has to come from the legs against the head's
+    grip (a b-boy's leg drive), and the head/neck stays a quiet spindle for the freeze too.
+    Off while the headstand flag is down: the standing head moves stay free."""
+    robot = env.scene["robot"]
+    pos = robot.data.joint_pos[:, 5:9]
+    err = pos - torch.tensor(SPINDLE_POSE, device=pos.device, dtype=pos.dtype)
+    return headstand_flag(env, command_name) * torch.sum(torch.square(err), dim=-1)
+
+
 # ── Events ─────────────────────────────────────────────────────────────────────
 
 
