@@ -321,7 +321,9 @@ this up from here: the strategy, every run and its lesson, and the open problems
    `hs8/model_500`, `hs6/model_250`, `hs5/model_250`, `hs2/model_1250` behind it. Each folder has
    the `.pt` (to resume training), the exported `.onnx` (to judge, watch or publish), its
    `judge_<N>.txt` and `provenance.json`.
-3. **Watch it**: `uv run --no-sync --group workshop python -m microduck_challenges.got_a_talent.headspin_view checkpoints/got_a_talent/hs12/model_2250.onnx --timeline src/microduck_challenges/got_a_talent/timeline.json`
+3. **Watch it**: `uv run --no-sync --group workshop python -m microduck_challenges.got_a_talent.headspin_view checkpoints/got_a_talent/hs12/model_2250.onnx --timeline src/microduck_challenges/got_a_talent/timeline.json --subsample 2`
+   — always pass `--subsample 2` (render every 2nd physics step, 25 FPS): at full rate the GLFW
+   window freezes under the CUDA load of a 4096-env training run sharing the GPU.
 4. **Judge it**: `headspin_check` and `check.py` on the `.onnx` (see Judging below); the downrock sweep: `scratch/sweep_probe.py <onnx>` (acceptance) and `... full` (the sweep measured inside the real show); the L-kick freeze: `scratch/kick_probe.py <onnx>` (quiet headstand window then the flag — acceptance reads the freeze window).
 5. **Resume training** (hs12 is done — downrock learned; **hs12b, the L-kick freeze on `body[4]`,
    is next**; the backlog entry says what it changes). No prewarm surgery: the `hs10_base` prewarm
