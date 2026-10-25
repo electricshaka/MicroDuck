@@ -592,7 +592,11 @@ def toprock_sway(
 # bounce itself plus the beat nods the head command already carries (neck ±0.35 on the timeline);
 # the step's mirrored hip swing rocks the pelvis. Nothing here pretends at a chest sway.
 
-BOUNCE_Z_TOP = 0.108    # a cycle's peak must reach here (the stand is 0.115; return UP or no cyc)
+BOUNCE_Z_TOP = 0.104    # fallback (a), hs13b (written before hs13): cycles never started from
+                        # standing — probe read 0 cycles at checkpoints 250-1000 with the trunk
+                        # dead flat (z 0.117), and the bounce_hold curve DECAYED (block mean
+                        # 0.038 → 0.007): harvest, not cycles. Relax the rise requirement once,
+                        # nothing else. (was 0.108; the stand is 0.115 — return UP or no cycle)
 BOUNCE_Z_FLOOR = 0.088  # below this it is a squat/crouch, not a bounce (grinder floor is 0.085)
 BOUNCE_DROP = 0.012     # trough this far below the cycle's own top (probe: 1.5-2.2 cm reachable)
 BOUNCE_KNEE = 0.20      # mean |knee − home| (rad) the trough must flex (probe: 0.35 pose)
