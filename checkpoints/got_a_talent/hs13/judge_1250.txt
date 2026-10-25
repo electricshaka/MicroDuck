@@ -1,0 +1,51 @@
+== checkpoint 1250 ==
+C:\GitHub\microduck-private\.venv\Lib\site-packages\mjlab\entity\entity.py:149: UserWarning: Actuator config matched 14 joint(s) but the same expressions also match 7 site(s): imu, left_foot, head_camera, tof, head_imu, mouth_tip, right_foot. Add a separate config with transmission_type=TransmissionType.SITE if those should be actuated too.
+[publish] dry run: wrote C:\GitHub\microduck-private\publish-eval/ (policy.onnx, manifest.json, README.md, checkpoint.pt)
+seed 1: stood before the flag yes | onto head after 0.36 s | longest hold 12.66 s | on head 12.66 of 13 s | spin: +18.23 turns (ccw +), mean +11.5 rad/s, best 1 s +14.1 rad/s
+seed 2: stood before the flag yes | onto head after 0.38 s | longest hold 12.60 s | on head 12.62 of 13 s | spin: +17.85 turns (ccw +), mean +11.2 rad/s, best 1 s +13.2 rad/s
+seed 3: stood before the flag yes | onto head after 0.38 s | longest hold 12.64 s | on head 12.64 of 13 s | spin: +18.85 turns (ccw +), mean +11.8 rad/s, best 1 s +14.3 rad/s
+mean longest +12.63, total +12.64, turns +18.31, mean_rate +11.50, best_rate +13.86
+
+[mdp] Patches 1-2 active: NaN-safe reward/advantage
+[mdp] Patch 4 active: ONNX export filters passive_* joints
+[mdp] Patch 5 active: MICRODUCK_WARM_START=1 restarts curricula after checkpoint load
+t= 0.00  stand: reached after 0.00 s, held until 2.00 s; head: held under 2 s, not checked
+t= 0.70  head: held under 2 s, not checked
+t= 1.40  head: held under 2 s, not checked
+t= 2.00  sit: reached after 0.38 s, held until 4.00 s; head: held under 2 s, not checked
+t= 3.50  head: held under 2 s, not checked
+t= 4.00  headstand: reached after 0.30 s, held until 20.00 s; head: held under 2 s, not checked
+t= 4.50  head: off by 0.34 rad
+t=11.50  head: off by 0.40 rad
+t=18.00  head: off by 0.36 rad
+fell at 4.46 s
+FAIL: largest head error 0.40 rad
+
+-- sweep probe (downrock flag window, seeds 1-3) --
+seed 1: swept  487.5 deg in the sweep phase (quiet   0.1 deg), crouch held 2.34 s, min z 0.062 m, played 8.00 s
+        grinder read: blade radius 0.068 m med, 0% >= 0.08 m | kneel 23% >= 0.085 m | pelvis-contact frames 0
+seed 2: swept  490.7 deg in the sweep phase (quiet   0.3 deg), crouch held 2.34 s, min z 0.062 m, played 8.00 s
+        grinder read: blade radius 0.068 m med, 0% >= 0.08 m | kneel 23% >= 0.085 m | pelvis-contact frames 0
+seed 3: swept  483.3 deg in the sweep phase (quiet   0.6 deg), crouch held 2.34 s, min z 0.062 m, played 8.00 s
+        grinder read: blade radius 0.068 m med, 0% >= 0.08 m | kneel 23% >= 0.085 m | pelvis-contact frames 0
+MEAN: swept 487.1 deg | quiet 0.3 deg | crouch 2.34 s | min z 0.062 m
+MEAN grinder: radius 0.068 m, 0% >= 0.08 m | kneel 23% | pelvis-contact frames 0 (bar: >= 400 deg, radius/kneel most of window, contacts ~0)
+
+-- kick probe (L-kick freeze, seeds 1-3) --
+seed 1: quiet window kick err 0.21 rad (needle 1.55, up 2.14 s) | freeze window kick err 0.03 rad (needle 0.08), up 3.00 s, drift 25 deg
+    raw hips quiet L +1.18 R -1.12 | freeze L +1.40 R +0.37
+seed 2: quiet window kick err 0.21 rad (needle 1.55, up 2.14 s) | freeze window kick err 0.02 rad (needle 0.08), up 3.00 s, drift 19 deg
+    raw hips quiet L +1.18 R -1.13 | freeze L +1.40 R +0.38
+seed 3: quiet window kick err 0.21 rad (needle 1.55, up 2.14 s) | freeze window kick err 0.02 rad (needle 0.08), up 3.00 s, drift 21 deg
+    raw hips quiet L +1.18 R -1.12 | freeze L +1.40 R +0.38
+MEAN: quiet kick err 0.21 rad (needle 1.55, up 2.14 s) | freeze kick err 0.02 rad (needle 0.08), up 3.00 s, drift 22 deg
+
+-- bounce show probe (hs13 acceptance gate, seeds 1-3) --
+[WARN] Failed to load task package microduck_challenges: cannot import name 'MICRODUCK_WALK_ROBOT_CFG' from partially initialized module 'mjlab_microduck.robot.microduck_constants' (most likely due to a circular import) (C:\GitHub\microduck-private\.venv\Lib\site-packages\mjlab_microduck\robot\microduck_constants.py)
+[WARN] Failed to load task package mjlab_microduck: cannot import name 'MICRODUCK_WALK_ROBOT_CFG' from partially initialized module 'mjlab_microduck.robot.microduck_constants' (most likely due to a circular import) (C:\GitHub\microduck-private\.venv\Lib\site-packages\mjlab_microduck\robot\microduck_constants.py)
+seed 1: quiet 0 cycles | BOUNCE window 0 cycles (0 knee) mean drop 0.0 cm, z 0.117..0.117 | STEP window 0 cycles (0 knee, drop 0.0 cm), 0 alternating steps (hip dev L -0.01 / R +0.01), played 8.50 s
+seed 2: quiet 0 cycles | BOUNCE window 0 cycles (0 knee) mean drop 0.0 cm, z 0.117..0.117 | STEP window 0 cycles (0 knee, drop 0.0 cm), 0 alternating steps (hip dev L +0.00 / R +0.01), played 8.50 s
+seed 3: quiet 0 cycles | BOUNCE window 0 cycles (0 knee) mean drop 0.0 cm, z 0.117..0.117 | STEP window 0 cycles (0 knee, drop 0.0 cm), 0 alternating steps (hip dev L +0.00 / R +0.01), played 8.50 s
+MEAN: quiet 0.0 | bounce 0.0 cycles (0.0 knee, drop 0.0 cm) | steps window 0.0 cycles (0.0 knee), 0.0 alternating steps | BAR: bounce >= 3 knee cycles >= 1.2 cm with quiet <= 0.5, steps >= 2 alternations
+hs13 bounce acceptance: FAIL
+

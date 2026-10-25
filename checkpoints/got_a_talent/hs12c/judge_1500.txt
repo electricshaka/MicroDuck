@@ -13,3 +13,8 @@ t=11.50  head: off by 0.38 rad
 t=18.00  head: off by 0.37 rad
 fell at 4.46 s
 FAIL: largest head error 0.54 rad
+seed 2: quiet window kick err 0.16 rad (needle 1.58, up 2.20 s) | freeze window kick err 0.02 rad (needle 0.08), up 3.00 s, drift 23 deg
+    raw hips quiet L +1.14 R -1.24 | freeze L +1.41 R +0.37
+seed 3: quiet window kick err 0.14 rad (needle 1.58, up 2.20 s) | freeze window kick err 0.01 rad (needle 0.09), up 3.00 s, drift 22 deg
+    raw hips quiet L +1.16 R -1.25 | freeze L +1.42 R +0.37
+MEAN: quiet kick err 0.14 rad (needle 1.58, up 2.20 s) | freeze kick err 0.01 rad (needle 0.09), up 3.00 s, drift 25 deg
