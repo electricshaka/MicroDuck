@@ -44,16 +44,16 @@ policy reads:
 - `twist[2]`, the **spin flag**: with the headstand flag, 1 spins counter-clockwise (seen from above)
   on the head;
 - `head`, **4 angles in radians from the default pose**: neck_pitch, head_pitch, head_yaw, head_roll;
-- `body[0]`, the **bounce flag** (hs13): 1 knee-bounces to the beat while standing — a TRAINED
-  regime (the user's 108 BPM request; `scratch/bounce_probe.py` measured the timeline route FLAT,
-  0.003 m, 0 of 42 beats). It replaces hs11/hs11b's parked footwork on this slot; the show keeps
-  it 0 until the regime is trained AND stage-verified, then the 0-2 s opening raises it;
+- `body[0]`, the **bounce flag** (hs13): 1 was to knee-bounce to the beat while standing —
+  **FAILED BY MEASUREMENT in hs13 AND hs13b** (0 cycles on stage at all 24 judged checkpoints;
+  the rewards + seed are retired registrations, the functions stay tested). The show keeps it 0;
+  see the Runs rows — standing footwork/bounce is parked on this robot;
 - `body[1]`, the **downrock sweep flag** (hs12): 1 sweeps a leg around while the sit crouch holds
   (hs12b's live move, 419° inside the show window; hs12c's grinder reshape FAILED by measurement
   and was reverted — see the Runs row);
-- `body[2]`, the **cross-step flag** (hs13): 1 alternates hip_pitch steps (Indian cross-steps /
-  kick-outs) ON the bounce — the command carries it only while the bounce flag itself rides, so
-  steps never stand alone (hs11's lesson applied: footwork needs a moving body);
+- `body[2]`, the **cross-step flag** (hs13): 1 was to alternate hip_pitch steps ON the bounce —
+  **FAILED BY MEASUREMENT with it** (`bounce_step` never left harvest level in 3000 iterations;
+  retired registration); the show keeps it 0;
 - `body[4]`, the **L-kick freeze flag** (hs12b, trained — the live show raises it at 18.0 s): 1 holds
   the freeze on the head — one leg back to the vertical needle, the other level; 0 the ordinary
   two-level headstand;
@@ -348,11 +348,15 @@ this up from here: the strategy, every run and its lesson, and the open problems
    DONE — FAILED BY MEASUREMENT, fallback (c)**: all 12 checkpoints judged, the ban starved the
    sweep (frontier flat 0.002; probe 0-5° vs the 777° live), the grinder terms are REVERTED and
    hs12b's sweep shape is the live show again; judging records in `checkpoints/got_a_talent/
-   hs12c/`, nothing archived — no checkpoint beat `hs12b/model_2000`; **hs13, the breakdance
-   overhaul, STOPPED at iteration 1392 — the bounce never started from standing (0 cycles at 4
-   checkpoints, `bounce_hold` curve decaying: harvest, not cycles); its written fallback (a) is
-   applied — `BOUNCE_Z_TOP` 0.108 → 0.104, nothing else — and hs13b relaunched from the same
-   `hs12b/model_2000` base**). No prewarm surgery:
+   hs12c/`, nothing archived — no checkpoint beat `hs12b/model_2000`; **hs13 + hs13b, the breakdance
+   overhaul, are DONE — FAILED BY MEASUREMENT, written fallback (c)**: all 12 hs13b checkpoints
+   judged (`checkpoints/got_a_talent/hs13b/`), **0 bounce cycles and 0 cross-steps on stage at
+   every one** (24 judged checkpoints across both runs — the relaxed rise gate lifted the
+   training curve past harvest, 0.034-0.042 → 0.070-0.089, and the deterministic policy STILL
+   never bounced: the climb was exploration + seed); the bounce rewards + seed are RETIRED
+   registrations (functions/tests stay in `rewards.py`), `body[0]`/`body[2]` parked, nothing
+   archived — no checkpoint beat `hs12b/model_2000`, which stays the live show and the resume
+   base**). No prewarm surgery:
    the `hs10_base` prewarm woke the WHOLE body block and every run since trained on it, so all body
    dims are alive in `hs12b/model_2000` (hs13 opens body[2] at its prewarm values — verify-then-copy
    says stage byte-for-byte, which is exactly what `hs12b_base/` holds). The verify-then-copy rule
@@ -475,6 +479,7 @@ From [The Conversation](https://theconversation.com/how-do-breakdancers-avoid-br
 | hs12b | 7b551e4 | L-kick freeze on `body[4]`: `l_kick_hold` (6.0, DENSE exp on the measured leg pose — one leg level at hip ±1.42 knee straight, the other the HOME-hip needle — gated on the kick flag riding a headstand with the head planted and trunk z ≥ 0.13), `spawn_l_kick` (30% IN the freeze, at rest, marking the headstand flag too), kick flag rides only a commanded headstand; `downrock_leg` registration RETIRED (hs12's recorded lesson: flat 0.004). Resumed byte-for-byte from `hs12/model_2250` (`scratch/prewarm_hs12b.py` verified body[4] std 0.398 / \|w\| ≤ 0.26) | **L-KICK FREEZE LEARNED: 2000 freeze kick err 0.01 rad, NEEDLE 0.10 rad (baseline ~1.7 — the flag pulls one leg back to vertical), up 3.00 s, drift 11°, quiet window keeps the two-level pencil (needle 1.74); +21.67 turns @ 13.62, hold 12.69, dive 0.30, sit 0.34; head 0.42/0.37/0.37 the only checkpoint UNDER the hs12 baseline. Sweep survived (show 419° inside the window, probe 777°/crouch), arena 20.00 s — committed as the live show; timeline now raises `body[4]=1` at 18.0 s (guard test widened citing the verification).** Ladder: 1000–2000 all gates (5 consecutive; 1000 spun +23.47 but head 0.62 at 4.5 s), 2250/2500/2750 freeze passes with spin dips (+19.4/+19.1/+17.8), 2999 decayed (+13.66) | The seeded-hold recipe worked a third time (hold this time, not a turn): 500 already had the needle (0.10) — the seed + dense pay find the shape fast, the long run then refines balance around it. Cost measured honestly: the freeze pay trades ~2–4 spin turns (24.0 → 21.7) for the leg shape; head error IMPROVED (kicking one leg stabilises the spindle?). And the final-stage decay struck a THIRD run — the 2500-stage curriculum is a proven hazard, judge those checkpoints hardest |
 | hs12c | fb19d43 | **Grinder sweep — the butt-spin ban** (user's video review of hs12): `downrock_sweep` frontier now REQUIRES a kneel regime (trunk z ≥ 0.085 — flat crouch rests 0.061 — planted knee/foot via body+feet sensors) and pays MULTIPLIED by blade shape (hip ±1.2 knee 0: foot radius 0.089 m vs 0.067 tucked, `scratch/sweep_env_probe.py`); `sweep_progress` (2.0) funds the regime before the turn exists; `sweep_pelvis_contact` (−3.0 STRICT, new `pelvis_ground` sensor: pelvis/trunk geoms ONLY — a planted knee is support, a planted pelvis is the cheat); the sit composite PAUSES under the sweep flag (`unless_sit_rest`); seed shows the shape (blade offset, z 0.095). Resumed byte-for-byte from `hs12b/model_2000` | **Grinder FAILED BY MEASUREMENT — fallback (c). All 12 checkpoints judged** (`checkpoints/got_a_talent/hs12c/judge_*.txt`): frontier flat 0.002 for all 3000 iters; probe sweeps 2.8°/5.4°/3.7° at 1750/2000/2250, and from the 2500 stage the duck **never crouches at all** (0.0°/4.6°/4.5°, min z 0.115; bar ≥ 400°). Fallback (a) precondition never held (blade radius 0.042 med, 0% ≥ 0.08), nor (b) (pelvis contacts 0 all run — the cheat never appeared, the ban was never tested). Spin best at **1500: +22.82 @ 14.34** (best since hs11, kick freeze intact: needle 0.09, 3.00 s) then the 2500-stage decay struck a FOURTH run: 2750 +15.93 @ 10.01, 2999 +14.37 @ 9.03, holds collapsing to 4–7 s. No checkpoint beats hs12b/model_2000 — nothing archived, grinder terms REVERTED the verdict commit (hs12b shape restored; functions/sensor/tests stay, unregistered) | A gate that demands a posture the robot has never visited STARVES the move it funds: the kneel-and-blade was unreachable from the sit crouch, so the frontier paid nothing anywhere and by the last stage the crouch itself died — pay must be reachable from where the policy already stands, and withholding it from a working move to force a new one trades a measured 777° for zero. Fourth consecutive run decaying at the 2500-stage curriculum: treat it as law — judge those checkpoints hardest and expect to cut back to ≤ 2250 |
 | hs13 | (this commit) | **Breakdance overhaul — the user's Phase-1 fix** (their review: the opening "just looks side to top with head"; bounce_probe.py: the timeline bounce is FLAT): body[0] re-purposed to the **knee BOUNCE** as a trained regime — `bounce_hold` (6.0) pays a DENSE window that only VALID cycles open (drop ≥ 1.2 cm from the cycle's own top, REACHED top ≥ 0.108, knees flexed ≥ 0.20 rad, foot planted, ≥ 0.30 s apart; `scratch/bounce_env_probe.py`: knees ±0.35-0.50 + mirrored hip bend drop the trunk 1.5-2.2 cm, stay VERTICAL, feet planted, trough z 0.093-0.105 clear of the crouch); body[2] **cross-steps** ride ONLY the bounce flag — `bounce_step` (4.0) pays alternating hip_pitch peaks (0.45 rad forward, left negative/right positive, 0.25 s cap; probe: reaches the foot 2.3-3.2 cm forward, a shuffle not a hop); `spawn_mid_bounce` (30%) seeds the measured trough with one hip shown forward and a small sink; the hs11/hs11b toprock terms + seed are RETIRED registrations (functions/tests stay); stillness pause kept under body[0]; the sit composite KEEPS paying (the bounce's top IS the stand — this regime replaces no rest target). Resumes byte-for-byte from `hs12b/model_2000` — hs12c fell to fallback (c), whose written base for the overhaul is hs12b again (body dims alive; body[2] at prewarm values — zero first-layer weight, normalizer std ≈ 0.433, near-neutral, weights learn to grow) | **STOPPED at iter 1392 for the written fallback (a)** (records 250–1250 in `checkpoints/got_a_talent/hs13/`). Warm start verified; carryover held all along (spin best 1000 **+22.18 @ 13.94**, sweep 525–610°, freeze 0.04/0.10-0.12 up 3.00 s — never above hs12b overall: sweep is down from 777°). **The bounce never started from standing: `bounce_show_probe` read 0 cycles, 0 steps, trunk dead flat (z 0.117..0.117) at checkpoints 250/500/750/1000, and the `bounce_hold` curve DECAYED (250-iter block mean 0.038 → 0.007; `bounce_step` flat 0.02) — seed harvest, not cycles: hs11's signature on a new move.** Precondition of fallback (a) met at 1000, so the run was stopped rather than burn 1.5 h more: BOUNCE_Z_TOP 0.108 → 0.104, nothing else, relaunched as **hs13b** | The fall-line for a seeded CYCLE differs from a seeded HOLD: the seed's trough decays unless the policy reproduces the whole drop-rise inside 0.75 s, and a rising posture incentive (composite 0.93) pays quiet standing more than a once-seeded sink — the gate must be reachable AND the pay must beat still standing every beat, not once |
+| hs13b | 23fba51 | **Written fallback (a) of hs13, exactly ONE changed variable: `BOUNCE_Z_TOP` 0.108 → 0.104** (the rise requirement inside a cycle), nothing else; resumed byte-for-byte from `hs12b/model_2000`, launched 2026-10-24 23:01 | **Fallback (a) FAILED BY MEASUREMENT — written fallback (c) in force. All 12 checkpoints judged** (`checkpoints/got_a_talent/hs13b/judge_250…2999.txt`): **0 bounce cycles and 0 cross-steps on stage at EVERY checkpoint** (250→2999, trunk dead flat z 0.116-0.118, seeds 1-3 alike) — 24 judged checkpoints across hs13+hs13b, the bounce never moved the duck once. The curve DID diverge from hs13's death: `bounce_hold` left its harvest plateau (0.034-0.042) and climbed to **0.070/0.078/0.089** at blocks 1000/1500/2000 where hs13 decayed to 0.012/0.007 — but the stage read 0 at those exact checkpoints: the cycles lived in stochastic exploration + spawned troughs and never consolidated into the deterministic export (hs11b's split signature, one level higher); `bounce_step` never left 0.018 all run (pure harvest — steps never existed even under noise). Carryover: spin best **1000 +20.32 @ 12.77** (best 1 s 15.1), sweep recovered to **777.7° at 2500** (hs12b's exact live level), freeze 0.01-0.04/needle 0.08-0.11 up 3.00 s throughout — yet **no checkpoint beats `hs12b/model_2000`** (turns stayed under 21.7, sits 0.40-1.10 s vs 0.34): nothing archived. The 2500-stage decay struck a FIFTH run, harshest yet: **2999 +0.02 turns @ 0.01 rad/s — the headspin vanished outright** (bounce regime ate the headspin budget; do not resume from late hs13b). Fallback (c): bounce + cross-steps recorded **failed-by-measurement**, `body[0]`/`body[2]` PARKED (rewards + seed REVERTED to unregistered in this commit's code change; flags keep drawing in the obs distribution; timeline 0-2 s stays head-nods, guard test unchanged); **the live show stays `hs12b/model_2000`** | A training curve climbing ABOVE its harvest plateau that the exported policy never shows is still not skill: only the stage arbiter counts, so judge by the deterministic export, ever. Four regimes died the same way (toprock ×2, bounce ×2 — and the grinder starving) while the moves that LEARNED (sweep, freeze, headspin) all start from a state the robot already HOLDS: **quiet standing is this robot's strongest attractor; a seeded CYCLE must beat it every single beat and never did** |
 
 Best checkpoints committed in `checkpoints/got_a_talent/`:
 - **`hs12b/model_2000`** (live): the first checkpoint with the **L-kick freeze** — the flag pulls
@@ -684,15 +689,16 @@ penalty saturates while the frontier still pays — the −3.0 lost the sum agai
 checkpoints judged, winner archived, Runs row + timeline story updated, pushed.
 
 **hs13 — Breakdance Overhaul** (`body[0]` = BOUNCE flag, `body[2]` = CROSS-STEP flag;
-**hs13 STOPPED at iter 1392 → written fallback (a) applied → hs13b RUNNING** — the user's direct
-order: the show's Phase-1 fix; base `hs12b/model_2000` (staged byte-for-byte, md5
-7566EB15257368DA231DBD7F8C6FB488); the hs13 verdict (0 cycles, decaying curve, carryover never
-above hs12b) is in the Runs row; the fallback change is `BOUNCE_Z_TOP = 0.104` and NOTHING else.
-hs13b launched 2026-10-24 23:01 (run folder `2026-10-24_23-01-49_hs13b`; warm start verified —
-loaded `hs12b_base/model_2000.pt`, Patch 5 `common_step_counter 48024 → 0`, curricula restart;
-`bounce_hold`/`bounce_step`/`spawn_mid_bounce` in the reward table as committed). The decisive
-early read: does `bounce_hold` CLIMB past seed-harvest (~0.05) where hs13's decayed — the relaxed
-rise requirement is the one changed variable.)
+**DONE — FAILED BY MEASUREMENT, written fallback (c)** — the user's direct order: the show's
+Phase-1 fix; hs13 stopped at iter 1392 (0 cycles, decaying curve), its fallback (a)
+(`BOUNCE_Z_TOP` 0.104, one variable) ran to 3000 as **hs13b** (run `2026-10-24_23-01-49_hs13b`,
+resumed byte-for-byte from `hs12b/model_2000`, md5 7566EB15257368DA231DBD7F8C6FB488); all 12
+hs13b checkpoints judged, **0 bounce cycles and 0 cross-steps on stage at every one** — the
+curve climbed past harvest (0.070-0.089 blocks 1000-2000) while the exported policy stayed
+flat to the bone; the full verdict and numbers are in the Runs rows above. The bounce rewards
+and seed are now RETIRED registrations (functions and tests stay in `rewards.py`, unregistered,
+the toprock/grinder precedent); the flags keep drawing (obs distribution); the show's 0-2 s
+opening stays head-nods. What was predicted stands below as the record.)
 
 *Hypothesis* (the user's review, and two measurements): the opening "just looks side to top with
 head" because the body is static — and it CANNOT be fixed from the timeline (`bounce_probe.py`:

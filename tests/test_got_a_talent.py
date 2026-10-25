@@ -295,22 +295,18 @@ def test_toprock_step_needs_a_standing_duck():
     assert float(R.toprock_step(low)) == 0.0
 
 
-def test_the_bounce_wiring_lives_in_the_env(cfg):
-    """hs13's config: the bounce pays the move's weight (6.0), the cross-steps pay under it, the
-    old toprock footwork terms and their seed are RETIRED registrations (hs12's lesson: dead
-    seasoning; the functions stay tested), standing still must earn LESS than bouncing —
-    posture_stillness still rests while body[0] is up (the hs11 wrapper, semantics moved), and
-    its headstand gate (gate_command="twist") survives the wrapping."""
-    from microduck_challenges.got_a_talent import rewards as R
-
-    bounce = cfg.rewards["bounce_hold"]
-    assert bounce.func is R.bounce_hold and bounce.weight == 6.0
-    step = cfg.rewards["bounce_step"]
-    assert step.func is R.bounce_step and 0.0 < step.weight < bounce.weight
+def test_the_bounce_regime_is_retired(cfg):
+    """hs13 + hs13b verdict (measured): the knee BOUNCE showed 0 cycles on stage at all 12
+    checkpoints of both runs, and the cross-steps never alternated — the bounce rewards and seed
+    are RETIRED registrations (functions stay tested in rewards.py, the toprock and grinder
+    precedent). The old toprock terms stay retired too; posture_stillness keeps resting under
+    the body flags (the wrapper also carries hs12's sweep flag); the command draws STAY, because
+    body[0]/body[2] are part of the 61-number observation distribution the live policy was
+    trained on — retiring a regime must not shift the resume base."""
+    assert "bounce_hold" not in cfg.rewards and "bounce_step" not in cfg.rewards
+    assert "spawn_mid_bounce" not in cfg.events
     assert "toprock_step" not in cfg.rewards and "toprock_sway" not in cfg.rewards
     assert "spawn_toprock" not in cfg.events
-    seed = cfg.events["spawn_mid_bounce"]
-    assert seed.func is R.spawn_mid_bounce and seed.params["prob"] > 0.0
     assert cfg.commands["body_pose"].bounce_prob > 0.0
     assert cfg.commands["body_pose"].step_prob > 0.0
     still = cfg.rewards["posture_stillness"]
