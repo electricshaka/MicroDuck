@@ -670,7 +670,12 @@ checkpoints judged, winner archived, Runs row + timeline story updated, pushed.
 **hs13 STOPPED at iter 1392 → written fallback (a) applied → hs13b RUNNING** — the user's direct
 order: the show's Phase-1 fix; base `hs12b/model_2000` (staged byte-for-byte, md5
 7566EB15257368DA231DBD7F8C6FB488); the hs13 verdict (0 cycles, decaying curve, carryover never
-above hs12b) is in the Runs row; the fallback change is `BOUNCE_Z_TOP = 0.104` and NOTHING else).
+above hs12b) is in the Runs row; the fallback change is `BOUNCE_Z_TOP = 0.104` and NOTHING else.
+hs13b launched 2026-10-24 23:01 (run folder `2026-10-24_23-01-49_hs13b`; warm start verified —
+loaded `hs12b_base/model_2000.pt`, Patch 5 `common_step_counter 48024 → 0`, curricula restart;
+`bounce_hold`/`bounce_step`/`spawn_mid_bounce` in the reward table as committed). The decisive
+early read: does `bounce_hold` CLIMB past seed-harvest (~0.05) where hs13's decayed — the relaxed
+rise requirement is the one changed variable.)
 
 *Hypothesis* (the user's review, and two measurements): the opening "just looks side to top with
 head" because the body is static — and it CANNOT be fixed from the timeline (`bounce_probe.py`:
