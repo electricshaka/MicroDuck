@@ -1,0 +1,50 @@
+== checkpoint 750 ==
+[publish] dry run: wrote C:\GitHub\microduck-private\publish-eval/ (policy.onnx, manifest.json, README.md, checkpoint.pt)
+seed 1: stood before the flag yes | onto head after 0.36 s | longest hold 12.66 s | on head 12.66 of 13 s | spin: +19.89 turns (ccw +), mean +12.5 rad/s, best 1 s +15.8 rad/s
+seed 2: stood before the flag yes | onto head after 0.36 s | longest hold 12.66 s | on head 12.66 of 13 s | spin: +21.79 turns (ccw +), mean +13.7 rad/s, best 1 s +15.4 rad/s
+seed 3: stood before the flag yes | onto head after 0.36 s | longest hold 12.66 s | on head 12.66 of 13 s | spin: +21.21 turns (ccw +), mean +13.3 rad/s, best 1 s +15.9 rad/s
+mean longest +12.66, total +12.66, turns +20.97, mean_rate +13.17, best_rate +15.69
+
+[mdp] Patches 1-2 active: NaN-safe reward/advantage
+[mdp] Patch 4 active: ONNX export filters passive_* joints
+[mdp] Patch 5 active: MICRODUCK_WARM_START=1 restarts curricula after checkpoint load
+t= 0.00  stand: reached after 0.00 s, held until 2.00 s; head: held under 2 s, not checked
+t= 0.70  head: held under 2 s, not checked
+t= 1.40  head: held under 2 s, not checked
+t= 2.00  sit: reached after 0.96 s, held until 4.00 s; head: held under 2 s, not checked
+t= 3.50  head: held under 2 s, not checked
+t= 4.00  headstand: reached after 0.28 s, held until 20.00 s; head: held under 2 s, not checked
+t= 4.50  head: off by 0.56 rad
+t=11.50  head: off by 0.42 rad
+t=18.00  head: off by 0.37 rad
+fell at 4.46 s
+FAIL: largest head error 0.56 rad
+
+-- sweep probe (downrock flag window, seeds 1-3) --
+seed 1: swept  575.3 deg in the sweep phase (quiet   0.0 deg), crouch held 2.54 s, min z 0.061 m, played 8.00 s
+        grinder read: blade radius 0.069 m med, 0% >= 0.08 m | kneel 17% >= 0.085 m | pelvis-contact frames 0
+seed 2: swept  598.4 deg in the sweep phase (quiet   0.0 deg), crouch held 2.60 s, min z 0.062 m, played 8.00 s
+        grinder read: blade radius 0.068 m med, 0% >= 0.08 m | kneel 15% >= 0.085 m | pelvis-contact frames 0
+seed 3: swept  577.5 deg in the sweep phase (quiet   0.0 deg), crouch held 2.56 s, min z 0.062 m, played 8.00 s
+        grinder read: blade radius 0.069 m med, 0% >= 0.08 m | kneel 17% >= 0.085 m | pelvis-contact frames 0
+MEAN: swept 583.7 deg | quiet 0.0 deg | crouch 2.57 s | min z 0.062 m
+MEAN grinder: radius 0.069 m, 0% >= 0.08 m | kneel 16% | pelvis-contact frames 0 (bar: >= 400 deg, radius/kneel most of window, contacts ~0)
+
+-- kick probe (L-kick freeze, seeds 1-3) --
+seed 1: quiet window kick err 0.23 rad (needle 1.50, up 2.14 s) | freeze window kick err 0.04 rad (needle 0.10), up 3.00 s, drift 26 deg
+    raw hips quiet L +1.16 R -1.08 | freeze L +1.45 R +0.36
+seed 2: quiet window kick err 0.22 rad (needle 1.46, up 2.16 s) | freeze window kick err 0.04 rad (needle 0.10), up 3.00 s, drift 30 deg
+    raw hips quiet L +1.18 R -1.04 | freeze L +1.45 R +0.36
+seed 3: quiet window kick err 0.23 rad (needle 1.48, up 2.16 s) | freeze window kick err 0.04 rad (needle 0.09), up 3.00 s, drift 27 deg
+    raw hips quiet L +1.17 R -1.07 | freeze L +1.45 R +0.36
+MEAN: quiet kick err 0.23 rad (needle 1.48, up 2.15 s) | freeze kick err 0.04 rad (needle 0.10), up 3.00 s, drift 28 deg
+
+-- bounce show probe (hs13 acceptance gate, seeds 1-3) --
+[WARN] Failed to load task package microduck_challenges: cannot import name 'MICRODUCK_WALK_ROBOT_CFG' from partially initialized module 'mjlab_microduck.robot.microduck_constants' (most likely due to a circular import) (C:\GitHub\microduck-private\.venv\Lib\site-packages\mjlab_microduck\robot\microduck_constants.py)
+[WARN] Failed to load task package mjlab_microduck: cannot import name 'MICRODUCK_WALK_ROBOT_CFG' from partially initialized module 'mjlab_microduck.robot.microduck_constants' (most likely due to a circular import) (C:\GitHub\microduck-private\.venv\Lib\site-packages\mjlab_microduck\robot\microduck_constants.py)
+seed 1: quiet 0 cycles | BOUNCE window 0 cycles (0 knee) mean drop 0.0 cm, z 0.117..0.117 | STEP window 0 cycles (0 knee, drop 0.0 cm), 0 alternating steps (hip dev L +0.03 / R +0.02), played 8.50 s
+seed 2: quiet 0 cycles | BOUNCE window 0 cycles (0 knee) mean drop 0.0 cm, z 0.117..0.117 | STEP window 0 cycles (0 knee, drop 0.0 cm), 0 alternating steps (hip dev L +0.03 / R +0.03), played 8.50 s
+seed 3: quiet 0 cycles | BOUNCE window 0 cycles (0 knee) mean drop 0.0 cm, z 0.117..0.117 | STEP window 0 cycles (0 knee, drop 0.0 cm), 0 alternating steps (hip dev L +0.03 / R +0.03), played 8.50 s
+MEAN: quiet 0.0 | bounce 0.0 cycles (0.0 knee, drop 0.0 cm) | steps window 0.0 cycles (0.0 knee), 0.0 alternating steps | BAR: bounce >= 3 knee cycles >= 1.2 cm with quiet <= 0.5, steps >= 2 alternations
+hs13 bounce acceptance: FAIL
+
