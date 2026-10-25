@@ -3,14 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>MicroDuck "Block Rockin' Beats" Breakdance Showcase</title>
+  <title>MicroDuck x Chemical Brothers: Block Rockin' Beats</title>
   <style>
     :root {
       --bg: #090a0f;
-      --card-bg: rgba(22, 27, 34, 0.85);
+      --card-bg: rgba(22, 27, 34, 0.88);
       --card-border: rgba(255, 255, 255, 0.1);
       --accent: #58a6ff;
-      --accent-glow: rgba(88, 166, 255, 0.35);
+      --accent-glow: rgba(88, 166, 255, 0.4);
       --neon-gold: #f0883e;
       --neon-green: #3fb950;
       --text: #e6edf3;
@@ -22,7 +22,7 @@
       padding: 0;
     }
     body {
-      background: radial-gradient(circle at 50% 0%, #161b22 0%, var(--bg) 80%);
+      background: radial-gradient(circle at 50% 0%, #1a162b 0%, var(--bg) 85%);
       color: var(--text);
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
       min-height: 100vh;
@@ -38,22 +38,22 @@
     }
     .badge {
       display: inline-block;
-      padding: 0.3rem 0.8rem;
+      padding: 0.35rem 0.9rem;
       border-radius: 999px;
-      background: rgba(88, 166, 255, 0.15);
-      color: var(--accent);
-      border: 1px solid rgba(88, 166, 255, 0.3);
+      background: rgba(240, 136, 62, 0.15);
+      color: var(--neon-gold);
+      border: 1px solid rgba(240, 136, 62, 0.35);
       font-size: 0.85rem;
-      font-weight: 600;
+      font-weight: 700;
       letter-spacing: 0.05em;
       text-transform: uppercase;
       margin-bottom: 1rem;
     }
     h1 {
-      font-size: 2.5rem;
+      font-size: 2.6rem;
       font-weight: 800;
       letter-spacing: -0.03em;
-      background: linear-gradient(135deg, #ffffff 40%, var(--accent) 100%);
+      background: linear-gradient(135deg, #ffffff 30%, #f0883e 70%, #58a6ff 100%);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       margin-bottom: 0.75rem;
@@ -76,7 +76,7 @@
       border-radius: 16px;
       padding: 1.75rem;
       backdrop-filter: blur(16px);
-      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5);
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6);
     }
     .card-title {
       font-size: 1.35rem;
@@ -106,7 +106,7 @@
       display: flex;
       flex-direction: column;
       gap: 1rem;
-      background: rgba(0, 0, 0, 0.3);
+      background: rgba(0, 0, 0, 0.35);
       padding: 1.25rem;
       border-radius: 12px;
       border: 1px solid rgba(255, 255, 255, 0.05);
@@ -116,29 +116,40 @@
       height: 48px;
       border-radius: 8px;
     }
-    .audio-specs {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-      gap: 1rem;
-      margin-top: 0.5rem;
+    .vocal-sync-box {
+      background: linear-gradient(90deg, rgba(240, 136, 62, 0.12) 0%, rgba(88, 166, 255, 0.12) 100%);
+      border: 1px solid rgba(240, 136, 62, 0.35);
+      padding: 1.25rem;
+      border-radius: 12px;
+      margin-top: 1rem;
     }
-    .spec-item {
-      background: rgba(255, 255, 255, 0.03);
-      padding: 0.85rem;
-      border-radius: 8px;
-      border-left: 3px solid var(--accent);
+    .vocal-title {
+      font-weight: 700;
+      color: var(--neon-gold);
+      font-size: 1rem;
+      margin-bottom: 0.5rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
     }
-    .spec-item strong {
-      display: block;
-      color: #fff;
+    .lyrics-line {
+      font-family: monospace;
       font-size: 0.95rem;
-      margin-bottom: 0.25rem;
+      color: #e6edf3;
+      margin-bottom: 0.45rem;
+      display: flex;
+      gap: 0.75rem;
     }
-    .spec-item span {
-      font-size: 0.85rem;
-      color: var(--text-muted);
-      line-height: 1.4;
-      display: block;
+    .lyrics-line .ts {
+      color: var(--neon-gold);
+      font-weight: 700;
+      min-width: 75px;
+    }
+    .lyrics-line .action {
+      color: var(--accent);
+      font-weight: 600;
+    }
+    .lyrics-line:last-child {
+      margin-bottom: 0;
     }
     .gallery-grid {
       display: grid;
@@ -196,12 +207,12 @@
       transition: all 0.2s ease;
     }
     .btn-primary {
-      background: var(--accent);
+      background: var(--neon-gold);
       color: #090a0f;
     }
     .btn-primary:hover {
-      background: #79b8ff;
-      box-shadow: 0 0 15px var(--accent-glow);
+      background: #ffa657;
+      box-shadow: 0 0 15px rgba(240, 136, 62, 0.4);
     }
     .btn-secondary {
       background: rgba(255, 255, 255, 0.08);
@@ -212,31 +223,15 @@
       background: rgba(255, 255, 255, 0.15);
       border-color: rgba(255, 255, 255, 0.3);
     }
-    .lyrics-box {
-      background: rgba(240, 136, 62, 0.08);
-      border: 1px solid rgba(240, 136, 62, 0.3);
-      padding: 1.25rem;
-      border-radius: 12px;
-      margin-top: 1rem;
-    }
-    .lyrics-line {
-      font-family: monospace;
-      font-size: 0.95rem;
-      color: #f0883e;
-      margin-bottom: 0.4rem;
-    }
-    .lyrics-line:last-child {
-      margin-bottom: 0;
-    }
   </style>
 </head>
 <body>
 
   <header>
-    <div class="badge">MicroDuck Arena &bull; Got a Talent Challenge</div>
-    <h1>"Block Rockin' Beats" Cypher Showcase</h1>
+    <div class="badge">Authentic Chemical Brothers Master Track</div>
+    <h1>"Block Rockin' Beats" Audio & Visual Showcase</h1>
     <p class="subtitle">
-      Full 16-second breakdance routine rendered with synchronized 108 BPM Big Beat score featuring physical duck formants, 808 acid squelch, beak-snap snares, and crowd chants.
+      Featuring the unmistakable original sample: <em>"Back with another one of those block rockin' beats!"</em> perfectly synced to MicroDuck's 16-second breakdance routine.
     </p>
   </header>
 
@@ -264,7 +259,7 @@
     <div class="card">
       <div class="card-title">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
-        Standalone Audio Master: "Block Rockin' Beats" Duck Cypher (44.1 kHz WAV)
+        Original Master Audio Track: "Block Rockin' Beats" (The Chemical Brothers)
       </div>
       <div class="audio-player-box">
         <audio controls>
@@ -276,29 +271,39 @@
         </div>
       </div>
 
-      <div class="lyrics-box">
-        <div class="lyrics-line"><strong>[0.35s]</strong> Formants: <em>"Back with another one of those..."</em></div>
-        <div class="lyrics-line"><strong>[2.22s]</strong> Choir + Quacks: <strong>"BLOCK ROCKIN' BEATS!"</strong> (Downrock Drop)</div>
-        <div class="lyrics-line"><strong>[3.8s - 5.8s]</strong> Laser Siren FX: Screaming D5 &rarr; A5 Glissando into Headspin</div>
-        <div class="lyrics-line"><strong>[12.22s]</strong> Full Stinger: <strong>"BLOCK ROCKIN' BEATS!"</strong> (Freeze Lock)</div>
-      </div>
-
-      <div class="audio-specs">
-        <div class="spec-item">
-          <strong>Track 1: 808 Acid Bass</strong>
-          <span>16th-note syncopated D-minor riff (D2 &rarr; F2 &rarr; G2 &rarr; G#2 &rarr; A2) with resonant lowpass filter squelch.</span>
+      <div class="vocal-sync-box">
+        <div class="vocal-title">Choreography & Vocal Sample Synchronization</div>
+        <div class="lyrics-line">
+          <span class="ts">[0.0s - 1.1s]</span>
+          <span>Drums roll in &bull; <span class="action">Phase 1: Toprock 108 BPM Groove</span></span>
         </div>
-        <div class="spec-item">
-          <strong>Track 2: Beakbox Snare & Kick</strong>
-          <span>Sub-bass kicks on 1 & 3.5 with mechanical duck bill snaps on beats 2 & 4.</span>
+        <div class="lyrics-line">
+          <span class="ts">[1.1s - 2.5s]</span>
+          <span><em>"Back with another one of those..."</em> &bull; <span class="action">Neck roll & stance transition</span></span>
         </div>
-        <div class="spec-item">
-          <strong>Track 3: Laser Siren FX</strong>
-          <span>Resonant pitch glissando building momentum into the headspin entry.</span>
+        <div class="lyrics-line">
+          <span class="ts">[2.5s - 3.5s]</span>
+          <span><strong>"...BLOCK ROCKIN' BEATS!"</strong> &bull; <span class="action">DROP INTO PHASE 2: DOWNROCK 709° SWEEP</span></span>
         </div>
-        <div class="spec-item">
-          <strong>Track 4: Syllabic Quack Chant</strong>
-          <span>Formant filter bank matching duck vocal tract acoustic resonances.</span>
+        <div class="lyrics-line">
+          <span class="ts">[3.5s - 6.5s]</span>
+          <span>Driving Chemical Brothers bassline &bull; <span class="action">Pelvis elevated sweep &rarr; Crown dive</span></span>
+        </div>
+        <div class="lyrics-line">
+          <span class="ts">[6.5s - 9.6s]</span>
+          <span>Overdriven bass & drums &bull; <span class="action">Phase 4: Power Headspin (+18.5 CCW turns @ 140 RPM)</span></span>
+        </div>
+        <div class="lyrics-line">
+          <span class="ts">[9.6s - 12.0s]</span>
+          <span><em>"Back with another one of those..."</em> &bull; <span class="action">Headspin deceleration into freeze setup</span></span>
+        </div>
+        <div class="lyrics-line">
+          <span class="ts">[12.0s - 13.5s]</span>
+          <span><strong>"...BLOCK ROCKIN' BEATS!"</strong> &bull; <span class="action">DROP INTO PHASE 5: INVERTED L-KICK FREEZE LOCK</span></span>
+        </div>
+        <div class="lyrics-line">
+          <span class="ts">[13.5s - 16.0s]</span>
+          <span>Full bass sustain & ringing tail &bull; <span class="action">Freeze lock held solid to conclusion</span></span>
         </div>
       </div>
     </div>
@@ -314,14 +319,14 @@
           <img src="still_p1_beat_groove.png" alt="Toprock Groove">
           <div class="gallery-card-body">
             <div class="gallery-card-title">Phase 1: Toprock Groove</div>
-            <div class="gallery-card-desc">108 BPM neck roll & bounce rhythm while establishing floor dominance.</div>
+            <div class="gallery-card-desc">108 BPM neck roll & bounce cadence establishing stage dominance.</div>
           </div>
         </div>
         <div class="gallery-card">
           <img src="still_p2_coffee_grinder.png" alt="Downrock Coffee Grinder">
           <div class="gallery-card-body">
             <div class="gallery-card-title">Phase 2: Coffee Grinder</div>
-            <div class="gallery-card-desc">709° sweeping leg extension with pelvis elevated (0 butt contacts).</div>
+            <div class="gallery-card-desc">Drops on "...BLOCK ROCKIN' BEATS!" &bull; 709° sweeping leg extension.</div>
           </div>
         </div>
         <div class="gallery-card">
@@ -335,7 +340,7 @@
           <img src="still_p5_freeze_drop.png" alt="Inverted L-Kick Freeze">
           <div class="gallery-card-body">
             <div class="gallery-card-title">Phase 5: L-Kick Freeze</div>
-            <div class="gallery-card-desc">0.01 rad precision lock held firmly through routine conclusion.</div>
+            <div class="gallery-card-desc">Locks on second vocal drop &bull; 0.01 rad precision hold to the end.</div>
           </div>
         </div>
       </div>
