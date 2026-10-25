@@ -343,7 +343,7 @@ this up from here: the strategy, every run and its lesson, and the open problems
 3. **Watch it**: `uv run --no-sync --group workshop python -m microduck_challenges.got_a_talent.headspin_view checkpoints/got_a_talent/hs12b/model_2000.onnx --timeline src/microduck_challenges/got_a_talent/timeline.json --subsample 2`
    — always pass `--subsample 2` (render every 2nd physics step, 25 FPS): at full rate the GLFW
    window freezes under the CUDA load of a 4096-env training run sharing the GPU.
-4. **Judge it**: `headspin_check` and `check.py` on the `.onnx` (see Judging below); the downrock sweep: `scratch/sweep_probe.py <onnx>` (acceptance) and `... full` (the sweep measured inside the real show); the L-kick freeze: `scratch/kick_probe.py <onnx>` (quiet headstand window then the flag — acceptance reads the freeze window).
+4. **Judge it**: `headspin_check` and `check.py` on the `.onnx` (see Judging below); the downrock sweep: `scratch/sweep_probe.py <onnx>` (acceptance) and `... full` (the sweep measured inside the real show); the L-kick freeze: `scratch/kick_probe.py <onnx>` (quiet headstand window then the flag — acceptance reads the freeze window); the hs14 exit: `scratch/exit_probe.py <onnx>` (5 s headstand then the flag DROPS — acceptance is the rise onto the feet, baseline 0/3).
 5. **Resume training** (hs12b is done — L-kick freeze learned and live; **hs12c, the grinder, is
    DONE — FAILED BY MEASUREMENT, fallback (c)**: all 12 checkpoints judged, the ban starved the
    sweep (frontier flat 0.002; probe 0-5° vs the 777° live), the grinder terms are REVERTED and
