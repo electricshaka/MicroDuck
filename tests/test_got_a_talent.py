@@ -896,8 +896,9 @@ def test_bounce_hold_opens_its_window_only_on_a_real_cycle():
     assert s2(z=0.109, vz=+0.05) == 0.0         # a 0.6 cm twitch: below the drop bar, no window
     cmd3 = _toprock_cmd(); cmd3.command[0, 0] = 1.0; env3 = _bounce_env(cmd3)
     s3 = lambda **kw: float(R.bounce_hold(_apply(env3, **kw)))
-    assert s3(z=0.106, vz=-0.05) == 0.0
-    assert s3(z=0.093, vz=+0.05) == 0.0         # drop enough, but never reached the top (0.106):
+    assert s3(z=0.102, vz=-0.05) == 0.0
+    assert s3(z=0.089, vz=+0.05) == 0.0         # drop enough, but never reached the top (0.102
+                                                # vs BOUNCE_Z_TOP 0.104 — hs13b fallback (a)):
     cmd4 = _toprock_cmd(); cmd4.command[0, 0] = 1.0; env4 = _bounce_env(cmd4)
     s4 = lambda **kw: float(R.bounce_hold(_apply(env4, **kw)))
     assert s4(z=0.115, vz=-0.05, knee=0.05) == 0.0
