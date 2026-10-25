@@ -765,7 +765,8 @@ the 2.6 m × 3.8 m stage:
   `git commit --author="electricshaka <953027+electricshaka@users.noreply.github.com>" -m "<concise technical summary>"`
   — this checkout's git config already resolves author AND committer to that identity bare
   (`git var` verified), and commit messages take a concise technical summary first (a needed
-  detail goes after it, not instead of it).
+  detail goes after it, not instead of it). Item 2: **push immediately to `origin/main`** after
+  every commit (`git push origin main`), same breath, never deferred.
 
 ### Open problems and next ideas
 
