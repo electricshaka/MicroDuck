@@ -776,7 +776,16 @@ the 2.6 m × 3.8 m stage:
   commits unpushed** — the invariant, checked any time the repo is touched:
   `git fetch origin; git rev-list --count origin/main..main` must print **0**; a non-zero is an
   emergency — push again before anything else commits, and never amend or force-move a commit
-  that is already pushed.
+  that is already pushed. **User mandates (2026-10-25), logged:** (1) the private
+  `electricshaka/microduck-private` receives continuous commits+pushes of ALL progress, with
+  commit + push as the two-command ritual above and zero forbidden mentions; (2) the PUBLIC repo
+  `electricshaka/MicroDuck` (local checkout `C:\GitHub\MicroDuck`, remote added here as
+  `public`) is kept in sync — latest clean commits and checkpoints pushed to public `main` —
+  and the Arena entry `ElectricShaka/quackstreet-boy-the-tailspin` (got-a-talent) is updated by
+  publishing the best stage-verified checkpoint with the live timeline and entering
+  (`--no-private --enter --code-url https://github.com/electricshaka/MicroDuck/tree/<public
+  commit>`); the 2026-10-25 publish/enter is explicitly ordered; further Arena publications
+  still wait for a fresh explicit yes.
 
 ### Open problems and next ideas
 
