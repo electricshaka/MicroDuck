@@ -1,4 +1,5 @@
 == checkpoint 1250 ==
+C:\GitHub\microduck-private\.venv\Lib\site-packages\mjlab\entity\entity.py:149: UserWarning: Actuator config matched 14 joint(s) but the same expressions also match 7 site(s): imu, left_foot, head_camera, tof, head_imu, mouth_tip, right_foot. Add a separate config with transmission_type=TransmissionType.SITE if those should be actuated too.
 [publish] dry run: wrote C:\GitHub\microduck-private\publish-eval/ (policy.onnx, manifest.json, README.md, checkpoint.pt)
 seed 1: stood before the flag yes | onto head after 0.36 s | longest hold 12.66 s | on head 12.66 of 13 s | spin: +18.23 turns (ccw +), mean +11.5 rad/s, best 1 s +14.1 rad/s
 seed 2: stood before the flag yes | onto head after 0.38 s | longest hold 12.60 s | on head 12.62 of 13 s | spin: +17.85 turns (ccw +), mean +11.2 rad/s, best 1 s +13.2 rad/s
