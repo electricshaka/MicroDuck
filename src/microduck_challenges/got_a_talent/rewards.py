@@ -9,9 +9,12 @@ Nothing taxes turning about the vertical axis (a twisting entry, a b-boy's angle
 roll, and a spinning headstand all hold as well as a still one); only tipping (pitch and roll
 rates) is taxed.
 
-Since hs14 the flag is NOT latched: each resample keeps an up flag with ``headstand_keep_prob``
-and otherwise drops it, and the duck must come back down — the show's exit (roadmap Phase 5).
-Before hs14 (hs1-hs13b) an episode that raised the flag kept it to the episode's end.
+hs14 TRIED unlatching the flag (keep an up flag with ``headstand_keep_prob`` and otherwise drop
+it, asking the duck down — the show's exit, roadmap Phase 5). Measured over 11 judged checkpoints:
+the exported policy rose 0/3 at EVERY one, and the shorter spin windows starved the headspin to
++0.0x turns from iteration 1500 — so the registered keep prob is back to 1.0, the latch
+(hs1-hs13b behaviour, which the show is built on). The keep draw stays implemented below: at
+1.0 it preserves the latch, and any future exit attempt starts from a working mechanism.
 
 The sit/stand rest stack (posture, height, upright, stillness, head tracking, speed caps) says
 "stay upright" in every term, so ``unless_headstand`` switches each of those terms off while the
@@ -78,14 +81,17 @@ def _off_the_floor(env) -> torch.Tensor:
 
 
 class HeadstandCommand(microduck_mdp.SitStandCommand):
-    """The sit/stand command plus an unlatched headstand flag in twist[1] (hs14).
+    """The sit/stand command plus the headstand flag in twist[1].
 
-    A resample that finds the flag up keeps it up with ``headstand_keep_prob`` — otherwise the
-    flag drops and the duck is asked to come back down (the show's exit). Otherwise a resample
-    commands a headstand with ``headstand_prob`` (and then no sit), else the sit/stand draw as
-    before. A new episode starts with the flag down before its first draw, unless
-    spawn_headstand put it on its head: mjlab applies reset events before it resets the
-    commands, so the spawn marks ``spawned`` and the reset raises the flag from that mark.
+    The flag latches: a resample that finds it up keeps it up while ``headstand_keep_prob``
+    reads 1.0 — the registered value, restored after hs14 measured the unlatch (exit 0/3 at
+    every judged checkpoint, the headspin starved; see the module docstring). The keep draw
+    itself stays implemented: below 1.0 the flag drops at a resample and the duck is asked
+    down. Otherwise a resample commands a headstand with ``headstand_prob`` (and then no sit),
+    else the sit/stand draw as before. A new episode starts with the flag down before its
+    first draw, unless spawn_headstand put it on its head: mjlab applies reset events before
+    it resets the commands, so the spawn marks ``spawned`` and the reset raises the flag from
+    that mark.
     """
 
     def __init__(self, cfg, env):
