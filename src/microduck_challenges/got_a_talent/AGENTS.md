@@ -761,7 +761,11 @@ the 2.6 m × 3.8 m stage:
   are committed as they are produced, not only at archive time. Publishing to the Arena still
   needs the explicit yes. (On the workshop box this folder had a second remote, the public fork
   `electricshaka/MicroDuck`, kept identical; on this checkout `origin` is the private repo and
-  the only one.)
+  the only one.) The user dictated the exact ritual (2026-10-25, item 1):
+  `git commit --author="electricshaka <953027+electricshaka@users.noreply.github.com>" -m "<concise technical summary>"`
+  — this checkout's git config already resolves author AND committer to that identity bare
+  (`git var` verified), and commit messages take a concise technical summary first (a needed
+  detail goes after it, not instead of it).
 
 ### Open problems and next ideas
 
