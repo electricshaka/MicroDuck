@@ -1,0 +1,341 @@
+== checkpoint 250 ==
+C:\GitHub\microduck-private\.venv\Lib\site-packages\mjlab\entity\entity.py:149: UserWarning: Actuator config matched 14 joint(s) but the same expressions also match 7 site(s): imu, left_foot, head_camera, tof, head_imu, mouth_tip, right_foot. Add a separate config with transmission_type=TransmissionType.SITE if those should be actuated too.
+  self._add_actuators()
+[mdp] Patches 1-2 active: NaN-safe reward/advantage
+[mdp] Patch 4 active: ONNX export filters passive_* joints
+[mdp] Patch 5 active: MICRODUCK_WARM_START=1 restarts curricula after checkpoint load
+[INFO]: Loading checkpoint: model_250.pt
+Warp 1.12.0 initialized:
+   CUDA Toolkit 12.9, Driver 13.4
+   Devices:
+     "cpu"      : "Intel64 Family 6 Model 183 Stepping 1, GenuineIntel"
+     "cuda:0"   : "NVIDIA GeForce RTX 4090" (24 GiB, sm_89, mempool enabled)
+   Kernel cache:
+     \\?\C:\Users\elect\AppData\Local\NVIDIA\warp\Cache\1.12.0
+Warp DeprecationWarning: The symbol `warp.context.runtime` will soon be removed from the public API. It can still be accessed from `warp._src.context.runtime` but might be changed or removed without notice.
+Module mujoco_warp._src.smooth 95a0b8b load on device 'cuda:0' took 4.38 ms  (cached)
+Module mujoco_warp._src.collision_driver 88f7770 load on device 'cuda:0' took 1.68 ms  (cached)
+Module _nxn_broadphase__locals__kernel_e73b1315 e73b131 load on device 'cuda:0' took 2.20 ms  (cached)
+Module ccd_kernel_builder__locals__ccd_kernel_079dfa94 079dfa9 load on device 'cuda:0' took 2.89 ms  (cached)
+Module _primitive_narrowphase__locals__primitive_narrowphase_b282a07a b282a07 load on device 'cuda:0' took 1.46 ms  (cached)
+Module mujoco_warp._src.constraint 27c5750 load on device 'cuda:0' took 2.90 ms  (cached)
+Module _efc_contact_init__locals__kernel_fda71e14 fda71e1 load on device 'cuda:0' took 1.55 ms  (cached)
+Module _efc_contact_jac_dense__locals__kernel_7974b597 cc0fc30 load on device 'cuda:0' took 1.75 ms  (cached)
+Module _efc_contact_update__locals__kernel_90315d53 90315d5 load on device 'cuda:0' took 1.43 ms  (cached)
+Module mujoco_warp._src.sensor 7fc0378 load on device 'cuda:0' took 4.46 ms  (cached)
+Module mujoco_warp._src.forward f60f76d load on device 'cuda:0' took 6.05 ms  (cached)
+Module mujoco_warp._src.passive 1a5e55c load on device 'cuda:0' took 2.16 ms  (cached)
+Module mujoco_warp._src.forward 8ebfcb1 load on device 'cuda:0' took 2.18 ms  (cached)
+Module mujoco_warp._src.support dd3f924 load on device 'cuda:0' took 1.58 ms  (cached)
+Module _tile_cholesky_factorize_solve__locals__cholesky_factorize_solve_b16bf393 b7e5d5f load on device 'cuda:0' took 143.70 ms  (cached)
+Module mujoco_warp._src.solver b116efb load on device 'cuda:0' took 2.53 ms  (cached)
+Module solve_init_jaref__locals__kernel_5208712d 5208712 load on device 'cuda:0' took 1.36 ms  (cached)
+Module mul_m_dense__locals___mul_m_dense_b66df345 b66df34 load on device 'cuda:0' took 1.31 ms  (cached)
+Module update_constraint_efc__locals__kernel_32935e9d 32935e9 load on device 'cuda:0' took 1.50 ms  (cached)
+Module update_constraint_gauss_cost__locals__kernel_baf8e129 baf8e12 load on device 'cuda:0' took 1.37 ms  (cached)
+Module update_gradient_JTDAJ_dense_tiled__locals__kernel_9404d42c b63011f load on device 'cuda:0' took 2.33 ms  (cached)
+Module update_gradient_cholesky__locals__kernel_5ee47d83 324a2ff load on device 'cuda:0' took 153.43 ms  (cached)
+Module linesearch_jv_fused__locals__kernel_7bf09094 7bf0909 load on device 'cuda:0' took 1.54 ms  (cached)
+Module linesearch_prepare_gauss__locals__kernel_97347d38 97347d3 load on device 'cuda:0' took 1.41 ms  (cached)
+Module update_constraint_efc__locals__kernel_3c1a9816 3c1a981 load on device 'cuda:0' took 1.53 ms  (cached)
+Module _contact_sort__locals__contact_sort_304c86df 6c97b35 load on device 'cuda:0' took 6.30 ms  (cached)
+Module mujoco_warp._src.derivative d0e2fd7 load on device 'cuda:0' took 1.31 ms  (cached)
+Module reset_data__locals__reset_xfrc_applied_e7898c5c e7898c5 load on device 'cuda:0' took 5.75 ms  (cached)
+Module reset_data__locals__reset_qM_10d3c793 10d3c79 load on device 'cuda:0' took 2.88 ms  (cached)
+Module reset_data__locals__reset_mocap_ff71f630 ff71f63 load on device 'cuda:0' took 2.30 ms  (cached)
+Module reset_data__locals__reset_contact_df686d47 df686d4 load on device 'cuda:0' took 2.67 ms  (cached)
+Module reset_data__locals__reset_nworld_6e0d904e 6e0d904 load on device 'cuda:0' took 2.47 ms  (cached)
+[BamActuator] model='m6' joints=14 kt=0.3660 R=2.8114 vin=range=(6.5, 8.2) drop_gain_range=(0.0, 0.2) force_limit=�1.07Nm friction_base=0.0048 friction_viscous=0.0054 envs=1 device=cuda:0
+
++---------------------------------+
+|         Base Environment        |
++------------------------+--------+
+| Property               | Value  |
++------------------------+--------+
+| Number of environments | 1      |
+| Environment device     | cuda:0 |
+| Environment seed       | None   |
+| Physics step-size      | 0.005  |
+| Environment step-size  | 0.02   |
++------------------------+--------+
+
+[INFO] <EventManager> contains 3 active terms.
++-------------------------------------+
+| Active Event Terms in Mode: 'reset' |
++-------+-----------------------------+
+| Index | Name                        |
++-------+-----------------------------+
+|   0   | reset_base                  |
+|   1   | reset_robot_joints          |
+|   2   | reset_action_history        |
+|   3   | set_ground_state            |
+|   4   | spawn_headstand             |
+|   5   | spawn_seated_sweep          |
+|   6   | spawn_l_kick                |
+|   7   | spawn_mid_bounce            |
+|   8   | randomize_com               |
+|   9   | randomize_head_com          |
+|   10  | randomize_armature          |
+|   11  | randomize_joint_friction    |
++-------+-----------------------------+
++----------------------------------------------+
+|    Active Event Terms in Mode: 'interval'    |
++-------+------------+-------------------------+
+| Index | Name       | Interval time range (s) |
++-------+------------+-------------------------+
+|   0   | push_robot |        (0.5, 1.0)       |
++-------+------------+-------------------------+
++---------------------------------------+
+| Active Event Terms in Mode: 'startup' |
++-------+-------------------------------+
+| Index | Name                          |
++-------+-------------------------------+
+|   0   | foot_friction                 |
+|   1   | encoder_bias                  |
+|   2   | base_com                      |
+|   3   | expand_bam_friction_fields    |
+|   4   | randomize_mass_inertia        |
++-------+-------------------------------+
++-----------------------------+
+| Domain Randomization Fields |
++-------+---------------------+
+| Index | Field Name          |
++-------+---------------------+
+|   0   | geom_friction       |
+|   1   | body_ipos           |
+|   2   | body_subtreemass    |
+|   3   | dof_invweight0      |
+|   4   | body_invweight0     |
+|   5   | tendon_length0      |
+|   6   | tendon_invweight0   |
+|   7   | dof_frictionloss    |
+|   8   | dof_damping         |
+|   9   | dof_armature        |
+|   10  | body_mass           |
+|   11  | body_inertia        |
+|   12  | body_iquat          |
++-------+---------------------+
+
+[INFO] <CommandManager> contains 3 active terms.
++----------------------------------------+
+|          Active Command Terms          |
++-------+-----------+--------------------+
+| Index | Name      |        Type        |
++-------+-----------+--------------------+
+|   0   | twist     |  HeadstandCommand  |
+|   1   | head_pose | UniformPoseCommand |
+|   2   | body_pose |   ToprockCommand   |
++-------+-----------+--------------------+
+
+[INFO] <ActionManager> contains 1 active terms.
++---------------------------------+
+| Active Action Terms (shape: 14) |
++-------+-----------+-------------+
+| Index | Name      |   Dimension |
++-------+-----------+-------------+
+|   0   | joint_pos |          14 |
++-------+-----------+-------------+
+
+[INFO] <ObservationManager> contains 2 groups.
++-----------------------------------------------------------+
+| Active Observation Terms in Group: 'actor' (shape: (61,)) |
++-----------+----------------------------------+------------+
+|   Index   | Name                             |   Shape    |
++-----------+----------------------------------+------------+
+|     0     | base_ang_vel                     |    (3,)    |
+|     1     | projected_gravity                |    (3,)    |
+|     2     | joint_pos                        |   (14,)    |
+|     3     | joint_vel                        |   (14,)    |
+|     4     | actions                          |   (14,)    |
+|     5     | command                          |    (3,)    |
+|     6     | head_command                     |    (4,)    |
+|     7     | body_command                     |    (6,)    |
++-----------+----------------------------------+------------+
++------------------------------------------------------------+
+| Active Observation Terms in Group: 'critic' (shape: (74,)) |
++----------+------------------------------------+------------+
+|  Index   | Name                               |   Shape    |
++----------+------------------------------------+------------+
+|    0     | base_lin_vel                       |    (3,)    |
+|    1     | base_ang_vel                       |    (3,)    |
+|    2     | projected_gravity                  |    (3,)    |
+|    3     | joint_pos                          |   (14,)    |
+|    4     | joint_vel                          |   (14,)    |
+|    5     | actions                            |   (14,)    |
+|    6     | command                            |    (3,)    |
+|    7     | foot_air_time                      |    (2,)    |
+|    8     | foot_contact                       |    (2,)    |
+|    9     | foot_contact_forces                |    (6,)    |
+|    10    | head_command                       |    (4,)    |
+|    11    | body_command                       |    (6,)    |
++----------+------------------------------------+------------+
+
+[INFO] <TerminationManager> contains 3 active terms.
++------------------------------------------+
+|         Active Termination Terms         |
++-------+-----------------------+----------+
+| Index | Name                  | Time Out |
++-------+-----------------------+----------+
+|   0   | time_out              |   True   |
+|   1   | out_of_terrain_bounds |   True   |
+|   2   | nan_state             |  False   |
++-------+-----------------------+----------+
+
+[INFO] <RewardManager> contains 33 active terms.
++------------------------------------------------+
+|              Active Reward Terms               |
++-------+-------------------------------+--------+
+| Index | Name                          | Weight |
++-------+-------------------------------+--------+
+|   0   | body_ang_vel                  |  -0.05 |
+|   1   | angular_momentum              |  -0.02 |
+|   2   | dof_pos_limits                |   -1.0 |
+|   3   | action_rate_l2                |   -0.1 |
+|   4   | posture_pose_legs             |    4.0 |
+|   5   | head_pose_tracking            |   0.75 |
+|   6   | posture_pose_l1               |    1.0 |
+|   7   | posture_height                |    1.0 |
+|   8   | posture_height_sharp          |    1.0 |
+|   9   | posture_height_l1             |    6.0 |
+|   10  | rise_bootstrap                |   0.75 |
+|   11  | descent_speed                 |   10.0 |
+|   12  | rise_speed                    |    0.0 |
+|   13  | gentle_motion                 |   0.05 |
+|   14  | upright_linear                |    2.5 |
+|   15  | upright_while_tall            |    1.5 |
+|   16  | posture_stillness             |    2.0 |
+|   17  | posture_composite             |    3.0 |
+|   18  | headstand_progress            |    2.0 |
+|   19  | headstand_support             |    2.0 |
+|   20  | headstand_hold                |    8.0 |
+|   21  | headstand_body_contact        |   -2.0 |
+|   22  | headspin                      |    6.0 |
+|   23  | head_stillness_on_head        |    3.0 |
+|   24  | head_spindle_penalty          |   -1.0 |
+|   25  | head_contact_unless_headstand |   -2.0 |
+|   26  | bounce_hold                   |    6.0 |
+|   27  | bounce_step                   |    4.0 |
+|   28  | downrock_sweep                |    6.0 |
+|   29  | l_kick_hold                   |    6.0 |
+|   30  | action_beyond_limits          |   -0.5 |
+|   31  | joint_torque_rate_l2          |    0.0 |
+|   32  | self_collisions               |   -1.0 |
++-------+-------------------------------+--------+
+
+[INFO] <CurriculumManager> contains 10 active terms.
++------------------------------+
+|   Active Curriculum Terms    |
++-------+----------------------+
+| Index | Name                 |
++-------+----------------------+
+|   0   | head_pose_range      |
+|   1   | com_range            |
+|   2   | head_com_range       |
+|   3   | push_magnitude       |
+|   4   | action_rate_weight   |
+|   5   | descent_speed_weight |
+|   6   | rise_speed_weight    |
+|   7   | torque_rate_weight   |
+|   8   | headspin_rate_max    |
+|   9   | sweep_rate_max       |
++-------+----------------------+
+
+[INFO] <MetricsManager> contains 1 active terms.
++-------------------------+
+|   Active Metrics Terms  |
++-------+-----------------+
+| Index | Name            |
++-------+-----------------+
+|   0   | mean_action_acc |
++-------+-----------------+
+
+[INFO] <NullRecorderManager> (inactive)
+Module mujoco_warp._src.io 4b387a0 load on device 'cuda:0' took 2.46 ms  (cached)
+Module _tile_cholesky_factorize__locals__cholesky_factorize_a02b7349 3d3b894 load on device 'cuda:0' took 64.39 ms  (cached)
+Module _tile_cholesky_solve__locals__cholesky_solve_8c82e9f1 95f6085 load on device 'cuda:0' took 100.07 ms  (cached)
+--------------------------------------------------------------------------------
+Resolved observation sets: 
+	 actor :  ('actor',)
+	 critic :  ('critic',)
+--------------------------------------------------------------------------------
+Actor Model: MLPModel(
+  (obs_normalizer): EmpiricalNormalization()
+  (distribution): GaussianDistribution()
+  (mlp): MLP(
+    (0): Linear(in_features=61, out_features=512, bias=True)
+    (1): ELU(alpha=1.0)
+    (2): Linear(in_features=512, out_features=256, bias=True)
+    (3): ELU(alpha=1.0)
+    (4): Linear(in_features=256, out_features=128, bias=True)
+    (5): ELU(alpha=1.0)
+    (6): Linear(in_features=128, out_features=14, bias=True)
+  )
+)
+Critic Model: MLPModel(
+  (obs_normalizer): EmpiricalNormalization()
+  (mlp): MLP(
+    (0): Linear(in_features=74, out_features=512, bias=True)
+    (1): ELU(alpha=1.0)
+    (2): Linear(in_features=512, out_features=256, bias=True)
+    (3): ELU(alpha=1.0)
+    (4): Linear(in_features=256, out_features=128, bias=True)
+    (5): ELU(alpha=1.0)
+    (6): Linear(in_features=128, out_features=1, bias=True)
+  )
+)
+Written C:\Users\elect\AppData\Local\Temp\microduck-publish-bk8u1ia6\policy.onnx
+[publish] policy.onnx: 61 -> 14, ok
+[publish] smoke run: finite, non-constant output
+[publish] dry run: wrote C:\GitHub\microduck-private\publish-eval/ (policy.onnx, manifest.json, README.md, checkpoint.pt)
+
+[mdp] Patches 1-2 active: NaN-safe reward/advantage
+[mdp] Patch 4 active: ONNX export filters passive_* joints
+[mdp] Patch 5 active: MICRODUCK_WARM_START=1 restarts curricula after checkpoint load
+seed 1: stood before the flag yes | onto head after 0.32 s | longest hold 12.70 s | on head 12.70 of 13 s | spin: +19.10 turns (ccw +), mean +12.0 rad/s, best 1 s +13.5 rad/s
+seed 2: stood before the flag yes | onto head after 0.32 s | longest hold 12.70 s | on head 12.70 of 13 s | spin: +19.54 turns (ccw +), mean +12.3 rad/s, best 1 s +14.0 rad/s
+seed 3: stood before the flag yes | onto head after 0.32 s | longest hold 12.70 s | on head 12.70 of 13 s | spin: +19.28 turns (ccw +), mean +12.1 rad/s, best 1 s +14.1 rad/s
+mean longest +12.70, total +12.70, turns +19.31, mean_rate +12.13, best_rate +13.87
+
+[mdp] Patches 1-2 active: NaN-safe reward/advantage
+[mdp] Patch 4 active: ONNX export filters passive_* joints
+[mdp] Patch 5 active: MICRODUCK_WARM_START=1 restarts curricula after checkpoint load
+t= 0.00  stand: reached after 0.00 s, held until 2.00 s; head: held under 2 s, not checked
+t= 0.70  head: held under 2 s, not checked
+t= 1.40  head: held under 2 s, not checked
+t= 2.00  sit: reached after 0.34 s, held until 4.00 s; head: held under 2 s, not checked
+t= 3.50  head: held under 2 s, not checked
+t= 4.00  headstand: reached after 0.28 s, held until 20.00 s; head: held under 2 s, not checked
+t= 4.50  head: off by 0.35 rad
+t=11.50  head: off by 0.41 rad
+t=18.00  head: off by 0.36 rad
+fell at 4.46 s
+FAIL: largest head error 0.41 rad
+
+-- sweep probe (downrock flag window, seeds 1-3) --
+seed 1: swept  555.8 deg in the sweep phase (quiet   1.0 deg), crouch held 2.60 s, min z 0.062 m, played 8.00 s
+        grinder read: blade radius 0.069 m med, 0% >= 0.08 m | kneel 15% >= 0.085 m | pelvis-contact frames 0
+seed 2: swept  556.6 deg in the sweep phase (quiet   1.0 deg), crouch held 2.60 s, min z 0.062 m, played 8.00 s
+        grinder read: blade radius 0.069 m med, 0% >= 0.08 m | kneel 15% >= 0.085 m | pelvis-contact frames 0
+seed 3: swept  551.4 deg in the sweep phase (quiet   1.3 deg), crouch held 2.60 s, min z 0.062 m, played 8.00 s
+        grinder read: blade radius 0.069 m med, 0% >= 0.08 m | kneel 15% >= 0.085 m | pelvis-contact frames 0
+MEAN: swept 554.6 deg | quiet 1.1 deg | crouch 2.60 s | min z 0.062 m
+MEAN grinder: radius 0.069 m, 0% >= 0.08 m | kneel 15% | pelvis-contact frames 0 (bar: >= 400 deg, radius/kneel most of window, contacts ~0)
+
+-- kick probe (L-kick freeze, seeds 1-3) --
+seed 1: quiet window kick err 0.26 rad (needle 1.50, up 2.20 s) | freeze window kick err 0.04 rad (needle 0.11), up 3.00 s, drift 32 deg
+    raw hips quiet L +1.10 R -1.11 | freeze L +1.45 R +0.34
+seed 2: quiet window kick err 0.24 rad (needle 1.48, up 2.20 s) | freeze window kick err 0.04 rad (needle 0.11), up 3.00 s, drift 24 deg
+    raw hips quiet L +1.10 R -1.10 | freeze L +1.44 R +0.34
+seed 3: quiet window kick err 0.25 rad (needle 1.45, up 2.20 s) | freeze window kick err 0.04 rad (needle 0.11), up 3.00 s, drift 38 deg
+    raw hips quiet L +1.11 R -1.06 | freeze L +1.45 R +0.35
+MEAN: quiet kick err 0.25 rad (needle 1.48, up 2.20 s) | freeze kick err 0.04 rad (needle 0.11), up 3.00 s, drift 31 deg
+
+-- bounce show probe (hs13 acceptance gate, seeds 1-3) --
+[WARN] Failed to load task package microduck_challenges: cannot import name 'MICRODUCK_WALK_ROBOT_CFG' from partially initialized module 'mjlab_microduck.robot.microduck_constants' (most likely due to a circular import) (C:\GitHub\microduck-private\.venv\Lib\site-packages\mjlab_microduck\robot\microduck_constants.py)
+[WARN] Failed to load task package mjlab_microduck: cannot import name 'MICRODUCK_WALK_ROBOT_CFG' from partially initialized module 'mjlab_microduck.robot.microduck_constants' (most likely due to a circular import) (C:\GitHub\microduck-private\.venv\Lib\site-packages\mjlab_microduck\robot\microduck_constants.py)
+seed 1: quiet 0 cycles | BOUNCE window 0 cycles (0 knee) mean drop 0.0 cm, z 0.116..0.116 | STEP window 0 cycles (0 knee, drop 0.0 cm), 0 alternating steps (hip dev L +0.09 / R +0.01), played 8.50 s
+seed 2: quiet 0 cycles | BOUNCE window 0 cycles (0 knee) mean drop 0.0 cm, z 0.116..0.116 | STEP window 0 cycles (0 knee, drop 0.0 cm), 0 alternating steps (hip dev L +0.09 / R +0.00), played 8.50 s
+seed 3: quiet 0 cycles | BOUNCE window 0 cycles (0 knee) mean drop 0.0 cm, z 0.116..0.116 | STEP window 0 cycles (0 knee, drop 0.0 cm), 0 alternating steps (hip dev L +0.09 / R +0.00), played 8.50 s
+MEAN: quiet 0.0 | bounce 0.0 cycles (0.0 knee, drop 0.0 cm) | steps window 0.0 cycles (0.0 knee), 0.0 alternating steps | BAR: bounce >= 3 knee cycles >= 1.2 cm with quiet <= 0.5, steps >= 2 alternations
+hs13 bounce acceptance: FAIL
+
