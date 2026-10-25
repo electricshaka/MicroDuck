@@ -160,13 +160,22 @@ MAX_DESCENT_SPEED = 0.05
 MAX_RISE_SPEED    = 0.08
 
 # Headstand (rewards.py): the probability a resample raises the headstand flag in
-# twist[1] (latched for the rest of the episode), and the share of episodes that
-# start already on the head with the flag up. At 0.35 (hs1, hs2) the latch kept the
-# flag up for most of the training time: hs2 learned the headstand but stood with
-# its neck pinned at its limit, trunk leaning 32°, and never sat (check.py FAIL,
-# head error 1.93 rad, every checkpoint). 0.15 gives sit/stand about half the time.
+# twist[1], and the share of episodes that start already on the head with the flag up.
+# At 0.35 (hs1, hs2) the pre-hs14 latch kept the flag up for most of the training time:
+# hs2 learned the headstand but stood with its neck pinned at its limit, trunk leaning
+# 32°, and never sat (check.py FAIL, head error 1.93 rad, every checkpoint). 0.15 gives
+# sit/stand about half the time.
 HEADSTAND_PROB       = 0.15
 HEADSTAND_SPAWN_PROB = 0.2
+# hs14, the exit (roadmap Phase 5): the flag stopped LATCHING — a resample with the flag up keeps
+# it with this probability and otherwise drops it. POSTURE_DWELL_S is 3.5-6.5 s in a 12 s episode,
+# so at 0.75 about a third of headstand episodes are asked to come back down by their second
+# resample, while the hold and the spin keep most of their dwell (a headstand spawn, 20% of
+# episodes, doubles as the exit drill: it starts on the head and unlatches like any other). The
+# exit asks for NO reward of its own: the rest stack (off under the flag) resumes paying the
+# moment it drops, and standing is this robot's strongest attractor — hs13's lesson applied where
+# it holds: the move starts FROM a state the robot holds and ends IN the state it loves.
+HEADSTAND_KEEP       = 0.75
 # Headspin (rewards.headspin): the probability that a resample with the headstand
 # flag up also raises the spin flag in twist[2]; drawn afresh at each resample, so
 # spins start and stop on the head.
@@ -814,8 +823,9 @@ def make_env_cfg(
             "ramp_s":   POSTURE_RAMP_S,
             "sit_z":    SIT_Z,
             "stand_z":  STAND_Z,
-            "headstand_prob": HEADSTAND_PROB,
-            "spin_prob":      SPIN_PROB,
+            "headstand_prob":      HEADSTAND_PROB,
+            "headstand_keep_prob": HEADSTAND_KEEP,
+            "spin_prob":           SPIN_PROB,
         }
     )
 
