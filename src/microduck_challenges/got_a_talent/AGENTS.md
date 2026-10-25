@@ -423,10 +423,12 @@ From [The Conversation](https://theconversation.com/how-do-breakdancers-avoid-br
 
 ### Commands and rewards (rewards.py, env.py)
 
-- `twist[1]` **headstand flag**, latched in training (once up it stays up to the episode's end);
-  raised with `HEADSTAND_PROB` 0.15 per resample, and `HEADSTAND_SPAWN_PROB` 0.2 of episodes start
-  on the head (some spinning up to ±6 rad/s). `twist[2]` **spin flag**, drawn with `SPIN_PROB` 0.5
-  at every resample while the headstand flag is up.
+- `twist[1]` **headstand flag**, NOT latched since hs14 (before: once up it stayed up to the
+  episode's end): a resample keeps an up flag with `HEADSTAND_KEEP` 0.75 and otherwise drops it,
+  asking the duck back down (the exit); raised with `HEADSTAND_PROB` 0.15 per resample, and
+  `HEADSTAND_SPAWN_PROB` 0.2 of episodes start on the head (some spinning up to ±6 rad/s).
+  `twist[2]` **spin flag**, drawn with `SPIN_PROB` 0.5 at every resample while the headstand
+  flag is up.
 - `body[0]` **bounce flag** (hs13): drawn with `BOUNCE_PROB` 0.5 per resample, rides only a
   standing posture. While it rides, `bounce_hold` (6.0) pays a DENSE window (0.75 s) that only a
   VALID cycle opens — drop ≥ 0.012 m from the cycle's own top, top ≥ 0.108 (it came back UP),
@@ -746,17 +748,45 @@ show either way).
 *Finish*: same ritual — 12 checkpoints judged, winner archived, Runs row + timeline opening
 updated after stage verification, pushed.
 
-**hs14 — Headstand Exit & upright freeze** (unlatch `twist[1]`) — was hs13; the overhaul took
-the slot. Problem: the headstand flag is latched for the whole episode; the show ends upside
-down. Implementation: in `HeadstandCommand._resample_command`, let the flag go back down (a
-small probability per resample, and always down when the sit/stand draw says so); add recovery
-rewards gated on "flag just went down": hip extension, trunk righting (the REST_STACK powers
-back on), landing on feet/knees within ~1.5 s, then upright stillness for the final freeze pop
-and b-boy bow. Trap to avoid (hit before): a "rise" that is really a lean back at 57° — require
-the upright stack, not just the angle. Then the timeline drops `twist[1]` at 17.0 s (move the
-brake start earlier so the spin stops by ~16.5 s) and the last 3 s are an upright freeze pop.
-Judge: `check.py` must PASS with the upright finish, headstand hold unchanged while the flag is
-up.
+**hs14 — Headstand Exit** (unlatch `twist[1]`; **RUNNING** — commit a0f3b0a, launched
+2026-10-25 resumed byte-for-byte from `hs12b/model_2000` via `hs12b_base/`, run name `hs14`) —
+roadmap Phase 5 ("Freeze & Exit"): today the show ends upside down because training LATCHES the
+headstand flag (`up = was_up | draw`). The change, exactly one: the flag unlatches — each
+resample keeps an up flag with `HEADSTAND_KEEP = 0.75` and otherwise drops it (cfg
+`headstand_keep_prob`, default 1.0 = the old latch; tests cover both). Dwell is 3.5-6.5 s in a
+12 s episode, so about a third of headstand episodes are asked to come back down by their
+second resample, while hold and spin keep most of their dwell; the headstand spawn (20%)
+doubles as the exit drill. **NO new reward** — the deliberate design, straight from the runs'
+own law: when the flag drops the rest stack (off under the flag) resumes paying and standing is
+this robot's strongest attractor; the move starts FROM a state the robot holds and ends IN the
+state it loves — the inverse of the four regimes that died, which all asked the robot to leave
+an attractor. The known trap stays warded: no reward asks for "not upside down" alone, the
+rest stack pays the FULL upright pose (height × upright × pose), so a lean back at 57° earns
+nothing near a stand.
+
+*Baseline measured* (`scratch/exit_probe.py`, new: 2.5 s stand, 5.0 s headstand, then the flag
+DROPS for 3.5 s; STAND_OK = z ≥ 0.10 AND upright ≥ 0.75 held to the window's end; seeds 1-3):
+**hs12b/model_2000 rises 0/3, EVER** — 3.5 s after the drop it is still down, end z 0.059 m,
+tilt 64° (upright 0.44), seeds identical; quiet headstand 4.69 s of 5 (carryover control).
+
+*Acceptance* (same probe, per checkpoint): **rise ≤ 2.0 s on 3/3 seeds, held to the window's
+end, end z ≥ 0.10 and upright ≥ 0.90**, AND the carryover unharmed — `headspin_check` turns and
+hold near hs12b's (+21.7, 12.7 s), `check.py` sit/rises unchanged, sweep/freeze probes still
+answering (the unlatch must not starve the spin: if turns collapse at ALL checkpoints the keep
+prob cost too much, read the headspin curve for the share of headstand dwell lost).
+*Fallbacks*: (a) if the duck leaves the head but the rise stalls half-way (probe rise NEVER,
+end z 0.08-0.10) — the rest stack alone cannot finish the stand from inverted: add ONE term,
+`exit_progress` (2.0, rest-pose composite gated on inverted-with-flag-down, dense) and rerun;
+(b) if it never leaves the head at all — the resample never asks often enough for a 12 s
+episode: drop HEADSTAND_KEEP to 0.5 once, nothing else; (c) if neither works in 3000 iters:
+the show keeps its upside-down L-kick ending (it is verified and live) and the exit is recorded
+failed-by-measurement.
+*After a stage-verified checkpoint*: the SHOW shape of the exit is the user's creative call —
+the current timeline ends 18-20 s in the L-kick freeze; a finish on the feet would replace or
+follow it inside the 20 s (e.g. brake earlier, drop `twist[1]` at ~17.5 s, land and bow). Do
+not touch `timeline.json` without them.
+*Finish*: same ritual — 12 checkpoints judged (the exit probe joins the batch), winner (if any)
+archived, Runs row filled, pushed.
 
 **hs15 — "Block Rockin' Beats" Breakbeat Cypher Troupe** (`timeline_version: 2`, no policy
 training; `timeline.json` only; STAGING ONLY — no publishing without a new explicit yes) —
