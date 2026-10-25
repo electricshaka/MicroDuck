@@ -772,7 +772,11 @@ the 2.6 m × 3.8 m stage:
   — this checkout's git config already resolves author AND committer to that identity bare
   (`git var` verified), and commit messages take a concise technical summary first (a needed
   detail goes after it, not instead of it). Item 2: **push immediately to `origin/main`** after
-  every commit (`git push origin main`), same breath, never deferred.
+  every commit (`git push origin main`), same breath, never deferred. Item 4: **never leave local
+  commits unpushed** — the invariant, checked any time the repo is touched:
+  `git fetch origin; git rev-list --count origin/main..main` must print **0**; a non-zero is an
+  emergency — push again before anything else commits, and never amend or force-move a commit
+  that is already pushed.
 
 ### Open problems and next ideas
 
