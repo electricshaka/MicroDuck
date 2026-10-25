@@ -9,8 +9,9 @@ Nothing taxes turning about the vertical axis (a twisting entry, a b-boy's angle
 roll, and a spinning headstand all hold as well as a still one); only tipping (pitch and roll
 rates) is taxed.
 
-Training latches the flag: once an episode commands a headstand it keeps commanding it until the
-episode ends. Coming back down is a later stage.
+Since hs14 the flag is NOT latched: each resample keeps an up flag with ``headstand_keep_prob``
+and otherwise drops it, and the duck must come back down — the show's exit (roadmap Phase 5).
+Before hs14 (hs1-hs13b) an episode that raised the flag kept it to the episode's end.
 
 The sit/stand rest stack (posture, height, upright, stillness, head tracking, speed caps) says
 "stay upright" in every term, so ``unless_headstand`` switches each of those terms off while the
@@ -77,19 +78,22 @@ def _off_the_floor(env) -> torch.Tensor:
 
 
 class HeadstandCommand(microduck_mdp.SitStandCommand):
-    """The sit/stand command plus a latched headstand flag in twist[1].
+    """The sit/stand command plus an unlatched headstand flag in twist[1] (hs14).
 
-    A resample that finds the flag up keeps it up; otherwise it commands a headstand with
-    ``headstand_prob`` (and then no sit), else the sit/stand draw as before. A new episode starts
-    with the flag down before its first draw, unless spawn_headstand put it on its head: mjlab
-    applies reset events before it resets the commands, so the spawn marks ``spawned`` and the
-    reset raises the flag from that mark.
+    A resample that finds the flag up keeps it up with ``headstand_keep_prob`` — otherwise the
+    flag drops and the duck is asked to come back down (the show's exit). Otherwise a resample
+    commands a headstand with ``headstand_prob`` (and then no sit), else the sit/stand draw as
+    before. A new episode starts with the flag down before its first draw, unless
+    spawn_headstand put it on its head: mjlab applies reset events before it resets the
+    commands, so the spawn marks ``spawned`` and the reset raises the flag from that mark.
     """
 
     def __init__(self, cfg, env):
         super().__init__(cfg, env)
         self._headstand_prob = float(getattr(cfg, "headstand_prob", 0.35))
         self._spin_prob = float(getattr(cfg, "spin_prob", 0.0))
+        # 1.0 restores the pre-hs14 latch: once up, up to the episode's end.
+        self._keep_prob = float(getattr(cfg, "headstand_keep_prob", 1.0))
         self.spawned = torch.zeros(self.num_envs, dtype=torch.bool, device=self.device)
         # spawn_seated_sweep's mark (hs12): this episode starts SEATED with the sweep flag up;
         # the reset forces the sit flag UP and the headstand flag down from the mark. (The alpha
@@ -133,7 +137,11 @@ class HeadstandCommand(microduck_mdp.SitStandCommand):
             return
         was_up = self.vel_command_b[env_ids, HEADSTAND] > 0.5
         super()._resample_command(env_ids)
-        up = was_up | (torch.rand(n, device=self.device) < self._headstand_prob)
+        # hs14, the exit: the flag no longer latches. A resample keeps an up flag with
+        # headstand_keep_prob, else drops it — from that step the rest stack (off under the
+        # flag) resumes paying, and the rise to the drawn posture is the move.
+        keep = was_up & (torch.rand(n, device=self.device) < self._keep_prob)
+        up = keep | (torch.rand(n, device=self.device) < self._headstand_prob)
         self.vel_command_b[env_ids, HEADSTAND] = up.float()
         self.vel_command_b[env_ids, 0] = torch.where(up, 0.0, self.vel_command_b[env_ids, 0])
         self._draw_spin(env_ids)
@@ -142,8 +150,10 @@ class HeadstandCommand(microduck_mdp.SitStandCommand):
 @_dataclass(kw_only=True)
 class HeadstandCommandCfg(microduck_mdp.SitStandCommandCfg):
     class_type: type = HeadstandCommand
-    # Probability that a resample raises the headstand flag (it then stays up).
+    # Probability that a resample raises the headstand flag.
     headstand_prob: float = 0.35
+    # Probability that a resample with the headstand flag up KEEPS it (hs14; 1.0 = the old latch).
+    headstand_keep_prob: float = 1.0
     # Probability that a resample with the headstand flag up also raises the spin flag.
     spin_prob: float = 0.0
 

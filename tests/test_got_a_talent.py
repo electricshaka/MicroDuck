@@ -119,6 +119,54 @@ def test_got_a_talent_reads_what_a_timeline_carries(cfg):
     assert actor["body_command"].params == {"command_name": "body_pose"}
 
 
+def test_the_headstand_flag_is_registered_unlatched(cfg):
+    """hs14, the exit: twist[1] no longer latches — the env registers a keep probability
+    strictly below 1, so a resample can drop a headstand flag and ask the duck down."""
+    from microduck_challenges.got_a_talent import env as E
+
+    assert cfg.commands["twist"].headstand_keep_prob == E.HEADSTAND_KEEP
+    assert 0.0 < E.HEADSTAND_KEEP < 1.0
+
+
+def test_an_up_headstand_flag_can_drop_on_resample():
+    """hs14: a resample keeps an up flag with headstand_keep_prob and otherwise drops it
+    (the latch is gone), a down flag with no fresh raise stays down, the sit draw applies
+    the moment the flag drops, and keep_prob 1.0 restores the old latch."""
+    from microduck_challenges.got_a_talent import rewards as R
+
+    # "device" is a read-only property on the mjlab command base: shadow it with a class attr.
+    stub_cls = type("StubCommand", (R.HeadstandCommand,), {"device": "cpu"})
+
+    def resample(keep: float, seed: int) -> torch.Tensor:
+        cmd = stub_cls.__new__(stub_cls)
+        cmd._headstand_prob = 0.0    # no fresh raises in this test
+        cmd._keep_prob = keep
+        cmd._spin_prob = 0.0
+        cmd.vel_command_b = torch.tensor([[0.0, 1.0, 1.0],   # headstand up, spinning
+                                          [1.0, 0.0, 0.0]])  # sitting, flag down
+        # the base's draw, as SitStandCommand does it: every resample commands a sit.
+        def base_draw(self, env_ids):
+            self.vel_command_b[env_ids, 0] = 1.0
+        orig = microduck_mdp.SitStandCommand._resample_command
+        microduck_mdp.SitStandCommand._resample_command = base_draw
+        try:
+            torch.manual_seed(seed)
+            R.HeadstandCommand._resample_command(cmd, torch.arange(2))
+        finally:
+            microduck_mdp.SitStandCommand._resample_command = orig
+        return cmd.vel_command_b
+
+    flags = torch.stack([resample(0.75, s) for s in range(20)])
+    up = flags[:, 0, R.HEADSTAND]
+    assert 0.0 < up.sum() < 20.0                       # keeps AND drops: no more latch
+    assert (flags[:, 1, R.HEADSTAND] == 0.0).all()     # a down flag stays down at prob 0
+    assert (flags[up == 0][:, 0, 0] == 1.0).all()      # flag down: the base's sit stands
+    assert (flags[up == 1][:, 0, 0] == 0.0).all()      # flag up: sit forced down
+    assert (flags[:, 0, R.SPIN] == 0.0).all()          # spin re-drawn (prob 0): the mark clears
+    latched = torch.stack([resample(1.0, s) for s in range(10)])
+    assert (latched[:, 0, R.HEADSTAND] == 1.0).all()   # keep 1.0 = the pre-hs14 latch
+
+
 def test_checks_head_joint_order_matches_head_pose_trackings_own(cfg):
     """check.HEAD_JOINTS reads the head command's 4 dims as
     [neck_pitch, head_pitch, head_yaw, head_roll]; that must be the same order
