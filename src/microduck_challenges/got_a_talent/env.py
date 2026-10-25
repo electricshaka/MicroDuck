@@ -171,6 +171,29 @@ HEADSTAND_SPAWN_PROB = 0.2
 # flag up also raises the spin flag in twist[2]; drawn afresh at each resample, so
 # spins start and stop on the head.
 SPIN_PROB            = 0.5
+# Bounce (hs13 overhaul, rewards.ToprockCommand): the probability a resample raises the BOUNCE
+# flag in body[0] (the slot hs11/hs11b used for the failed standing footwork; hs13 re-purposes it
+# for the rhythmic knee bounce, whose timeline route bounce_probe.py measured FLAT). It rides only
+# a standing posture, and the CROSS-STEP flag in body[2] rides only the bounce flag. The stage
+# raises both in the 0-2 s opening once the regime is trained and stage-verified.
+BOUNCE_PROB          = 0.5
+STEP_PROB            = 0.5
+# hs11 learned that the cycle never emerges from a planted stand: this share of episodes starts
+# MID-BOUNCE, at the measured trough with one hip shown forward (rewards.spawn_mid_bounce).
+BOUNCE_SPAWN_PROB    = 0.30
+# Downrock sweep (hs12, rewards.downrock_sweep): the probability a resample raises the sweep flag
+# in body[1]. It is forced down unless a sit is commanded — downrock is a floor move, the stage
+# raises it in the 2-4 s crouch. This share of episodes starts MID-CROUCH already turning, one leg
+# swept forward (rewards.spawn_seated_sweep — the seeded state, the lever that has broken every
+# discovery wall so far).
+SWEEP_PROB           = 0.5
+SWEEP_SPAWN_PROB     = 0.35
+
+# L-kick freeze (hs12b, rewards.l_kick_hold): the probability a resample raises the kick flag on
+# body[4] (it rides only a commanded headstand), and the probability an episode starts already IN
+# the freeze — one leg swung level, the other the home needle (rewards.spawn_l_kick).
+KICK_PROB            = 0.5
+KICK_SPAWN_PROB      = 0.30
 # The sit/stand terms switched off while the headstand flag is up: each says
 # "stay upright" (or "stay still at a height"), the opposite of going over.
 REST_STACK = (
@@ -264,6 +287,18 @@ def make_env_cfg(
         reduce="netforce",
         num_slots=1,
     )
+    # hs12c: the butt-spin cheat sensor. body_ground (above) includes the legs and ankles on
+    # purpose (the headstand must not touch with them) — but a grinder is PLANTED on a knee, so
+    # the sweep's contact penalty may not see legs: this one sees only the pelvis and trunk.
+    pelvis_ground_cfg = ContactSensorCfg(
+        name="pelvis_ground",
+        primary=ContactMatch(
+            mode="body", pattern=r"^(trunk_base|hip_l|hip_l_2)$", entity="robot"),
+        secondary=ContactMatch(mode="body", pattern="terrain"),
+        fields=("found",),
+        reduce="netforce",
+        num_slots=1,
+    )
 
     # NOTE: no head-ground contact penalty here (unlike the sit env). Using the
     # head as a third support point during transitions is explicitly allowed —
@@ -278,7 +313,8 @@ def make_env_cfg(
     # Standup robot variant: full collision meshes — the body must physically
     # rest on the ground while seated, and knees/head may touch mid-transition.
     cfg.scene.entities = {"robot": MICRODUCK_STANDUP_ROBOT_CFG}
-    cfg.scene.sensors  = (feet_ground_cfg, self_collision_cfg, head_ground_cfg, body_ground_cfg)
+    cfg.scene.sensors  = (feet_ground_cfg, self_collision_cfg, head_ground_cfg, body_ground_cfg,
+                          pelvis_ground_cfg)
     cfg.viewer.body_name = "trunk_base"
 
     cfg.episode_length_s = EPISODE_LENGTH_S
@@ -543,6 +579,95 @@ def make_env_cfg(
         params={"command_name": "twist", "head_sensor": head_ground_cfg.name},
     )
 
+    # ── The breakdance overhaul (body[0] bounce, body[2] cross-steps, hs13) ────
+    # The user's review: the opening "just looks side to top with head". bounce_probe.py measured
+    # the timeline route FLAT (the sit flag at 108 BPM moves the trunk 0.003 m — the 2 s-ramped
+    # reference cannot oscillate at 1.8 Hz), and hs11/hs11b measured standing footwork NOT
+    # reward-shapeable from a planted stand. The overhaul answers both with ONE new state: the
+    # knee BOUNCE, a cycle the robot HOLDS the way the crouch holds a sweep (the lesson that made
+    # hs12 work), measured in scratch/bounce_env_probe.py (knees ±0.35-0.50 flexed, mirrored hip
+    # bend: trunk drops 1.5-2.2 cm, stays vertical, feet stay planted, trough z 0.093-0.105 —
+    # clear of the crouch floor). bounce_hold (6.0, the move's weight) pays DENSE inside a window
+    # that only a VALID completed cycle (drop, rise, knees, planted foot, tempo) opens — the
+    # headstand_hold learnable shape on a rhythm; posture_stillness, which pays quiet feet, stays
+    # paused under the flag (the unless_toprock wrapper below already does it: body[0] semantics
+    # moved, the pause hs11 built is exactly what the bounce needs to out-earn a quiet stand).
+    # posture_composite KEEPS paying: the bounce's top pose IS the stand pose (unlike the grinder,
+    # this regime replaces no rest target). bounce_step (4.0) then pays alternating hip_pitch
+    # peaks ON the bounce (Indian cross-steps, left negative / right positive, the downrock signs;
+    # 0.45 rad forward reaches the foot 2.3-3.2 cm forward, probe-measured) — the steps the
+    # standing flag never bought ride the bouncing body this time. The hs11/hs11b toprock_step
+    # and toprock_sway registrations are RETIRED (hs12's lesson: dead seasoning is graph weight;
+    # functions and their tests stay in rewards.py). Counter-sway, honest: no torso joints exist —
+    # the sway the eye reads is the bounce itself, the beat nods the head command already carries,
+    # and the steps' mirrored hip swing rocking the pelvis.
+    cfg.rewards["bounce_hold"] = RewardTermCfg(
+        func=headstand.bounce_hold, weight=6.0,
+        params={"command_name": "body_pose", "feet_sensor": feet_ground_cfg.name},
+    )
+    cfg.rewards["bounce_step"] = RewardTermCfg(
+        func=headstand.bounce_step, weight=4.0,
+        params={"command_name": "body_pose"},
+    )
+    term = cfg.rewards["posture_stillness"]  # already headstand-gated; params carry its "term"
+    term.params = {"flag_command": "body_pose", **term.params}
+    term.func = headstand.unless_toprock  # same flat contract, all gates in one wrapper
+    # (hs12: the wrapper now also rests under the sweep flag in body[1], so a sweep can out-earn
+    # a quiet crouch the same way a step out-earns a quiet stand.)
+
+    # ── Downrock sweep (body[1], hs12; grinder shape hs12c) ───────────────────
+    # hs12 made the sweep LEARNABLE (frontier + seeded crouch, 837 deg/crouch) but its band paid
+    # below z 0.095 — the policy took the cheapest earn: pelvis flat at 0.061, spinning on the
+    # butt (the user's video review, confirmed on stage). hs12c pays a coffee grinder instead:
+    # the frontier now REQUIRES a kneel-height regime (z >= 0.085, planted knee/foot support)
+    # and multiplies by how BLADE the swept leg is (hip 1.2, knee 0: foot radius 0.089 m vs 0.067
+    # tucked — scratch/sweep_env_probe.py). A regime of its own, the headstand pattern:
+    #   sweep_progress pays the kneel before any turn exists;
+    #   sweep_pelvis_contact (-3, STRICT) takes the butt platform away — pelvis/trunk geoms only,
+    #     a planted knee is support, a planted pelvis is the cheat;
+    #   the sit-pose composite PAUSES while the sweep flag is up (unless_sweep): its target IS
+    #     the flat crouch the grinder must rise out of — the two targets can't both pay.
+    cfg.rewards["downrock_sweep"] = RewardTermCfg(
+        func=headstand.downrock_sweep, weight=6.0,
+        params={"command_name": "body_pose", "head_sensor": head_ground_cfg.name,
+                "feet_sensor": feet_ground_cfg.name, "body_sensor": body_ground_cfg.name,
+                "rate_max": 2.0},
+    )
+    cfg.rewards["sweep_progress"] = RewardTermCfg(
+        func=headstand.sweep_progress, weight=2.0,
+        params={"command_name": "body_pose", "feet_sensor": feet_ground_cfg.name,
+                "body_sensor": body_ground_cfg.name},
+    )
+    cfg.rewards["sweep_pelvis_contact"] = RewardTermCfg(
+        func=headstand.sweep_pelvis_contact, weight=-3.0,
+        params={"command_name": "body_pose", "pelvis_sensor": pelvis_ground_cfg.name},
+    )
+    pc = cfg.rewards["posture_composite"]
+    # Its params already carry term=<the original composite> and gate_command="twist" from the
+    # unless_headstand loop above: swap in ONE wrapper that rests for both regime flags — no
+    # nesting wrappers (a nested params dict would silently drop the "term" key it needs).
+    pc.func = headstand.unless_sit_rest
+    pc.params["flag_command"] = "body_pose"
+    # downrock_leg RETIRED (hs12b), the run's own recorded lesson: the seasoning paid flat
+    # 0.004 for all 3000 hs12 iterations — the duck grinds the sweep without the straight-leg
+    # shape, and a term that pays nothing to a trained move is graph weight and nothing else.
+    # hs12c does not resurrect it: the blade lives INSIDE the frontier pay, where nothing pays
+    # the turn without it. The function stays in rewards.py (documented, unit-tested).
+
+    # ── L-kick freeze (body[4], hs12b) ────────────────────────────────────────
+    # The last 2 s of the show are a dead-still headstand; hs12b turns that hold into a freeze
+    # POP: one leg stays the needle (its HOME hip is already vertical), the other swings ~1.42 rad
+    # to LEVEL with a straight knee (scratch/kick_env_probe.py). It pays DENSE, exp on the pose,
+    # only while the kick flag rides a commanded headstand with the head planted and the trunk up
+    # (rewards.l_kick_hold). No competitor wrapper: during a headstand the whole rest stack is
+    # already off (unless_headstand) and headspin isn't paying (spin flag down), so headstand_hold
+    # still funds the balance underneath and the freeze's leg-shape is the only thing added — the
+    # hold IS the move, so it carries the move's weight (6.0, as the sweep and the headspin).
+    cfg.rewards["l_kick_hold"] = RewardTermCfg(
+        func=headstand.l_kick_hold, weight=6.0,
+        params={"command_name": "body_pose", "head_sensor": head_ground_cfg.name},
+    )
+
     # ── Sim2real regularisers — MATCHED to velocity ─────────────────────────
     # velocity's exact set and absolute weights:
     #   • action_rate_l2: -0.1 at stage 0, ramped -0.1 → -1.0 by iter 1500
@@ -662,15 +787,17 @@ def make_env_cfg(
         ),
     )
 
-    # Command obs slots. head_command is the real head_pose command;
-    # body_command stays zero-padded (body control not used here).
+    # Command obs slots. head_command is the real head_pose command; body_command carries the
+    # toprock flag in slot 0 (hs11) and the downrock sweep flag in slot 1 (hs12) — the same six
+    # numbers the stage feeds from a keyframe's "body" group, so the term stays, only its content
+    # changes.
     # Layout parity with velocity/standup: [twist(3), head_pose(4), body_pose(6)].
     for group in ("actor", "critic"):
         cfg.observations[group].terms["head_command"] = ObservationTermCfg(
             func=mdp.generated_commands, params={"command_name": "head_pose"},
         )
         cfg.observations[group].terms["body_command"] = ObservationTermCfg(
-            func=microduck_mdp.zero_command_padding, params={"dim": 6},
+            func=mdp.generated_commands, params={"command_name": "body_pose"},
         )
 
     # ── Command: sit/stand posture flag in the twist slot ────────────────────
@@ -697,6 +824,20 @@ def make_env_cfg(
             "headstand_prob": HEADSTAND_PROB,
             "spin_prob":      SPIN_PROB,
         }
+    )
+
+    # ── Command: the dance flags in body[0] (bounce), body[1] (sweep), body[2] (cross-steps),
+    #    body[4] (L-kick) ──
+    # (hs13 overhaul, rewards.ToprockCommand) Resampled on its own 2-5 s timer, drawn 0/1 only,
+    # each forced down unless its posture is commanded (bounce: standing; cross-steps: the bounce
+    # flag itself; sweep: seated; L-kick: headstand). The flags carry no beat: the tempo lives in
+    # the payouts (bounce_hold's tempo floor, bounce_step's peak cap).
+    cfg.commands["body_pose"] = headstand.ToprockCommandCfg(
+        resampling_time_range=(2.0, 5.0),
+        bounce_prob=BOUNCE_PROB,
+        step_prob=STEP_PROB,
+        sweep_prob=SWEEP_PROB,
+        kick_prob=KICK_PROB,
     )
 
     # ── Terminations ──────────────────────────────────────────────────────────
@@ -754,6 +895,35 @@ def make_env_cfg(
         func=headstand.spawn_headstand,
         mode="reset",
         params={"prob": HEADSTAND_SPAWN_PROB},
+    )
+    # And a share start MID-SWEEP at kneel height, blade leg out (hip 1.2, knee straight) and
+    # already turning, the sweep flag up (rewards.spawn_seated_sweep — the same seeded-state
+    # lever; the seed SHOWS the shape the pay now requires, hs11b's harvest lesson; it replaces
+    # any bounce seed on those envs and leaves the head-down spawns alone).
+    cfg.events["spawn_seated_sweep"] = EventTermCfg(
+        func=headstand.spawn_seated_sweep,
+        mode="reset",
+        params={"prob": SWEEP_SPAWN_PROB},
+    )
+    # And a share start IN THE FREEZE, upside down with one leg level and the kick flag up
+    # (rewards.spawn_l_kick — the same seeded-state lever on a HOLD this time; registered after
+    # spawn_headstand and spawn_seated_sweep, whose picks it leaves alone, and it marks the
+    # headstand flag too: a kick episode is born in the freeze, not in a draw).
+    cfg.events["spawn_l_kick"] = EventTermCfg(
+        func=headstand.spawn_l_kick,
+        mode="reset",
+        params={"prob": KICK_SPAWN_PROB},
+    )
+    # And a share start MID-BOUNCE at the measured trough (knees flexed, trunk vertical), one hip
+    # shown forward as the cross-step seed, sinking slightly so the first valid cycle completes
+    # almost at once (rewards.spawn_mid_bounce — the seeded-state lever on a CYCLE this time;
+    # registered LAST: it skips the headstand, sweep and kick seeds, and nothing overwrites its
+    # marks. The hs11/hs11b spawn_toprock registration is retired with its reward terms; the
+    # function and its tests stay in rewards.py).
+    cfg.events["spawn_mid_bounce"] = EventTermCfg(
+        func=headstand.spawn_mid_bounce,
+        mode="reset",
+        params={"prob": BOUNCE_SPAWN_PROB},
     )
 
     # MuJoCo physics robustness (sit env's contact NaN fix). The standup XML
@@ -1002,6 +1172,21 @@ def make_env_cfg(
                 {"step": 0,         "rate_max": 10.0},
                 {"step": 500 * 24,  "rate_max": 15.0},
                 {"step": 1000 * 24, "rate_max": 20.0},
+            ],
+        },
+    )
+
+    # Sweep rate_max curriculum (hs12, hs7's "quarter turns first" lesson at seated scale): a slow
+    # turn pays FULL at 2 rad/s from step 0; the bar rises only once the motion exists. A seated
+    # grinder at 3-5 rad/s is already the show; this is no headspin, it just has to SWEEP.
+    cfg.curriculum["sweep_rate_max"] = CurriculumTermCfg(
+        func=headstand.headspin_rate_max_curriculum,
+        params={
+            "reward_name": "downrock_sweep",
+            "stages": [
+                {"step": 0,          "rate_max": 2.0},
+                {"step": 1500 * 24,  "rate_max": 3.5},
+                {"step": 2500 * 24,  "rate_max": 5.0},
             ],
         },
     )

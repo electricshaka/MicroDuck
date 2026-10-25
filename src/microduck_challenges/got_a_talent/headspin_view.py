@@ -28,7 +28,7 @@ from arena.manifest import load_event
 from arena.policy import load_policy
 
 EVENT = "got-a-talent"
-HEADSTAND_AT, SPIN_AT, DURATION = 2.0, 5.0, 15.0
+HEADSTAND_AT, DURATION = 2.0, 12.0
 
 
 def _display_model() -> mujoco.MjModel:
@@ -48,6 +48,8 @@ def main(argv=None) -> int:
     parser.add_argument("onnx")
     parser.add_argument("--slow", type=float, default=1.0, help="slow-motion factor (4 = quarter speed)")
     parser.add_argument("--no-spin", action="store_true", help="never raise the spin flag")
+    parser.add_argument("--subsample", type=int, default=2, help="render every Nth physics step (default: 2, 25 FPS)")
+    parser.add_argument("--spin-at", type=float, default=2.4, help="time (s) to raise the spin flag (default: 2.4s, right after landing)")
     args = parser.parse_args(argv)
 
     event = load_event(EVENT)
@@ -56,6 +58,8 @@ def main(argv=None) -> int:
     stand = np.zeros(13)
     headstand = stand.copy(); headstand[1] = 1.0
     spin = headstand.copy(); spin[2] = 0.0 if args.no_spin else 1.0
+    spin_at = args.spin_at
+    subsample = max(1, args.subsample)
 
     display = _display_model()
     shown = mujoco.MjData(display)
@@ -71,22 +75,26 @@ def main(argv=None) -> int:
                     return 0
                 started = time.perf_counter()
                 t = (k + 1) * CTRL_DT
-                sim.step([spin if t > SPIN_AT else headstand if t > HEADSTAND_AT else stand])
+                sim.step([spin if t > spin_at else headstand if t > HEADSTAND_AT else stand])
                 up_z = float(data.xmat[adr.trunk].reshape(3, 3)[2, 2])
                 if t <= HEADSTAND_AT:
                     phase = "standing"
                 else:
                     phase = "HEADSTAND" if up_z < -0.85 and data.qpos[2] > 0.10 else "headstand flag on"
-                    if t > SPIN_AT and not args.no_spin:
+                    if t > spin_at and not args.no_spin:
                         phase += "  + spin flag"
-                with viewer.lock():
-                    shown.qpos[:] = data.qpos
-                    mujoco.mj_forward(display, shown)
-                    viewer.cam.lookat[:] = [data.qpos[0], data.qpos[1], 0.1]
-                    viewer.set_texts([(None, mujoco.mjtGridPos.mjGRID_TOPLEFT,
-                                       f"{Path(args.onnx).name}  seed {seed}", f"t {t:5.2f} s   {phase}")])
-                viewer.sync()
-                time.sleep(max(0.0, CTRL_DT * args.slow - (time.perf_counter() - started)))
+                if k % subsample == 0:
+                    with viewer.lock():
+                        shown.qpos[:] = data.qpos
+                        mujoco.mj_forward(display, shown)
+                        viewer.cam.lookat[:] = [data.qpos[0], data.qpos[1], 0.1]
+                        viewer.set_texts([(None, mujoco.mjtGridPos.mjGRID_TOPLEFT,
+                                           f"{Path(args.onnx).name}  seed {seed}", f"t {t:5.2f} s   {phase}")])
+                    viewer.sync()
+                # Yield CPU / give GLFW thread time to process Windows events
+                elapsed = time.perf_counter() - started
+                sleep_target = CTRL_DT * args.slow - elapsed
+                time.sleep(max(0.002, sleep_target))
             time.sleep(1.0)
     return 0
 
