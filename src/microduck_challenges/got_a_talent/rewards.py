@@ -703,23 +703,28 @@ def bounce_step(
     return regime * stepping * (cmd.s_since_valid < hold_s).float()
 
 
-# ── Downrock sweep (body[1], hs12; reshaped to a coffee grinder by hs12c) ──────
-# hs12 measured that the SWEEP is learnable (frontier pay + seeded crouch: 837 deg/crouch), but
-# its band paid everything below z 0.095 — so the cheapest earn was the pelvis FLAT on the floor
-# at z 0.061, spinning on the butt (the user's video review, and the runs' own note that the
-# straight-leg seasoning died flat). hs12c pays the move instead — measured in
-# scratch/sweep_env_probe.py (static forward probes; the contact flags are read by live physics
-# inside the terms): weight on a planted knee/foot, trunk lifted to z >= 0.085 (the flat crouch
-# rests at 0.061), the swept leg a BLADE — hip swung to +-1.2 (left -1.2 / right +1.2 absolute,
-# the downrock_leg signs), knee straight at 0.0 — which puts that foot at radius 0.089 m about
-# the trunk axis (0.067 m when tucked) and grazing the floor at kneel height: the perimeter.
+# ── Downrock sweep (body[1], hs12) ─────────────────────────────────────────────
+# hs12 made the sweep LEARNABLE (frontier pay + seeded crouch: 837 deg/crouch) but its band paid
+# everything below z 0.095 — so the cheapest earn was the pelvis FLAT on the floor at z 0.061,
+# spinning on the butt (the user's video review). hs12c tried to ban that by paying a coffee
+# grinder instead: the frontier REQUIRING a kneel regime (z >= 0.085, planted support) and paying
+# multiplied by blade shape (scratch/sweep_env_probe.py: hip +-1.2 knee 0 puts the foot at radius
+# 0.089 m about the trunk axis, 0.067 m tucked). MEASURED VERDICT (3000 iters, records in
+# checkpoints/got_a_talent/hs12c/): the kneel gate did not teach the grinder, it STARVED the
+# sweep — frontier flat 0.002 the whole run, probe sweeps 0-5 deg (bar: 400), and from the 2500
+# stage the duck stopped crouching at all (min z 0.115); spin decayed with it (+22.8 at 1500 to
+# +14.4 at 2999). The regime terms never funded the shape; the pay they withheld killed the move
+# that worked. REVERTED to hs12b's live shape below — the shape that plays 777 deg/crouch on the
+# probe and 419 deg inside the show window. The grinder terms stay here UNREGISTERED and
+# unit-tested: the measured record of banning a cheat by removing its pay, and of why a pay the
+# robot cannot reach pays nothing at all.
 
-SWEEP_Z_LO, SWEEP_Z_HI = 0.045, 0.095   # the OLD hs12 band, kept only by the dormant downrock_leg
+SWEEP_Z_LO, SWEEP_Z_HI = 0.045, 0.095   # the seated-crouch band (the measured sit rest is 0.060)
 
-SWEEP_BLADE_HIP = {"left": -1.2, "right": 1.2}   # absolute hip_pitch of the blade, per side
+SWEEP_BLADE_HIP = {"left": -1.2, "right": 1.2}   # dormant grinder constants (hs12c; tests keep them honest)
 SWEEP_BLADE_KNEE = 0.0                            # straight, like the freeze's kick leg
 SWEEP_SHAPE_STD = 0.40
-SWEEP_Z_MIN, SWEEP_Z_MAX = 0.085, 0.125  # kneel band (user's 0.085 floor; stand is ~0.15)
+SWEEP_Z_MIN, SWEEP_Z_MAX = 0.085, 0.125  # kneel band (dormant: only _grinder_gate reads these)
 
 
 def _sweep_flag(env, command_name: str = "body_pose") -> torch.Tensor:
@@ -757,7 +762,8 @@ def sweep_progress(
 ) -> torch.Tensor:
     """Dense pay for being IN the grinder regime — kneeled on a planted support with the flag up —
     before any turn exists (the headstand_progress analogue, and the reason the regime is not
-    all-penalty on day one): the posture the frontier then multiplies."""
+    all-penalty on day one): the posture the frontier then multiplies. DORMANT since the hs12c
+    revert (the regime never filled: section header above); kept registered-in-nothing, tested."""
     return _grinder_gate(env, command_name, feet_sensor, body_sensor)
 
 
@@ -787,36 +793,27 @@ def downrock_sweep(
     env,
     command_name: str = "body_pose",
     head_sensor: str = "head_ground",
-    feet_sensor: str = "feet_ground_contact",
-    body_sensor: str = "body_ground",
     rate_max: float = 2.0,
 ) -> torch.Tensor:
-    """The grinder itself, hs12c shape: the trunk's NEW counter-clockwise turn past the frontier
-    (hs12's frontier, which made the sweep learnable), now REQUIRING the move: it counts only in
-    the kneel regime (hs12's z < 0.095 band let the policy earn the whole pay sitting on the
-    floor — the video said so) and pays multiplied by how BLADE the swept leg is — one hip at
-    +-1.2 with that knee straight, either leg (min of the mirrored variants, the kick's
-    pattern). A tucked leg grinding on the butt earns the regime's progress and nothing of the
-    turn: the visible circle is no longer seasoning on top of a paid-cheat, it gates the pay."""
+    """The sweep itself, body[1] up and the duck in the crouch: the trunk's NEW counter-clockwise
+    turn about the vertical axis per second, past the furthest it has turned so far, capped at
+    ``rate_max`` and scaled to 0-1 — the headspin's frontier shape at seated speed, the shape that
+    made the headspin learnable where a per-event pay made footwork not (back-and-forth wiggling
+    pays nothing; each new degree of the arc pays, every step, densely). The coffee grinder with
+    the grind taken out: no arms to post, so the turn comes from legs pushing the floor against a
+    planted leg — and it only counts SEATED (the band gate above) and not on the head (the dive
+    entry is the next move's job, not a sweep farmed from a headstand). hs12b's shape, restored
+    after hs12c's kneel gate starved the sweep (header above); the flat-platform earn this band
+    allows at z 0.061 is its known, accepted cost — measured 777 deg/crouch is worth it."""
     cmd = env.command_manager.get_term(command_name)
-    gate = _grinder_gate(env, command_name, feet_sensor, body_sensor) * (1.0 - _found(env, head_sensor))
+    gate = _seated_gate(env, command_name) * (1.0 - _found(env, head_sensor))
     counting = (gate > 0.5).float()
-    pos = env.scene["robot"].data.joint_pos
-    left = (
-        torch.square(pos[:, 2] - SWEEP_BLADE_HIP["left"])
-        + torch.square(pos[:, 3] - SWEEP_BLADE_KNEE)
-    )
-    right = (
-        torch.square(pos[:, 11] - SWEEP_BLADE_HIP["right"])
-        + torch.square(pos[:, 12] - SWEEP_BLADE_KNEE)
-    )
-    shape = torch.exp(-torch.minimum(left, right) / SWEEP_SHAPE_STD ** 2)
     yaw_rate = env.scene["robot"].data.root_link_ang_vel_w[:, 2]
     cmd.swept_turned += yaw_rate * env.step_dt * counting
     advance = torch.clamp(cmd.swept_turned - cmd.swept_frontier, min=0.0)
     cmd.swept_frontier = torch.maximum(cmd.swept_frontier, cmd.swept_turned)
     rate = advance / env.step_dt
-    return gate * shape * torch.clamp(rate, max=rate_max) / rate_max
+    return gate * torch.clamp(rate, max=rate_max) / rate_max
 
 
 def downrock_leg(
@@ -1003,14 +1000,14 @@ def spawn_toprock(
 
 
 # The seeded sweep starts from the SIT keyframe's PLANTED leg (env.SITTING_TARGET_OVERRIDES
-# mirrored here — rewards must not import env) with the SWEPT leg a blade: hip swung to +-1.2,
-# knee straight (hs12c: the seed shows the shape the pay now requires — hs11b's lesson that the
-# seeded state is what gets harvested), at kneel height with a live CCW rate.
+# mirrored here — rewards must not import env) with the SWEPT leg out of the crouch: hip swung
+# 1.15 rad forward, knee near straight (hs12's shape, restored; hs12c's blade seed is dormant with
+# its pay). The seed is the rotating state itself — the lever that has broken every discovery wall
+# (hs11b's lesson: the seeded state is what gets harvested).
 SWEEP_SIT_POSE = {1: 0.0, 2: -0.4079, 3: 1.35, 4: 0.0, 10: 0.0, 11: 0.4079, 12: -1.35, 13: 0.0}
 SWEEP_LEG_JOINTS = {"left": (2, 3), "right": (11, 12)}     # (hip_pitch, knee), per side
-SWEEP_LEG_OFFSET = (-1.2, 0.0)                             # blade: left-side values, right mirrored
-SWEEP_SPAWN_Z = 0.095                                       # kneel height (probe: blade foot
-                                                            # grazes the floor there, rad 0.089)
+SWEEP_LEG_OFFSET = (-1.15, 0.25)                           # left-side offsets, right mirrored
+SWEEP_SPAWN_Z = 0.068                                       # a whisker above the 0.060 crouch
 
 
 def spawn_seated_sweep(
@@ -1025,9 +1022,9 @@ def spawn_seated_sweep(
     posture_command: str = "twist",
 ):
     """Start a share of sweep episodes already MID-SWEEP: the crouch keyframe's planted leg with
-    the other leg a BLADE (hip 1.2, knee straight), the trunk at KNEEL height (SWEEP_SPAWN_Z) and
-    already turning counter-clockwise at 1.5-3 rad/s, the sweep flag up. The first thing that can
-    then happen is frontier progress IN SHAPE — and it pays.
+    the other leg swept out (hip 1.15 forward, knee near straight), the trunk at crouch height
+    (SWEEP_SPAWN_Z) and already turning counter-clockwise at 1.5-3 rad/s, the sweep flag up. The
+    first thing that can then happen is frontier progress — and it pays.
 
     Why: hs11 proved the discovery lesson the hard way twice — from a still, symmetric crouch the
     rotating state is never visited by exploration noise, however dense the pay. The seed IS the

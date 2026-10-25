@@ -442,23 +442,20 @@ def _sweep_env(cmd, z: float = 0.06, yaw: float = 3.0, head_found: float = 0.0,
     )
 
 
-def test_downrock_sweep_pays_frontier_only_in_the_grinder():
-    """hs12c: the frontier pay (hs12's learnable shape) now REQUIRES the coffee grinder — kneel
-    height with a planted support — and pays multiplied by how BLADE the swept leg is. The flat-
-    butt spin hs12 farmed earns zero (the user's video review), and so does a tucked-leg turn:
-    the visible circle gates the pay, it is no longer seasoning on top of a paid-cheat."""
+def test_downrock_sweep_pays_frontier_only_in_the_crouch():
+    """hs12's pay (RESTORED after hs12c's grinder starved the sweep to 0-5 deg/run — see the
+    rewards.py header and checkpoints/got_a_talent/hs12c/): the frontier shape at seated speed —
+    NEW counter-clockwise turn, past the furthest so far, capped — so a slow real sweep pays FULL
+    at the curriculum's start (rate_max 2.0). Turning back pays nothing, and reclaiming the ground
+    pays nothing until the frontier moves again. Standing, head-down or flag-down, the same
+    turning earns zero. The flat-platform turn at z 0.061 pays — the accepted cost, measured."""
     from microduck_challenges.got_a_talent import rewards as R
-
-    def blade(env):
-        env.scene["robot"].data.joint_pos[0, 2] = R.SWEEP_BLADE_HIP["left"]
-        env.scene["robot"].data.joint_pos[0, 3] = R.SWEEP_BLADE_KNEE
 
     cmd = _toprock_cmd()
     cmd.command[0, 1] = 1.0  # sweep up
-    env = _sweep_env(cmd, z=0.10)  # kneel, planted support, trunk turning CCW at 3 rad/s
-    blade(env)
+    env = _sweep_env(cmd)    # crouched at z 0.06, trunk turning CCW at 3 rad/s
 
-    assert float(R.downrock_sweep(env)) == 1.0   # 3 rad/s capped at 2: full pay, in shape
+    assert float(R.downrock_sweep(env)) == 1.0   # 3 rad/s capped at 2: full pay
     assert float(R.downrock_sweep(env)) == 1.0   # dense: every step of the arc
     env.scene["robot"].data.root_link_ang_vel_w = torch.tensor([[0.0, 0.0, -3.0]])
     assert all(float(R.downrock_sweep(env)) == 0.0 for _ in range(4))  # turning back: nothing
@@ -467,38 +464,21 @@ def test_downrock_sweep_pays_frontier_only_in_the_grinder():
     assert float(R.downrock_sweep(env)) == 1.0   # past the frontier again: it pays
 
     fresh = _toprock_cmd(); fresh.command[0, 1] = 1.0
-    tucked = _sweep_env(fresh, z=0.095)
-    tucked.scene["robot"].data.joint_pos[0, 2] = R.SWEEP_BLADE_HIP["left"]
-    tucked.scene["robot"].data.joint_pos[0, 3] = 1.35       # regime right, knee folded: no turn pay
-    assert float(R.downrock_sweep(tucked)) < 0.01
-
+    standing = _sweep_env(fresh, z=0.115)
+    assert float(R.downrock_sweep(standing)) == 0.0    # not the crouch: not downrock
     fresh2 = _toprock_cmd(); fresh2.command[0, 1] = 1.0
-    butt = _sweep_env(fresh2, z=0.061); blade(butt)         # the flat platform hs12 farmed
-    assert float(R.downrock_sweep(butt)) == 0.0
-
-    fresh3 = _toprock_cmd(); fresh3.command[0, 1] = 1.0
-    standing = _sweep_env(fresh3, z=0.13); blade(standing)  # a kneel, not a stand
-    assert float(R.downrock_sweep(standing)) == 0.0
-
-    fresh4 = _toprock_cmd(); fresh4.command[0, 1] = 1.0    # airborne: no planted knee/foot
-    air = _sweep_env(fresh4, z=0.10, body_found=0.0, feet_found=0.0); blade(air)
-    assert float(R.downrock_sweep(air)) == 0.0
-
-    fresh5 = _toprock_cmd(); fresh5.command[0, 1] = 1.0
-    on_head = _sweep_env(fresh5, z=0.095, head_found=1.0); blade(on_head)
-    assert float(R.downrock_sweep(on_head)) == 0.0         # that's a headspin, not a sweep
-
-    none = _toprock_cmd()                                  # flag down
-    off = _sweep_env(none, z=0.095); blade(off)
-    assert float(R.downrock_sweep(off)) == 0.0
+    on_head = _sweep_env(fresh2, head_found=1.0)
+    assert float(R.downrock_sweep(on_head)) == 0.0     # that's a headspin, not a sweep
+    none = _toprock_cmd()                              # flag down
+    assert float(R.downrock_sweep(_sweep_env(none))) == 0.0
 
 
 def test_sweep_progress_pays_the_regime_and_pelvis_contact_names_the_cheat():
-    """The regime term pays the kneel + support alone (no shape, no turn — so the posture is
-    reachable before the turn is learned, the headstand_progress role). The pelvis sensor penalises
-    EXACTLY the cheat — pelvis/trunk down while the flag is up (weight -3 at registration); a
-    planted knee is body_ground, NOT this sensor, and with the flag down sitting is the show's own
-    pose, never a penalty."""
+    """DORMANT terms (hs12c revert) kept honest: the regime term pays the kneel + support alone
+    (no shape, no turn — the headstand_progress role it was written for). The pelvis sensor
+    penalises EXACTLY the cheat — pelvis/trunk down while the flag is up (weight -3 at its
+    dormant registration); a planted knee is body_ground, NOT this sensor, and with the flag down
+    sitting is the show's own pose, never a penalty."""
     from microduck_challenges.got_a_talent import rewards as R
 
     cmd = _toprock_cmd(); cmd.command[0, 1] = 1.0
@@ -570,8 +550,8 @@ def test_downrock_leg_pays_one_leg_forward_either_side():
 def test_spawn_seated_sweep_marks_both_terms_and_sweeps_one_leg(monkeypatch):
     """rewards.spawn_seated_sweep seeds the crouch MID-SWEEP: the twist command's seated mark
     (its reset forces the sit flag up, headstand down), this command's sweep mark, the SIT
-    keyframe with exactly ONE leg a BLADE (hip 1.2, knee straight — the shape the pay requires),
-    kneel height and a live counter-clockwise trunk
+    keyframe with exactly ONE leg swept out (hip 1.15, knee 0.25 — hs12's shape, restored by the
+    hs12c revert), crouch height and a live counter-clockwise trunk
     rate — while a head-down spawn is left exactly as it was and any toprock mark is dropped."""
     from microduck_challenges.got_a_talent import rewards as R
 
@@ -609,7 +589,7 @@ def test_spawn_seated_sweep_marks_both_terms_and_sweeps_one_leg(monkeypatch):
         assert 1.5 <= float(env.sim.data.qvel[i, 5]) <= 3.0               # already turning CCW
         l_hip, l_knee = float(env.sim.data.qpos[i, 9]), float(env.sim.data.qpos[i, 10])
         r_hip, r_knee = float(env.sim.data.qpos[i, 18]), float(env.sim.data.qpos[i, 19])
-        bl_h, bl_k = R.SWEEP_LEG_OFFSET                      # the blade, as hs12c seeds it
+        bl_h, bl_k = R.SWEEP_LEG_OFFSET                      # the swept leg, as hs12 seeds it
         left_out = abs(l_hip - bl_h) < 1e-6 and abs(l_knee - bl_k) < 1e-6
         right_out = abs(r_hip + bl_h) < 1e-6 and abs(r_knee + bl_k) < 1e-6
         assert left_out != right_out                                   # exactly one leg swept out
@@ -641,14 +621,15 @@ def test_the_seed_sweep_pose_fits_the_robot(cfg):
 
 
 def test_the_downrock_wiring_lives_in_the_env(cfg):
-    """hs12c's config: the frontier sweep pays 6.0 (the headspin's weight) and now carries the
-    grinder sensors, the regime pays its own progress 2.0, the pelvis-only contact costs -3.0
-    (STRICT — the user's butt-spin ban), the sit composite pauses under the sweep flag (its
-    target IS the flat crouch the grinder must leave), the seed event is registered, the sweep
-    flag is drawn, and the quarter-turns-first rate_max curriculum starts at a slow turn paying
-    FULL. The leg seasoning is RETIRED since hs12b — it paid flat 0.004 for all 3000 hs12
-    iterations (the run's recorded lesson: cut dead seasoning; hs12c's blade multiplies the turn
-    itself instead); the function stays tested, the registration must not come back by accident."""
+    """hs12b's config, restored by the hs12c REVERT: the frontier sweep pays 6.0 on the seated
+    gate alone (head_sensor, no grinder sensors), the grinder terms are NOT registered
+    (sweep_progress, sweep_pelvis_contact — they starved the sweep, see rewards.py's header), the
+    sit composite keeps its unless_headstand rest and NOT the unless_sit_rest swap (pausing it
+    under the sweep flag emptied the crouch), the seed event is registered, the sweep flag is
+    drawn, and the quarter-turns-first rate_max curriculum starts at a slow turn paying FULL.
+    The leg seasoning is RETIRED since hs12b — it paid flat 0.004 for all 3000 hs12 iterations
+    (the run's recorded lesson: cut dead seasoning); that function and the grinder functions stay
+    tested, their registrations must not come back by accident."""
     from microduck_challenges.got_a_talent import rewards as R
 
     sweep = cfg.rewards["downrock_sweep"]
@@ -656,17 +637,11 @@ def test_the_downrock_wiring_lives_in_the_env(cfg):
     assert sweep.weight == 6.0
     assert "downrock_leg" not in cfg.rewards           # retired seasoning stays cut
     assert sweep.params["command_name"] == "body_pose" and sweep.params["rate_max"] == 2.0
-    assert sweep.params["feet_sensor"] == "feet_ground_contact"
-    assert sweep.params["body_sensor"] == "body_ground"
-    assert cfg.rewards["sweep_progress"].weight == 2.0
-    pelvis = cfg.rewards["sweep_pelvis_contact"]
-    assert pelvis.weight == -3.0
-    assert pelvis.params["pelvis_sensor"] == "pelvis_ground"
+    assert "feet_sensor" not in sweep.params           # grinder gate stays off the frontier pay
+    assert "sweep_progress" not in cfg.rewards         # dormant grinder terms stay unregistered
+    assert "sweep_pelvis_contact" not in cfg.rewards
     pc = cfg.rewards["posture_composite"]
-    assert pc.func is R.unless_sit_rest                    # rests for headstand OR sweep
-    assert pc.params["flag_command"] == "body_pose"
-    assert pc.params["gate_command"] == "twist"
-    assert callable(pc.params["term"])                     # the original composite still inside
+    assert pc.func is R.unless_headstand               # the rest-stack loop's wrapper stands
     assert cfg.commands["body_pose"].sweep_prob > 0.0
     event = cfg.events["spawn_seated_sweep"]
     assert event.func is R.spawn_seated_sweep and event.params["prob"] > 0.0

@@ -49,7 +49,8 @@ policy reads:
   0.003 m, 0 of 42 beats). It replaces hs11/hs11b's parked footwork on this slot; the show keeps
   it 0 until the regime is trained AND stage-verified, then the 0-2 s opening raises it;
 - `body[1]`, the **downrock sweep flag** (hs12): 1 sweeps a leg around while the sit crouch holds
-  (hs12c, queued: the same flag now demands the kneel-and-blade grinder — see the Runs row);
+  (hs12b's live move, 419° inside the show window; hs12c's grinder reshape FAILED by measurement
+  and was reverted — see the Runs row);
 - `body[2]`, the **cross-step flag** (hs13): 1 alternates hip_pitch steps (Indian cross-steps /
   kick-outs) ON the bounce — the command carries it only while the bounce flag itself rides, so
   steps never stand alone (hs11's lesson applied: footwork needs a moving body);
@@ -332,26 +333,26 @@ this up from here: the strategy, every run and its lesson, and the open problems
    — always pass `--subsample 2` (render every 2nd physics step, 25 FPS): at full rate the GLFW
    window freezes under the CUDA load of a 4096-env training run sharing the GPU.
 4. **Judge it**: `headspin_check` and `check.py` on the `.onnx` (see Judging below); the downrock sweep: `scratch/sweep_probe.py <onnx>` (acceptance) and `... full` (the sweep measured inside the real show); the L-kick freeze: `scratch/kick_probe.py <onnx>` (quiet headstand window then the flag — acceptance reads the freeze window).
-5. **Resume training** (hs12b is done — L-kick freeze learned and live; **hs12c, the grinder
-   sweep, is RUNNING** (launched 2026-10-24 from `hs12b_base`); **hs13, the breakdance overhaul,
-   is QUEUED and launches the moment hs12c ends, resuming from the hs12c WINNER** — judge hs12c
-   first per its backlog bar; if hs12c fell to fallback (c), the overhaul's base is
-   `hs12b/model_2000` again). No prewarm surgery:
+5. **Resume training** (hs12b is done — L-kick freeze learned and live; **hs12c, the grinder, is
+   DONE — FAILED BY MEASUREMENT, fallback (c)**: all 12 checkpoints judged, the ban starved the
+   sweep (frontier flat 0.002; probe 0-5° vs the 777° live), the grinder terms are REVERTED and
+   hs12b's sweep shape is the live show again; judging records in `checkpoints/got_a_talent/
+   hs12c/`, nothing archived — no checkpoint beat `hs12b/model_2000`; **hs13, the breakdance
+   overhaul, is RUNNING, resuming from `hs12b/model_2000` per fallback (c)**). No prewarm surgery:
    the `hs10_base` prewarm woke the WHOLE body block and every run since trained on it, so all body
-   dims are alive in `hs12b/model_2000` (hs12c opens no new command slot — body[1] is alive from
-   hs12; stage the archive byte-for-byte, no verification script needed). The verify-then-copy rule
+   dims are alive in `hs12b/model_2000` (hs13 opens body[2] at its prewarm values — verify-then-copy
+   says stage byte-for-byte, which is exactly what `hs12b_base/` holds). The verify-then-copy rule
    (VERIFY alive dims before staging; patching alive dims shifts the hidden units and breaks the
    "resume starts at the measured behaviour" promise — the one run that loaded a patched copy, hs12,
    only did so because the patch beat the rewrite to the load) is what `scratch/prewarm_hs12b.py`
    enforced before hs12b (measured: body[4] normalizer std 0.398, first-layer |w| ≤ 0.26 — a raised
-   flag lands at ~+2.5, near-neutral). The pattern, as hs12c stages (run 2026-10-24):
+   flag lands at ~+2.5, near-neutral). The pattern, as hs13 stages (run 2026-10-25):
 
    ```bash
-   mkdir -p logs/rsl_rl/got_a_talent/hs12b_base
-   cp checkpoints/got_a_talent/hs12b/model_2000.pt logs/rsl_rl/got_a_talent/hs12b_base/
+   # base already staged byte-for-byte: logs/rsl_rl/got_a_talent/hs12b_base/model_2000.pt
    PYTHONUTF8=1 MICRODUCK_WARM_START=1 uv run --no-sync train Mjlab-GotATalent-MicroDuck --env.scene.num-envs 4096 \
-       --agent.max-iterations 3000 --agent.seed 1 --agent.logger tensorboard --agent.run-name hs12c \
-       --agent.resume True --agent.load-run hs12b_base --agent.load-checkpoint model_2000.pt > logs/hs12c.log 2>&1 &
+       --agent.max-iterations 3000 --agent.seed 1 --agent.logger tensorboard --agent.run-name hs13 \
+       --agent.resume True --agent.load-run hs12b_base --agent.load-checkpoint model_2000.pt > logs/hs13.log 2>&1 &
    ```
 
    Commit the change first (one change per run), and add any checkpoint worth keeping to
@@ -452,8 +453,8 @@ From [The Conversation](https://theconversation.com/how-do-breakdancers-avoid-br
 | hs11b | ff66846 | dense rhythm window (0.75 s) + mid-step spawn (prob 0.25) to unlock toprock footwork | **Footwork failed again: the probe reads 1 touchdown at all 12 checkpoints, flag up or down** — the step curve grew 40× (0.004 → flat ~0.16 from iter ~50 on) but that is the *spawned* landing harvesting the window, not learned steps. The run's other lines improved: **1250 +24.25 turns @ 15.24 rad/s, hold 12.68 s, sit 0.46 s (fastest on record), dive 0.28 s**; 1500 peaked 18.17 rad/s; no collapse anywhere | Dense pay amplifies whatever the state already contains — a seeded landing included; harvesting the seed is free, so producing a step was never needed. Two mechanisms, two runs, one verdict: footwork on this robot is not reward-shapeable — `body[0]` parked. Sit and spin improved on the way |
 | hs12 | 1419963 | downrock sweep on `body[1]`: `downrock_sweep` (6.0, frontier CCW trunk yaw/sec dense in the crouch band, flag-gated), `downrock_leg` (2.0 straight-leg shape), `spawn_seated_sweep` (35% mid-sweep), stillness pause under the flag, curriculum 2.0→3.5→5.0 rad/s | **Downrock LEARNED: 2250 sweeps 837.2° per crouch (probe), crouch 3.00/3.00 s, quiet crouch 0.8°; +24.01 turns @ 15.09, sit 0.50 s, dive 0.26 s — best show checkpoint yet; on the full timeline 464° inside the 2 s knee drop, committed as the live show.** Neighbours 2000 (837°, sit 0.56) and 2500 (804°) pass; 2750/2999 decayed (+19.55/+18.60, sit missed) at the 2500 stage | The frontier pay + seeded start works where footwork failed because the crouch is a state the robot HOLDS — the seed is a starting position, not the whole move, so producing more of it is the only way to earn. Seasoning died: `downrock_leg` flat 0.004 all run — the duck grinds the sweep without the straight-leg shape; drop dead seasoning terms next run. Late-run decay at the final curriculum stage struck a second run: judge the last stage's checkpoints hardest |
 | hs12b | 7b551e4 | L-kick freeze on `body[4]`: `l_kick_hold` (6.0, DENSE exp on the measured leg pose — one leg level at hip ±1.42 knee straight, the other the HOME-hip needle — gated on the kick flag riding a headstand with the head planted and trunk z ≥ 0.13), `spawn_l_kick` (30% IN the freeze, at rest, marking the headstand flag too), kick flag rides only a commanded headstand; `downrock_leg` registration RETIRED (hs12's recorded lesson: flat 0.004). Resumed byte-for-byte from `hs12/model_2250` (`scratch/prewarm_hs12b.py` verified body[4] std 0.398 / \|w\| ≤ 0.26) | **L-KICK FREEZE LEARNED: 2000 freeze kick err 0.01 rad, NEEDLE 0.10 rad (baseline ~1.7 — the flag pulls one leg back to vertical), up 3.00 s, drift 11°, quiet window keeps the two-level pencil (needle 1.74); +21.67 turns @ 13.62, hold 12.69, dive 0.30, sit 0.34; head 0.42/0.37/0.37 the only checkpoint UNDER the hs12 baseline. Sweep survived (show 419° inside the window, probe 777°/crouch), arena 20.00 s — committed as the live show; timeline now raises `body[4]=1` at 18.0 s (guard test widened citing the verification).** Ladder: 1000–2000 all gates (5 consecutive; 1000 spun +23.47 but head 0.62 at 4.5 s), 2250/2500/2750 freeze passes with spin dips (+19.4/+19.1/+17.8), 2999 decayed (+13.66) | The seeded-hold recipe worked a third time (hold this time, not a turn): 500 already had the needle (0.10) — the seed + dense pay find the shape fast, the long run then refines balance around it. Cost measured honestly: the freeze pay trades ~2–4 spin turns (24.0 → 21.7) for the leg shape; head error IMPROVED (kicking one leg stabilises the spindle?). And the final-stage decay struck a THIRD run — the 2500-stage curriculum is a proven hazard, judge those checkpoints hardest |
-| hs12c | fb19d43 | **Grinder sweep — the butt-spin ban** (user's video review of hs12): `downrock_sweep` frontier now REQUIRES a kneel regime (trunk z ≥ 0.085 — flat crouch rests 0.061 — planted knee/foot via body+feet sensors) and pays MULTIPLIED by blade shape (hip ±1.2 knee 0: foot radius 0.089 m vs 0.067 tucked, `scratch/sweep_env_probe.py`); `sweep_progress` (2.0) funds the regime before the turn exists; `sweep_pelvis_contact` (−3.0 STRICT, new `pelvis_ground` sensor: pelvis/trunk geoms ONLY — a planted knee is support, a planted pelvis is the cheat); the sit composite PAUSES under the sweep flag (`unless_sit_rest`); seed shows the shape (blade offset, z 0.095). Resumed byte-for-byte from `hs12b/model_2000` | RUNNING — judged per the backlog bar below | — |
-| hs13 | (this commit) | **Breakdance overhaul — the user's Phase-1 fix** (their review: the opening "just looks side to top with head"; bounce_probe.py: the timeline bounce is FLAT): body[0] re-purposed to the **knee BOUNCE** as a trained regime — `bounce_hold` (6.0) pays a DENSE window that only VALID cycles open (drop ≥ 1.2 cm from the cycle's own top, REACHED top ≥ 0.108, knees flexed ≥ 0.20 rad, foot planted, ≥ 0.30 s apart; `scratch/bounce_env_probe.py`: knees ±0.35-0.50 + mirrored hip bend drop the trunk 1.5-2.2 cm, stay VERTICAL, feet planted, trough z 0.093-0.105 clear of the crouch); body[2] **cross-steps** ride ONLY the bounce flag — `bounce_step` (4.0) pays alternating hip_pitch peaks (0.45 rad forward, left negative/right positive, 0.25 s cap; probe: reaches the foot 2.3-3.2 cm forward, a shuffle not a hop); `spawn_mid_bounce` (30%) seeds the measured trough with one hip shown forward and a small sink; the hs11/hs11b toprock terms + seed are RETIRED registrations (functions/tests stay); stillness pause kept under body[0]; the sit composite KEEPS paying (the bounce's top IS the stand — this regime replaces no rest target). Resumes byte-for-byte from the hs12c winner (body dims alive; body[2] at prewarm values — zero first-layer weight, normalizer std ≈ 0.433, near-neutral, weights learn to grow) | QUEUED — launches the moment hs12c's 3000 iterations end | — |
+| hs12c | fb19d43 | **Grinder sweep — the butt-spin ban** (user's video review of hs12): `downrock_sweep` frontier now REQUIRES a kneel regime (trunk z ≥ 0.085 — flat crouch rests 0.061 — planted knee/foot via body+feet sensors) and pays MULTIPLIED by blade shape (hip ±1.2 knee 0: foot radius 0.089 m vs 0.067 tucked, `scratch/sweep_env_probe.py`); `sweep_progress` (2.0) funds the regime before the turn exists; `sweep_pelvis_contact` (−3.0 STRICT, new `pelvis_ground` sensor: pelvis/trunk geoms ONLY — a planted knee is support, a planted pelvis is the cheat); the sit composite PAUSES under the sweep flag (`unless_sit_rest`); seed shows the shape (blade offset, z 0.095). Resumed byte-for-byte from `hs12b/model_2000` | **Grinder FAILED BY MEASUREMENT — fallback (c). All 12 checkpoints judged** (`checkpoints/got_a_talent/hs12c/judge_*.txt`): frontier flat 0.002 for all 3000 iters; probe sweeps 2.8°/5.4°/3.7° at 1750/2000/2250, and from the 2500 stage the duck **never crouches at all** (0.0°/4.6°/4.5°, min z 0.115; bar ≥ 400°). Fallback (a) precondition never held (blade radius 0.042 med, 0% ≥ 0.08), nor (b) (pelvis contacts 0 all run — the cheat never appeared, the ban was never tested). Spin best at **1500: +22.82 @ 14.34** (best since hs11, kick freeze intact: needle 0.09, 3.00 s) then the 2500-stage decay struck a FOURTH run: 2750 +15.93 @ 10.01, 2999 +14.37 @ 9.03, holds collapsing to 4–7 s. No checkpoint beats hs12b/model_2000 — nothing archived, grinder terms REVERTED the verdict commit (hs12b shape restored; functions/sensor/tests stay, unregistered) | A gate that demands a posture the robot has never visited STARVES the move it funds: the kneel-and-blade was unreachable from the sit crouch, so the frontier paid nothing anywhere and by the last stage the crouch itself died — pay must be reachable from where the policy already stands, and withholding it from a working move to force a new one trades a measured 777° for zero. Fourth consecutive run decaying at the 2500-stage curriculum: treat it as law — judge those checkpoints hardest and expect to cut back to ≤ 2250 |
+| hs13 | (this commit) | **Breakdance overhaul — the user's Phase-1 fix** (their review: the opening "just looks side to top with head"; bounce_probe.py: the timeline bounce is FLAT): body[0] re-purposed to the **knee BOUNCE** as a trained regime — `bounce_hold` (6.0) pays a DENSE window that only VALID cycles open (drop ≥ 1.2 cm from the cycle's own top, REACHED top ≥ 0.108, knees flexed ≥ 0.20 rad, foot planted, ≥ 0.30 s apart; `scratch/bounce_env_probe.py`: knees ±0.35-0.50 + mirrored hip bend drop the trunk 1.5-2.2 cm, stay VERTICAL, feet planted, trough z 0.093-0.105 clear of the crouch); body[2] **cross-steps** ride ONLY the bounce flag — `bounce_step` (4.0) pays alternating hip_pitch peaks (0.45 rad forward, left negative/right positive, 0.25 s cap; probe: reaches the foot 2.3-3.2 cm forward, a shuffle not a hop); `spawn_mid_bounce` (30%) seeds the measured trough with one hip shown forward and a small sink; the hs11/hs11b toprock terms + seed are RETIRED registrations (functions/tests stay); stillness pause kept under body[0]; the sit composite KEEPS paying (the bounce's top IS the stand — this regime replaces no rest target). Resumes byte-for-byte from `hs12b/model_2000` — hs12c fell to fallback (c), whose written base for the overhaul is hs12b again (body dims alive; body[2] at prewarm values — zero first-layer weight, normalizer std ≈ 0.433, near-neutral, weights learn to grow) | LAUNCHING NOW — the revert commit precedes it | — |
 
 Best checkpoints committed in `checkpoints/got_a_talent/`:
 - **`hs12b/model_2000`** (live): the first checkpoint with the **L-kick freeze** — the flag pulls
@@ -494,7 +495,8 @@ Best checkpoints committed in `checkpoints/got_a_talent/`:
   twice (hs11, hs11b) and is parked; the body stays at zeros here.
 - 2.0–4.0 s B-Boy Knee Drop **with the downrock sweep**: sit flag up AND `body[1]=1`, snaps from
   z 0.115 m down in ~0.35 s, then **sweeps ~419° inside the window** (probe 777° when given 3 s),
-  crouch held, trunk z ~0.062 m. (hs12c aims to turn this into the kneel-and-blade grinder, z ≥ 0.085.)
+  crouch held, trunk z ~0.062 m. (hs12c's kneel-and-blade grinder FAILED by measurement and was
+  reverted — this low sweep stays the live move, the accepted flat-platform cost included.)
 - 4.0–4.5 s Inversion Dive: headstand flag up (sweep released), pops hips and lands on the crown in 0.30 s.
 - 4.5–11.5 s Power Headspin: spin flag up, +21.7 CCW turns @ mean 13.6 rad/s (best 1 s
   15.8 rad/s ≈ 151 RPM).
@@ -625,10 +627,11 @@ re-run once. *Finish*: same ritual — judge all 12 checkpoints, archive the win
 checkpoint raise `body[4]=1` at 18.0 s in `timeline.json` (widening the guard test then, with the
 measured verification cited).
 
-**hs12c — Grinder sweep (the butt-spin ban)** (`body[1]` unchanged; **IMPLEMENTED, RUNNING** —
-commit fb19d43 above; launched 2026-10-24 resumed byte-for-byte from `checkpoints/got_a_talent/
-hs12b/model_2000.pt` staged into `logs/rsl_rl/got_a_talent/hs12b_base/`; see the Runs row for the
-change).
+**hs12c — Grinder sweep (the butt-spin ban)** (`body[1]` unchanged; **DONE — FAILED BY MEASUREMENT,
+fallback (c), REVERTED** — implemented in fb19d43, ran 2026-10-24 resumed byte-for-byte from
+`hs12b/model_2000`; all 12 checkpoints judged, records in `checkpoints/got_a_talent/hs12c/`; the
+verdict and the numbers are in the Runs row above; the grinder terms' functions, sensor and tests
+stay in the code UNREGISTERED — the measured record — and the live sweep is hs12b's shape again).
 
 *Hypothesis* (the user's video review, confirmed by measurement): hs12's sweep pays its frontier
 inside z < 0.095 with no shape requirement — so the cheapest earn is the pelvis FLAT at 0.061
@@ -661,8 +664,9 @@ penalty saturates while the frontier still pays — the −3.0 lost the sum agai
 checkpoints judged, winner archived, Runs row + timeline story updated, pushed.
 
 **hs13 — Breakdance Overhaul** (`body[0]` = BOUNCE flag, `body[2]` = CROSS-STEP flag;
-**IMPLEMENTED, QUEUED at the hs12c handoff** — the user's direct order: the show's Phase-1 fix,
-train the moment hs12c's 3000 iterations end; see the Runs row for the change).
+**IMPLEMENTED, LAUNCHING NOW** — the user's direct order: the show's Phase-1 fix, train the moment
+hs12c's 3000 iterations end; hs12c fell to fallback (c), so the base is `hs12b/model_2000`
+(staged byte-for-byte in `hs12b_base/`); see the Runs row for the change).
 
 *Hypothesis* (the user's review, and two measurements): the opening "just looks side to top with
 head" because the body is static — and it CANNOT be fixed from the timeline (`bounce_probe.py`:

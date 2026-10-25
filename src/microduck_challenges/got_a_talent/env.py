@@ -290,6 +290,8 @@ def make_env_cfg(
     # hs12c: the butt-spin cheat sensor. body_ground (above) includes the legs and ankles on
     # purpose (the headstand must not touch with them) — but a grinder is PLANTED on a knee, so
     # the sweep's contact penalty may not see legs: this one sees only the pelvis and trunk.
+    # DORMANT since the hs12c revert (see the downrock block below): kept in the scene so the
+    # dormant sweep_pelvis_contact term can re-register without re-adding the sensor.
     pelvis_ground_cfg = ContactSensorCfg(
         name="pelvis_ground",
         primary=ContactMatch(
@@ -615,44 +617,26 @@ def make_env_cfg(
     # (hs12: the wrapper now also rests under the sweep flag in body[1], so a sweep can out-earn
     # a quiet crouch the same way a step out-earns a quiet stand.)
 
-    # ── Downrock sweep (body[1], hs12; grinder shape hs12c) ───────────────────
-    # hs12 made the sweep LEARNABLE (frontier + seeded crouch, 837 deg/crouch) but its band paid
-    # below z 0.095 — the policy took the cheapest earn: pelvis flat at 0.061, spinning on the
-    # butt (the user's video review, confirmed on stage). hs12c pays a coffee grinder instead:
-    # the frontier now REQUIRES a kneel-height regime (z >= 0.085, planted knee/foot support)
-    # and multiplies by how BLADE the swept leg is (hip 1.2, knee 0: foot radius 0.089 m vs 0.067
-    # tucked — scratch/sweep_env_probe.py). A regime of its own, the headstand pattern:
-    #   sweep_progress pays the kneel before any turn exists;
-    #   sweep_pelvis_contact (-3, STRICT) takes the butt platform away — pelvis/trunk geoms only,
-    #     a planted knee is support, a planted pelvis is the cheat;
-    #   the sit-pose composite PAUSES while the sweep flag is up (unless_sweep): its target IS
-    #     the flat crouch the grinder must rise out of — the two targets can't both pay.
+    # ── Downrock sweep (body[1], hs12) ────────────────────────────────────────
+    # The knee-drop crouch (2-4 s on stage) sits STATIC before the dive. hs12 turns it into a
+    # scissor sweep: the trunk turns counter-clockwise over the planted leg — paying the FRONTIER
+    # shape that made the headspin learnable — see rewards.downrock_sweep. hs12c's GRINDER reshape
+    # (kneel gate + blade multiplier on the frontier, sweep_progress 2.0, sweep_pelvis_contact
+    # -3.0, and pausing the sit composite under the sweep flag) is REVERTED after measurement: it
+    # starved the sweep it meant to perfect — frontier flat 0.002 for all 3000 iterations, probe
+    # sweeps 0-5 deg vs hs12b's 777 (bar 400), and no crouch at all from the 2500 stage. The
+    # dormant grinder functions stay in rewards.py (tested, unregistered); so does the
+    # pelvis_ground sensor in the scene. The sit composite keeps only its unless_headstand rest —
+    # pausing it under the sweep flag took the crouch's own pay away, and the duck left the
+    # crouch. downrock_leg stays RETIRED (hs12b's own recorded lesson: the seasoning paid flat
+    # 0.004 for all 3000 hs12 iterations — the duck grinds the sweep without the straight-leg
+    # shape, and a term that pays nothing to a trained move is graph weight and nothing else).
+    # The function stays in rewards.py (documented, unit-tested).
     cfg.rewards["downrock_sweep"] = RewardTermCfg(
         func=headstand.downrock_sweep, weight=6.0,
         params={"command_name": "body_pose", "head_sensor": head_ground_cfg.name,
-                "feet_sensor": feet_ground_cfg.name, "body_sensor": body_ground_cfg.name,
                 "rate_max": 2.0},
     )
-    cfg.rewards["sweep_progress"] = RewardTermCfg(
-        func=headstand.sweep_progress, weight=2.0,
-        params={"command_name": "body_pose", "feet_sensor": feet_ground_cfg.name,
-                "body_sensor": body_ground_cfg.name},
-    )
-    cfg.rewards["sweep_pelvis_contact"] = RewardTermCfg(
-        func=headstand.sweep_pelvis_contact, weight=-3.0,
-        params={"command_name": "body_pose", "pelvis_sensor": pelvis_ground_cfg.name},
-    )
-    pc = cfg.rewards["posture_composite"]
-    # Its params already carry term=<the original composite> and gate_command="twist" from the
-    # unless_headstand loop above: swap in ONE wrapper that rests for both regime flags — no
-    # nesting wrappers (a nested params dict would silently drop the "term" key it needs).
-    pc.func = headstand.unless_sit_rest
-    pc.params["flag_command"] = "body_pose"
-    # downrock_leg RETIRED (hs12b), the run's own recorded lesson: the seasoning paid flat
-    # 0.004 for all 3000 hs12 iterations — the duck grinds the sweep without the straight-leg
-    # shape, and a term that pays nothing to a trained move is graph weight and nothing else.
-    # hs12c does not resurrect it: the blade lives INSIDE the frontier pay, where nothing pays
-    # the turn without it. The function stays in rewards.py (documented, unit-tested).
 
     # ── L-kick freeze (body[4], hs12b) ────────────────────────────────────────
     # The last 2 s of the show are a dead-still headstand; hs12b turns that hold into a freeze
