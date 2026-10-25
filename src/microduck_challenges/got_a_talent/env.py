@@ -167,15 +167,16 @@ MAX_RISE_SPEED    = 0.08
 # sit/stand about half the time.
 HEADSTAND_PROB       = 0.15
 HEADSTAND_SPAWN_PROB = 0.2
-# hs14, the exit (roadmap Phase 5): the flag stopped LATCHING — a resample with the flag up keeps
-# it with this probability and otherwise drops it. POSTURE_DWELL_S is 3.5-6.5 s in a 12 s episode,
-# so at 0.75 about a third of headstand episodes are asked to come back down by their second
-# resample, while the hold and the spin keep most of their dwell (a headstand spawn, 20% of
-# episodes, doubles as the exit drill: it starts on the head and unlatches like any other). The
-# exit asks for NO reward of its own: the rest stack (off under the flag) resumes paying the
-# moment it drops, and standing is this robot's strongest attractor — hs13's lesson applied where
-# it holds: the move starts FROM a state the robot holds and ends IN the state it loves.
-HEADSTAND_KEEP       = 0.75
+# hs14 TRIED unlatching this flag (keep prob 0.75, no new reward — the rest stack, off under
+# the flag, would pull the duck back to the stand: the strongest attractor doing the work).
+# MEASURED on 11 judged checkpoints: exit 0/3 at every one (end z pinned at the lying baseline
+# 0.058-0.059 — the duck was asked and never once left the head), and the unlatch STARVED THE
+# SPIN (turns +20.3 at 500 -> +14.4 at 1250 -> +0.0x from 1500: shorter spin-flag windows made
+# the frontier uneconomic and the policy took the cheap 8.0 hold instead). The keep mechanism
+# stays implemented and tested; the REGISTERED value is back to 1.0 — the latch — so no future
+# resume inherits the spin cost. Exit recorded failed-by-measurement; the show keeps its
+# upside-down L-kick ending (hs12b verified). See the hs14 Runs row.
+HEADSTAND_KEEP       = 1.0
 # Headspin (rewards.headspin): the probability that a resample with the headstand
 # flag up also raises the spin flag in twist[2]; drawn afresh at each resample, so
 # spins start and stop on the head.

@@ -119,13 +119,17 @@ def test_got_a_talent_reads_what_a_timeline_carries(cfg):
     assert actor["body_command"].params == {"command_name": "body_pose"}
 
 
-def test_the_headstand_flag_is_registered_unlatched(cfg):
-    """hs14, the exit: twist[1] no longer latches — the env registers a keep probability
-    strictly below 1, so a resample can drop a headstand flag and ask the duck down."""
+def test_the_headstand_flag_is_registered_latched_again(cfg):
+    """hs14 measured the unlatch and reverted it: exit asks happened exactly as designed
+    (~21% of up-flag resamples) and the exported policy rose 0/3 at ALL 11 judged
+    checkpoints (end z pinned at the lying baseline) while the headspin starved — turns
+    20.3 (500) -> 14.4 (1250) -> +0.0x (1500 onward) as the policy took the cheap hold
+    instead. The registered value is back to the latch (1.0); the keep mechanism itself
+    stays implemented and tested below (test_an_up_headstand_flag_can_drop_on_resample)."""
     from microduck_challenges.got_a_talent import env as E
 
     assert cfg.commands["twist"].headstand_keep_prob == E.HEADSTAND_KEEP
-    assert 0.0 < E.HEADSTAND_KEEP < 1.0
+    assert E.HEADSTAND_KEEP == 1.0
 
 
 def test_an_up_headstand_flag_can_drop_on_resample():
