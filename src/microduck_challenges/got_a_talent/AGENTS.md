@@ -742,8 +742,14 @@ the 2.6 m × 3.8 m stage:
 
 ### Repo duties for every agent (MARS included)
 
-- Every commit authored `electricshaka <953027+electricshaka@users.noreply.github.com>`; never
-  mention AI assistants in messages or comments.
+- Every commit authored `electricshaka <953027+electricshaka@users.noreply.github.com>`.
+  **Item 3 of the user's commit ritual (2026-10-25): ZERO mentions of AI assistants, LLMs, bots,
+  Claude, or Qwen in commit messages (subject AND body), in code comments, or in any prose an
+  agent authors into the repo.** (Word-level: "robot" is a machine, not a hit.) Audit at this
+  writing, word-boundary and case-insensitive across all of `main`: clean everywhere except the
+  inherited upstream commit `c38a36f`, whose message names the file `CLAUDE.md` — upstream, not
+  editable, left untouched. This AGENTS.md documents the rule, so the words appear here once;
+  they must never appear anywhere else an agent writes.
 - Scratch scripts are named `*_probe.py`, **never** `*_test.py`: bare `pytest` collects `*_test.py`
   under the repo root as well, and the probes insert training-checkout paths into `sys.path` at
   import — a bare run then resolved `microduck_challenges` from a stale worktree (7 phantom hs12
