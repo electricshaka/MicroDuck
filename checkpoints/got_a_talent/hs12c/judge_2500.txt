@@ -1,0 +1,18 @@
+== checkpoint 2500 ==
+
+[publish] dry run: wrote C:\GitHub\microduck-private\publish-eval/ (policy.onnx, manifest.json, README.md, checkpoint.pt)
+
+[mdp] Patches 1-2 active: NaN-safe reward/advantage
+[mdp] Patch 4 active: ONNX export filters passive_* joints
+[mdp] Patch 5 active: MICRODUCK_WARM_START=1 restarts curricula after checkpoint load
+seed 1: stood before the flag yes | onto head after 0.36 s | longest hold 12.66 s | on head 12.66 of 13 s | spin: +18.32 turns (ccw +), mean +11.5 rad/s, best 1 s +13.7 rad/s
+seed 2: stood before the flag yes | onto head after 0.36 s | longest hold 12.66 s | on head 12.66 of 13 s | spin: +17.76 turns (ccw +), mean +11.2 rad/s, best 1 s +12.7 rad/s
+seed 3: stood before the flag yes | onto head after 0.36 s | longest hold 12.66 s | on head 12.66 of 13 s | spin: +17.88 turns (ccw +), mean +11.2 rad/s, best 1 s +13.1 rad/s
+mean longest +12.66, total +12.66, turns +17.99, mean_rate +11.30, best_rate +13.18
+t=11.50  head: off by 0.44 rad
+t=18.00  head: off by 0.42 rad
+fell at 4.50 s
+FAIL: largest head error 0.44 rad
+        grinder read: blade radius 0.042 m med, 0% >= 0.08 m | kneel 100% >= 0.085 m | pelvis-contact frames 0
+MEAN: swept 0.0 deg | quiet 3.3 deg | crouch 0.00 s | min z 0.116 m
+MEAN grinder: radius 0.042 m, 0% >= 0.08 m | kneel 100% | pelvis-contact frames 0 (bar: >= 400 deg, radius/kneel most of window, contacts ~0)

@@ -1,0 +1,15 @@
+== checkpoint 1250 ==
+
+[publish] dry run: wrote C:\GitHub\microduck-private\publish-eval/ (policy.onnx, manifest.json, README.md, checkpoint.pt)
+
+[mdp] Patches 1-2 active: NaN-safe reward/advantage
+[mdp] Patch 4 active: ONNX export filters passive_* joints
+[mdp] Patch 5 active: MICRODUCK_WARM_START=1 restarts curricula after checkpoint load
+seed 1: stood before the flag yes | onto head after 0.32 s | longest hold 12.70 s | on head 12.70 of 13 s | spin: +20.46 turns (ccw +), mean +12.9 rad/s, best 1 s +15.4 rad/s
+seed 2: stood before the flag yes | onto head after 0.32 s | longest hold 12.70 s | on head 12.70 of 13 s | spin: +21.80 turns (ccw +), mean +13.7 rad/s, best 1 s +16.2 rad/s
+seed 3: stood before the flag yes | onto head after 0.32 s | longest hold 12.70 s | on head 12.70 of 13 s | spin: +19.46 turns (ccw +), mean +12.2 rad/s, best 1 s +15.6 rad/s
+mean longest +12.70, total +12.70, turns +20.58, mean_rate +12.93, best_rate +15.73
+t=11.50  head: off by 0.38 rad
+t=18.00  head: off by 0.38 rad
+fell at 4.48 s
+FAIL: largest head error 0.53 rad

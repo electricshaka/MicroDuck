@@ -742,8 +742,14 @@ the 2.6 m × 3.8 m stage:
 
 ### Repo duties for every agent (MARS included)
 
-- Every commit authored `electricshaka <953027+electricshaka@users.noreply.github.com>`; never
-  mention AI assistants in messages or comments.
+- Every commit authored `electricshaka <953027+electricshaka@users.noreply.github.com>`.
+  **Item 3 of the user's commit ritual (2026-10-25): ZERO mentions of AI assistants, LLMs, bots,
+  Claude, or Qwen in commit messages (subject AND body), in code comments, or in any prose an
+  agent authors into the repo.** (Word-level: "robot" is a machine, not a hit.) Audit at this
+  writing, word-boundary and case-insensitive across all of `main`: clean everywhere except the
+  inherited upstream commit `c38a36f`, whose message names the file `CLAUDE.md` — upstream, not
+  editable, left untouched. This AGENTS.md documents the rule, so the words appear here once;
+  they must never appear anywhere else an agent writes.
 - Scratch scripts are named `*_probe.py`, **never** `*_test.py`: bare `pytest` collects `*_test.py`
   under the repo root as well, and the probes insert training-checkout paths into `sys.path` at
   import — a bare run then resolved `microduck_challenges` from a stale worktree (7 phantom hs12
@@ -754,12 +760,32 @@ the 2.6 m × 3.8 m stage:
 - `uv run --no-sync --group workshop pytest` before every launch: **92 green at this writing**
   (81 through hs12; +5 the hs12b kick tests; +2 the hs12c grinder tests; +4 the hs13 bounce
   tests — window, steps, seed marks, seed geometry — and −1 the retired toprock wiring test).
-- **Push every milestone to the remote(s) immediately** (user's standing rule, 2026-10-24): every
+- **Continuously commit and push ALL progress to the private repo (user's rule, restated
+  2026-10-25)**: `origin/main` (`electricshaka/microduck-private`) must never lag — every
   commit — launch, judge-record, archive, timeline change — is pushed the moment it is committed,
-  never batched to the end of a sprint. Publishing to the Arena still needs the explicit yes.
-  Pushing `main` to the user's two repos is part of the agreed workflow:
-  `git push private main && git push origin main` (`private` = `electricshaka/microduck-private`,
-  `origin` = the public fork `electricshaka/MicroDuck`; keep timeline + checkpoints identical).
+  never batched to the end of a sprint, and judge records (the per-checkpoint `judge_<N>` files)
+  are committed as they are produced, not only at archive time. Publishing to the Arena still
+  needs the explicit yes. (On the workshop box this folder had a second remote, the public fork
+  `electricshaka/MicroDuck`, kept identical; on this checkout `origin` is the private repo and
+  the only one.) The user dictated the exact ritual (2026-10-25, item 1):
+  `git commit --author="electricshaka <953027+electricshaka@users.noreply.github.com>" -m "<concise technical summary>"`
+  — this checkout's git config already resolves author AND committer to that identity bare
+  (`git var` verified), and commit messages take a concise technical summary first (a needed
+  detail goes after it, not instead of it). Item 2: **push immediately to `origin/main`** after
+  every commit (`git push origin main`), same breath, never deferred. Item 4: **never leave local
+  commits unpushed** — the invariant, checked any time the repo is touched:
+  `git fetch origin; git rev-list --count origin/main..main` must print **0**; a non-zero is an
+  emergency — push again before anything else commits, and never amend or force-move a commit
+  that is already pushed. **User mandates (2026-10-25), logged:** (1) the private
+  `electricshaka/microduck-private` receives continuous commits+pushes of ALL progress, with
+  commit + push as the two-command ritual above and zero forbidden mentions; (2) the PUBLIC repo
+  `electricshaka/MicroDuck` (local checkout `C:\GitHub\MicroDuck`, remote added here as
+  `public`) is kept in sync — latest clean commits and checkpoints pushed to public `main` —
+  and the Arena entry `ElectricShaka/quackstreet-boy-the-tailspin` (got-a-talent) is updated by
+  publishing the best stage-verified checkpoint with the live timeline and entering
+  (`--no-private --enter --code-url https://github.com/electricshaka/MicroDuck/tree/<public
+  commit>`); the 2026-10-25 publish/enter is explicitly ordered; further Arena publications
+  still wait for a fresh explicit yes.
 
 ### Open problems and next ideas
 
