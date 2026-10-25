@@ -3,16 +3,16 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>MicroDuck x Chemical Brothers: Block Rockin' Beats</title>
+  <title>MicroDuck: "Block Rock'n Beaks" — 6-Duck Cypher Troupe</title>
   <style>
     :root {
-      --bg: #090a0f;
-      --card-bg: rgba(22, 27, 34, 0.88);
+      --bg: #08090d;
+      --card-bg: rgba(18, 22, 31, 0.88);
       --card-border: rgba(255, 255, 255, 0.1);
       --accent: #58a6ff;
-      --accent-glow: rgba(88, 166, 255, 0.4);
       --neon-gold: #f0883e;
       --neon-green: #3fb950;
+      --neon-purple: #bc8cff;
       --text: #e6edf3;
       --text-muted: #8b949e;
     }
@@ -22,7 +22,7 @@
       padding: 0;
     }
     body {
-      background: radial-gradient(circle at 50% 0%, #1a162b 0%, var(--bg) 85%);
+      background: radial-gradient(circle at 50% 0%, #1c1530 0%, var(--bg) 85%);
       color: var(--text);
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
       min-height: 100vh;
@@ -33,27 +33,27 @@
     }
     header {
       text-align: center;
-      max-width: 900px;
+      max-width: 960px;
       margin-bottom: 2rem;
     }
     .badge {
       display: inline-block;
-      padding: 0.35rem 0.9rem;
+      padding: 0.35rem 1rem;
       border-radius: 999px;
       background: rgba(240, 136, 62, 0.15);
       color: var(--neon-gold);
       border: 1px solid rgba(240, 136, 62, 0.35);
       font-size: 0.85rem;
       font-weight: 700;
-      letter-spacing: 0.05em;
+      letter-spacing: 0.06em;
       text-transform: uppercase;
       margin-bottom: 1rem;
     }
     h1 {
-      font-size: 2.6rem;
+      font-size: 2.8rem;
       font-weight: 800;
       letter-spacing: -0.03em;
-      background: linear-gradient(135deg, #ffffff 30%, #f0883e 70%, #58a6ff 100%);
+      background: linear-gradient(135deg, #ffffff 25%, #f0883e 65%, #58a6ff 100%);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       margin-bottom: 0.75rem;
@@ -65,7 +65,7 @@
     }
     .main-container {
       width: 100%;
-      max-width: 1100px;
+      max-width: 1150px;
       display: flex;
       flex-direction: column;
       gap: 2rem;
@@ -76,7 +76,7 @@
       border-radius: 16px;
       padding: 1.75rem;
       backdrop-filter: blur(16px);
-      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6);
+      box-shadow: 0 12px 36px rgba(0, 0, 0, 0.65);
     }
     .card-title {
       font-size: 1.35rem;
@@ -84,7 +84,7 @@
       margin-bottom: 1rem;
       display: flex;
       align-items: center;
-      gap: 0.6rem;
+      gap: 0.65rem;
       color: #fff;
     }
     .video-wrapper {
@@ -93,8 +93,8 @@
       border-radius: 12px;
       overflow: hidden;
       background: #000;
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.7);
-      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: 0 8px 28px rgba(0, 0, 0, 0.75);
+      border: 1px solid rgba(255, 255, 255, 0.1);
     }
     video {
       width: 100%;
@@ -102,18 +102,76 @@
       display: block;
       outline: none;
     }
+    .duck-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1.25rem;
+      margin-top: 1rem;
+    }
+    .duck-card {
+      background: rgba(0, 0, 0, 0.35);
+      border-radius: 12px;
+      padding: 1.25rem;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      position: relative;
+      transition: transform 0.2s ease, border-color 0.2s ease;
+    }
+    .duck-card:hover {
+      transform: translateY(-3px);
+      border-color: var(--accent);
+    }
+    .duck-badge {
+      display: inline-block;
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 0.2rem 0.55rem;
+      border-radius: 6px;
+      text-transform: uppercase;
+      margin-bottom: 0.5rem;
+    }
+    .badge-star { background: rgba(240, 136, 62, 0.25); color: var(--neon-gold); border: 1px solid var(--neon-gold); }
+    .badge-snare { background: rgba(255, 215, 0, 0.2); color: #ffd700; border: 1px solid #ffd700; }
+    .badge-bass { background: rgba(63, 185, 80, 0.2); color: var(--neon-green); border: 1px solid var(--neon-green); }
+    .badge-siren { background: rgba(88, 166, 255, 0.2); color: var(--accent); border: 1px solid var(--accent); }
+    .badge-vocal { background: rgba(188, 140, 255, 0.2); color: var(--neon-purple); border: 1px solid var(--neon-purple); }
+    .badge-hype { background: rgba(139, 148, 158, 0.2); color: #c9d1d9; border: 1px solid #8b949e; }
+
+    .duck-name {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 0.35rem;
+    }
+    .duck-desc {
+      font-size: 0.88rem;
+      color: var(--text-muted);
+      line-height: 1.45;
+    }
     .audio-player-box {
       display: flex;
       flex-direction: column;
-      gap: 1rem;
+      gap: 1.25rem;
       background: rgba(0, 0, 0, 0.35);
       padding: 1.25rem;
       border-radius: 12px;
-      border: 1px solid rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+    }
+    .audio-track-item {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+    .audio-label {
+      font-weight: 600;
+      font-size: 0.95rem;
+      color: #fff;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
     }
     audio {
       width: 100%;
-      height: 48px;
+      height: 44px;
       border-radius: 8px;
     }
     .vocal-sync-box {
@@ -142,14 +200,11 @@
     .lyrics-line .ts {
       color: var(--neon-gold);
       font-weight: 700;
-      min-width: 75px;
+      min-width: 85px;
     }
     .lyrics-line .action {
       color: var(--accent);
       font-weight: 600;
-    }
-    .lyrics-line:last-child {
-      margin-bottom: 0;
     }
     .gallery-grid {
       display: grid;
@@ -228,119 +283,187 @@
 <body>
 
   <header>
-    <div class="badge">Authentic Chemical Brothers Master Track</div>
-    <h1>"Block Rockin' Beats" Audio & Visual Showcase</h1>
+    <div class="badge">6-Duck Cypher Troupe &bull; Mjlab Got a Talent Arena</div>
+    <h1>"Block Rock'n Beaks"</h1>
     <p class="subtitle">
-      Featuring the unmistakable original sample: <em>"Back with another one of those block rockin' beats!"</em> perfectly synced to MicroDuck's 16-second breakdance routine.
+      A breakdance cypher battle where Duck 1 spins the moves, and the outer ducks mimic the Chemical Brothers' iconic big beat in real-time acoustic harmony.
     </p>
   </header>
 
   <div class="main-container">
 
-    <!-- 1. BROADCAST VIDEO -->
+    <!-- 1. BROADCAST VIDEO (6-DUCK CYPHER TROUPE) -->
     <div class="card">
       <div class="card-title">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2zm0 2v12h16V6H4zm6 2.5l6 3.5-6 3.5v-7z"/></svg>
-        720p HD Broadcast Video (Turn Sound On)
+        6-Duck Cypher Troupe: "Block Rock'n Beaks" (720p HD with Audio Mashup)
       </div>
       <div class="video-wrapper">
         <video controls autoplay loop playsinline>
-          <source src="microduck_block_rockin_beats_720p.mp4" type="video/mp4">
+          <source src="microduck_block_rockn_beaks_troupe_720p.mp4" type="video/mp4">
           Your browser does not support HTML5 video.
         </video>
       </div>
       <div class="file-actions">
-        <a class="btn btn-primary" href="microduck_block_rockin_beats_720p.mp4" download>Download Video (.mp4)</a>
-        <a class="btn btn-secondary" href="microduck_block_rockin_beats.webp" target="_blank">View 25 FPS WebP</a>
+        <a class="btn btn-primary" href="microduck_block_rockn_beaks_troupe_720p.mp4" download>Download 6-Duck Video (.mp4)</a>
+        <a class="btn btn-secondary" href="microduck_block_rockn_beaks_troupe.webp" target="_blank">View 25 FPS WebP Animation</a>
+        <a class="btn btn-secondary" href="microduck_block_rockin_beats_720p.mp4" target="_blank">View Solo Star Video</a>
       </div>
     </div>
 
-    <!-- 2. DIRECT AUDIO SOUNDTRACK -->
+    <!-- 2. CYPHER TROUPE ROLES & ACOUSTIC MIMICRY -->
+    <div class="card">
+      <div class="card-title">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
+        How the Troupe Mimics "Block Rock'n Beaks"
+      </div>
+      <div class="duck-grid">
+        <div class="duck-card">
+          <span class="duck-badge badge-star">Center Star Breaker &bull; (0.0, 0.0)</span>
+          <div class="duck-name">Duck 1: The B-Boy Star</div>
+          <div class="duck-desc">Executes the 5-phase routine: 108 BPM Toprock groove &rarr; 709° Coffee Grinder sweep &rarr; Crown dive &rarr; +18.5 CCW Power Headspin (140 RPM) &rarr; Inverted L-kick freeze (0.01 rad error, 3.00s solid hold).</div>
+        </div>
+
+        <div class="duck-card">
+          <span class="duck-badge badge-snare">Stage Right &bull; (0.45, 0.75, -125°)</span>
+          <div class="duck-name">Duck 2: Beakbox Snare</div>
+          <div class="duck-desc">Snaps its bill open and shut on beats 2 & 4 via <code>triggers: [1.0, 0.0]</code> with sharp head nod pitch, mimicking the mechanical acoustic snare hits of the big beat.</div>
+        </div>
+
+        <div class="duck-card">
+          <span class="duck-badge badge-bass">Stage Left &bull; (0.45, -0.75, 125°)</span>
+          <div class="duck-name">Duck 3: 808 Acid Bass</div>
+          <div class="duck-desc">Pitches low (<code>pitch: 0.05, buzz: 0.95</code>) and sings the driving D-minor 16th-note acid bassline (notes D2, F2, G2, G#2, A2 on vowel "oo") while bobbing in a low crouch stance.</div>
+        </div>
+
+        <div class="duck-card">
+          <span class="duck-badge badge-siren">Left-Rear &bull; (-0.55, -0.75, 50°)</span>
+          <div class="duck-name">Duck 4: Laser Siren DJ</div>
+          <div class="duck-desc">Tilts head to the ceiling and triggers <code>triggers: [0.0, 1.0]</code> (LT = 1.0) to unleash screaming high-resonance "wheee" glissando sirens right before each headspin drop.</div>
+        </div>
+
+        <div class="duck-card">
+          <span class="duck-badge badge-vocal">Right-Rear &bull; (-0.55, 0.75, -50°)</span>
+          <div class="duck-name">Duck 5: Vocal Hook Duck</div>
+          <div class="duck-desc">Chants <em>"Back with another one of those..."</em> and shouts <strong>"...BLOCK ROCK'N BEAKS!"</strong> with wide bill snaps (<code>triggers: [1.0, 0.0]</code>) timed to the exact sample drops at 2.5s and 12.0s.</div>
+        </div>
+
+        <div class="duck-card">
+          <span class="duck-badge badge-hype">Rear Center &bull; (-0.85, 0.0, 0°)</span>
+          <div class="duck-name">Duck 6: Cypher Hype Bouncer</div>
+          <div class="duck-desc">Positioned directly behind Duck 1, bobbing its head continuously at 108 BPM to anchor the cypher perimeter and cheer Duck 1 through the power moves.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. AUDIO SOUNDTRACK MASTER & STEMS -->
     <div class="card">
       <div class="card-title">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
-        Original Master Audio Track: "Block Rockin' Beats" (The Chemical Brothers)
+        Audio Tracks: Master Mashup, Duck Mimicry Stems & Original Sample
       </div>
       <div class="audio-player-box">
-        <audio controls>
-          <source src="block_rockin_beats_duck_cypher.wav" type="audio/wav">
-          Your browser does not support HTML5 audio.
-        </audio>
-        <div class="file-actions">
-          <a class="btn btn-primary" href="block_rockin_beats_duck_cypher.wav" download>Download WAV Master</a>
+        <div class="audio-track-item">
+          <div class="audio-label">
+            <span>1. Full Troupe Mashup: Chemical Brothers + Duck Mimicry</span>
+            <span style="color: var(--neon-gold); font-size: 0.8rem;">COMPLETE MIX</span>
+          </div>
+          <audio controls>
+            <source src="block_rockn_beaks_full_troupe_mix.wav" type="audio/wav">
+          </audio>
+        </div>
+
+        <div class="audio-track-item">
+          <div class="audio-label">
+            <span>2. Duck Ensemble Mimicry Stems (Snare, 808 Bass, Laser Siren, Duck Vocal)</span>
+            <span style="color: var(--neon-purple); font-size: 0.8rem;">ISOLATED DUCKS</span>
+          </div>
+          <audio controls>
+            <source src="block_rockn_beaks_duck_ensemble_mimicry.wav" type="audio/wav">
+          </audio>
+        </div>
+
+        <div class="audio-track-item">
+          <div class="audio-label">
+            <span>3. Authentic Chemical Brothers Master Track Sample</span>
+            <span style="color: var(--accent); font-size: 0.8rem;">ORIGINAL RECORDING</span>
+          </div>
+          <audio controls>
+            <source src="block_rockin_beats_duck_cypher.wav" type="audio/wav">
+          </audio>
         </div>
       </div>
 
       <div class="vocal-sync-box">
-        <div class="vocal-title">Choreography & Vocal Sample Synchronization</div>
+        <div class="vocal-title">Vocal & Choreography Synchronization Timeline</div>
         <div class="lyrics-line">
           <span class="ts">[0.0s - 1.1s]</span>
-          <span>Drums roll in &bull; <span class="action">Phase 1: Toprock 108 BPM Groove</span></span>
+          <span>Drums roll in &bull; Duck 2 sets 108 BPM snare snap &bull; <span class="action">Duck 1: Toprock Groove</span></span>
         </div>
         <div class="lyrics-line">
           <span class="ts">[1.1s - 2.5s]</span>
-          <span><em>"Back with another one of those..."</em> &bull; <span class="action">Neck roll & stance transition</span></span>
+          <span>Duck 5 & Master Vocal: <em>"Back with another one of those..."</em> &bull; <span class="action">Duck 1: Neck roll transition</span></span>
         </div>
         <div class="lyrics-line">
           <span class="ts">[2.5s - 3.5s]</span>
-          <span><strong>"...BLOCK ROCKIN' BEATS!"</strong> &bull; <span class="action">DROP INTO PHASE 2: DOWNROCK 709° SWEEP</span></span>
+          <span>All Ducks Shouting: <strong>"...BLOCK ROCK'N BEAKS!"</strong> &bull; <span class="action">DROP INTO 709° COFFEE GRINDER SWEEP</span></span>
         </div>
         <div class="lyrics-line">
-          <span class="ts">[3.5s - 6.5s]</span>
-          <span>Driving Chemical Brothers bassline &bull; <span class="action">Pelvis elevated sweep &rarr; Crown dive</span></span>
+          <span class="ts">[3.6s - 5.8s]</span>
+          <span>Duck 4: Screaming Laser Siren &bull; Duck 3: 808 Acid Bass &bull; <span class="action">Duck 1: Pelvis sweep &rarr; Crown dive</span></span>
         </div>
         <div class="lyrics-line">
           <span class="ts">[6.5s - 9.6s]</span>
-          <span>Overdriven bass & drums &bull; <span class="action">Phase 4: Power Headspin (+18.5 CCW turns @ 140 RPM)</span></span>
+          <span>Heavy bass groove &bull; <span class="action">Duck 1: Power Headspin (+18.5 CCW turns @ 140 RPM)</span></span>
         </div>
         <div class="lyrics-line">
           <span class="ts">[9.6s - 12.0s]</span>
-          <span><em>"Back with another one of those..."</em> &bull; <span class="action">Headspin deceleration into freeze setup</span></span>
+          <span>Duck 5: <em>"Back with another one of those..."</em> &bull; Duck 4 Siren Swell &bull; <span class="action">Headspin deceleration</span></span>
         </div>
         <div class="lyrics-line">
           <span class="ts">[12.0s - 13.5s]</span>
-          <span><strong>"...BLOCK ROCKIN' BEATS!"</strong> &bull; <span class="action">DROP INTO PHASE 5: INVERTED L-KICK FREEZE LOCK</span></span>
+          <span>Troupe Vocal Drop: <strong>"...BLOCK ROCK'N BEAKS!"</strong> &bull; <span class="action">INVERTED L-KICK FREEZE LOCK</span></span>
         </div>
         <div class="lyrics-line">
           <span class="ts">[13.5s - 16.0s]</span>
-          <span>Full bass sustain & ringing tail &bull; <span class="action">Freeze lock held solid to conclusion</span></span>
+          <span>Troupe sustains groove &bull; <span class="action">Freeze lock held solid to conclusion (0.01 rad precision)</span></span>
         </div>
       </div>
     </div>
 
-    <!-- 3. CHOREOGRAPHY STILLS -->
+    <!-- 4. CHOREOGRAPHY STILLS -->
     <div class="card">
       <div class="card-title">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>
-        Key Kinematic Milestones & Stills
+        6-Duck Cypher Troupe Kinematic Stills
       </div>
       <div class="gallery-grid">
         <div class="gallery-card">
-          <img src="still_p1_beat_groove.png" alt="Toprock Groove">
+          <img src="still_troupe_toprock.png" alt="Toprock Groove in Cypher">
           <div class="gallery-card-body">
-            <div class="gallery-card-title">Phase 1: Toprock Groove</div>
-            <div class="gallery-card-desc">108 BPM neck roll & bounce cadence establishing stage dominance.</div>
+            <div class="gallery-card-title">Phase 1: Cypher Toprock</div>
+            <div class="gallery-card-desc">Duck 1 grooves at center while Ducks 2, 3, and 6 establish 108 BPM head nod rhythm.</div>
           </div>
         </div>
         <div class="gallery-card">
-          <img src="still_p2_coffee_grinder.png" alt="Downrock Coffee Grinder">
+          <img src="still_troupe_downrock.png" alt="Downrock Coffee Grinder">
           <div class="gallery-card-body">
             <div class="gallery-card-title">Phase 2: Coffee Grinder</div>
-            <div class="gallery-card-desc">Drops on "...BLOCK ROCKIN' BEATS!" &bull; 709° sweeping leg extension.</div>
+            <div class="gallery-card-desc">Drops on "...BLOCK ROCK'N BEAKS!" &bull; 709° sweeping leg extension inside the cypher ring.</div>
           </div>
         </div>
         <div class="gallery-card">
-          <img src="still_p4_power_spin.png" alt="Power Headspin">
+          <img src="still_troupe_headspin.png" alt="Power Headspin">
           <div class="gallery-card-body">
             <div class="gallery-card-title">Phase 4: Power Headspin</div>
-            <div class="gallery-card-desc">+18.5 CCW full rotations at 140 RPM driven by leg counter-torque.</div>
+            <div class="gallery-card-desc">+18.5 CCW full rotations at 140 RPM as Duck 4 screams the laser siren from stage left.</div>
           </div>
         </div>
         <div class="gallery-card">
-          <img src="still_p5_freeze_drop.png" alt="Inverted L-Kick Freeze">
+          <img src="still_troupe_freeze.png" alt="Inverted L-Kick Freeze">
           <div class="gallery-card-body">
             <div class="gallery-card-title">Phase 5: L-Kick Freeze</div>
-            <div class="gallery-card-desc">Locks on second vocal drop &bull; 0.01 rad precision hold to the end.</div>
+            <div class="gallery-card-desc">Locks on second vocal drop &bull; 0.01 rad precision hold with entire troupe hyping the finish.</div>
           </div>
         </div>
       </div>
