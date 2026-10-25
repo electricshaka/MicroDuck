@@ -754,12 +754,14 @@ the 2.6 m × 3.8 m stage:
 - `uv run --no-sync --group workshop pytest` before every launch: **92 green at this writing**
   (81 through hs12; +5 the hs12b kick tests; +2 the hs12c grinder tests; +4 the hs13 bounce
   tests — window, steps, seed marks, seed geometry — and −1 the retired toprock wiring test).
-- **Push every milestone to the remote(s) immediately** (user's standing rule, 2026-10-24): every
+- **Continuously commit and push ALL progress to the private repo (user's rule, restated
+  2026-10-25)**: `origin/main` (`electricshaka/microduck-private`) must never lag — every
   commit — launch, judge-record, archive, timeline change — is pushed the moment it is committed,
-  never batched to the end of a sprint. Publishing to the Arena still needs the explicit yes.
-  Pushing `main` to the user's two repos is part of the agreed workflow:
-  `git push private main && git push origin main` (`private` = `electricshaka/microduck-private`,
-  `origin` = the public fork `electricshaka/MicroDuck`; keep timeline + checkpoints identical).
+  never batched to the end of a sprint, and judge records (the per-checkpoint `judge_<N>` files)
+  are committed as they are produced, not only at archive time. Publishing to the Arena still
+  needs the explicit yes. (On the workshop box this folder had a second remote, the public fork
+  `electricshaka/MicroDuck`, kept identical; on this checkout `origin` is the private repo and
+  the only one.)
 
 ### Open problems and next ideas
 
