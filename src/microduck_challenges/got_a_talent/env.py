@@ -172,14 +172,18 @@ HEADSTAND_SPAWN_PROB = 0.2
 # spins start and stop on the head.
 SPIN_PROB            = 0.5
 # Bounce (hs13 overhaul, rewards.ToprockCommand): the probability a resample raises the BOUNCE
-# flag in body[0] (the slot hs11/hs11b used for the failed standing footwork; hs13 re-purposes it
-# for the rhythmic knee bounce, whose timeline route bounce_probe.py measured FLAT). It rides only
-# a standing posture, and the CROSS-STEP flag in body[2] rides only the bounce flag. The stage
-# raises both in the 0-2 s opening once the regime is trained and stage-verified.
+# flag in body[0] (the slot hs11/hs11b used for the failed standing footwork; hs13 re-purposed it
+# for the rhythmic knee bounce, whose timeline route bounce_probe.py measured FLAT), and the
+# CROSS-STEP flag in body[2] rides only the bounce flag. VERDICT (hs13 + hs13b, 24 judged
+# checkpoints): FAILED BY MEASUREMENT — the bounce/cross-step REWARDS AND SEED are retired
+# (see the verdict comment at the reward registrations); the flags KEEP DRAWING, because they
+# are part of the observation distribution the live policy was trained on. The show keeps both
+# at 0; `body[0]`/`body[2]` join `toprock` as measured-failed footwork mechanisms.
 BOUNCE_PROB          = 0.5
 STEP_PROB            = 0.5
 # hs11 learned that the cycle never emerges from a planted stand: this share of episodes starts
-# MID-BOUNCE, at the measured trough with one hip shown forward (rewards.spawn_mid_bounce).
+# MID-BOUNCE, at the measured trough with one hip shown forward (rewards.spawn_mid_bounce —
+# RETIRED registration with the bounce rewards; the constants stay for the record).
 BOUNCE_SPAWN_PROB    = 0.30
 # Downrock sweep (hs12, rewards.downrock_sweep): the probability a resample raises the sweep flag
 # in body[1]. It is forced down unless a sit is commanded — downrock is a floor move, the stage
@@ -603,14 +607,19 @@ def make_env_cfg(
     # functions and their tests stay in rewards.py). Counter-sway, honest: no torso joints exist —
     # the sway the eye reads is the bounce itself, the beat nods the head command already carries,
     # and the steps' mirrored hip swing rocking the pelvis.
-    cfg.rewards["bounce_hold"] = RewardTermCfg(
-        func=headstand.bounce_hold, weight=6.0,
-        params={"command_name": "body_pose", "feet_sensor": feet_ground_cfg.name},
-    )
-    cfg.rewards["bounce_step"] = RewardTermCfg(
-        func=headstand.bounce_step, weight=4.0,
-        params={"command_name": "body_pose"},
-    )
+    #
+    # VERDICT (hs13 + hs13b, measured): the regime FAILED BY MEASUREMENT — the exported policy
+    # showed 0 bounce cycles and 0 cross-steps on stage at ALL 12 checkpoints of BOTH runs (trunk
+    # dead flat z 0.117). Relaxing the rise gate (fallback (a), BOUNCE_Z_TOP 0.108 → 0.104) did
+    # lift `bounce_hold` above its seed-harvest plateau (250-iter blocks 0.034-0.042 → 0.070-0.089)
+    # while hs13's decayed to 0.007 — the curve's one true divergence — yet the deterministic
+    # export never reproduced a cycle: the climb lived in stochastic exploration plus spawned
+    # troughs. `bounce_step` never left 0.018 even in training (pure harvest). The bounce reward
+    # registrations are RETIRED (functions and their tests stay in rewards.py, the toprock and
+    # grinder precedent); the command draws STAY — the two flags are part of the 61-number
+    # observation distribution hs12b/model_2000 was trained on, and changing that would shift
+    # the resume base. Lesson: a rising curve the exported policy never shows is exploration
+    # and seed, not skill, and the stage read is the only arbiter.
     term = cfg.rewards["posture_stillness"]  # already headstand-gated; params carry its "term"
     term.params = {"flag_command": "body_pose", **term.params}
     term.func = headstand.unless_toprock  # same flat contract, all gates in one wrapper
@@ -882,8 +891,8 @@ def make_env_cfg(
     )
     # And a share start MID-SWEEP at kneel height, blade leg out (hip 1.2, knee straight) and
     # already turning, the sweep flag up (rewards.spawn_seated_sweep — the same seeded-state
-    # lever; the seed SHOWS the shape the pay now requires, hs11b's harvest lesson; it replaces
-    # any bounce seed on those envs and leaves the head-down spawns alone).
+    # lever; the seed SHOWS the shape the pay now requires, hs11b's harvest lesson; it leaves the
+    # head-down spawns alone).
     cfg.events["spawn_seated_sweep"] = EventTermCfg(
         func=headstand.spawn_seated_sweep,
         mode="reset",
@@ -898,17 +907,10 @@ def make_env_cfg(
         mode="reset",
         params={"prob": KICK_SPAWN_PROB},
     )
-    # And a share start MID-BOUNCE at the measured trough (knees flexed, trunk vertical), one hip
-    # shown forward as the cross-step seed, sinking slightly so the first valid cycle completes
-    # almost at once (rewards.spawn_mid_bounce — the seeded-state lever on a CYCLE this time;
-    # registered LAST: it skips the headstand, sweep and kick seeds, and nothing overwrites its
-    # marks. The hs11/hs11b spawn_toprock registration is retired with its reward terms; the
-    # function and its tests stay in rewards.py).
-    cfg.events["spawn_mid_bounce"] = EventTermCfg(
-        func=headstand.spawn_mid_bounce,
-        mode="reset",
-        params={"prob": BOUNCE_SPAWN_PROB},
-    )
+    # The bounce seed is RETIRED with the bounce rewards (hs13b verdict: 0 cycles on stage at
+    # all 12 checkpoints — a seeded CYCLE, unlike a seeded HOLD, decays unless the policy
+    # reproduces every drop and rise inside the window; function and its tests stay in
+    # rewards.py, the toprock precedent).
 
     # MuJoCo physics robustness (sit env's contact NaN fix). The standup XML
     # has full collisions on every body; the seated pose puts trunk + folded
