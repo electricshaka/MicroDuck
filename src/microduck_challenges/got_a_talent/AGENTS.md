@@ -291,6 +291,17 @@ uv run publish --run logs/rsl_rl/got_a_talent/<run> --checkpoint <N> --repo <use
 For the policy's code link to open, push the commit to the user's fork first (`origin` must be their
 fork, never `pollen-robotics`; the workshop's home sets that up).
 
+The user's standing Arena submission (ordered 2026-10-25, supersedes the earlier `--onnx` form;
+fire ONLY once `uv run --no-sync hf auth login` has been run — the machine holds no token before
+that, and `hf auth whoami` must read `ElectricShaka`):
+
+```bash
+uv run --no-sync publish --task Mjlab-GotATalent-MicroDuck --checkpoint-file checkpoints/got_a_talent/hs12b/model_2000.pt \
+    --repo ElectricShaka/quackstreet-boy-the-tailspin --no-private --enter \
+    --timeline src/microduck_challenges/got_a_talent/timeline.json \
+    --code-url https://github.com/electricshaka/MicroDuck
+```
+
 ## What is known about this challenge
 
 - **The timeline keeps the time, not the policy.** Before this format, the challenge asked the
@@ -360,6 +371,12 @@ this up from here: the strategy, every run and its lesson, and the open problems
 
    Commit the change first (one change per run), and add any checkpoint worth keeping to
    `checkpoints/got_a_talent/` the same way. Push only to the user's repos (never `pollen-robotics`).
+6. **Keep the public repo in sync** (standing user order, 2026-10-25): every commit to private
+   `main` is mirrored to the public checkout `C:\GitHub\MicroDuck` (remote `origin` =
+   `electricshaka/MicroDuck`, remote `private` = this checkout) and pushed immediately:
+   `git -C "C:\GitHub\MicroDuck" fetch private && git -C "C:\GitHub\MicroDuck" merge -X theirs private/main --no-edit && git -C "C:\GitHub\MicroDuck" push origin main`
+   — both repos must always read 0 unpushed (`scratch/public_sync_loop.ps1` runs this on a 60 s
+   loop; verify its work, don't assume it).
 
 ### Why a headspin
 
