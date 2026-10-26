@@ -824,10 +824,12 @@ shape, was binding — try 7.0 ONCE, nothing else; (c) neither: hs12b stays live
 *Finish*: same ritual — 12 checkpoints judged, winner (if any) archived to
 `checkpoints/got_a_talent/spin1/`, Runs row filled, pushed.
 
-**hs15 — "Block Rockin' Beats" Breakbeat Cypher Troupe** (`timeline_version: 2`, no policy
+**hs15 — "Block Rock'n Beaks" Breakbeat Cypher Troupe** (`timeline_version: 2`, no policy
 training; `timeline.json` only; STAGING ONLY — no publishing without a new explicit yes) —
-was hs14. Transforms the solo performance into a full 6-duck B-Boy Battle Cypher on
-the 2.6 m × 3.8 m stage:
+was hs14. **ROUTINE TITLE LOCKED by the user (2026-10-26): "Block Rock'n Beaks"** — this exact
+spelling (the beak pun), everywhere the routine is named; the Chemical Brothers track it riffs
+on stays "Block Rockin' Beats" wherever the score itself is cited. Transforms the solo
+performance into a full 6-duck B-Boy Battle Cypher on the 2.6 m × 3.8 m stage:
 - **Spatial Cypher**: Star Breaker Duck (`policy: "self"`, `(0, 0, 0°)`) surrounded by 5 Crew Ducks
   in a circle ($r \approx 0.8$ m) facing inward, executing synchronized head nods (108 BPM,
   `neck_pitch = ±0.35` rad) to watch and hype the breaker.
