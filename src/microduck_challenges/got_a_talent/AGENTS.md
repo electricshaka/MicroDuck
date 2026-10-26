@@ -798,6 +798,32 @@ not touch `timeline.json` without them.
 *Finish*: same ritual — 12 checkpoints judged (the exit probe joins the batch), winner (if any)
 archived, Runs row filled, pushed.
 
+**spin1 — Un-tithe the headspin** (`headspin` weight 6.0 → 8.0; ONE variable; **RUNNING** —
+resumed byte-for-byte from `hs12b_base` = `hs12b/model_2000`, md5 7566EB15257368DA231DBD7F8C6FB488) —
+*Hypothesis*: hs12b's own record measured the trade — its freeze pay bought the needle at the cost
+of ~2–4 spin turns (24.0 at hs12 → **+21.67 @ 13.62** live, and 500 already had the needle at 500
+iters). Both flags ride the headstand dwell together (spin 0.5, kick 0.5 per resample), and quiet
+legs satisfy `l_kick_hold`'s dense exp cheaper than turning legs earn the frontier — so the ladder
+consolidated freeze-shape OVER turns. Raising `headspin` to 8.0, equal with `headstand_hold` and
+above the kick's 6.0, makes new CCW turn the cheaper earn again. The live stage's freeze window is
+untouched by construction: at 18 s the SPIN flag is DOWN — this term pays zero there and cannot
+weaken the delivered needle. *Baseline (live, `hs12b/model_2000`)*: +21.67 @ mean 13.62, hold
+12.69, needle err 0.10 up 3.00 s, sweep 777° probe / 419° show, sit 0.34, dive 0.30, arena 20.00 s.
+*Acceptance* (the hs12b ladder re-run as the batch, exit probe included as the record line): a
+checkpoint that reads **≥ +23 turns @ mean ≥ 13.5 on 3/3 seeds** AND keeps the freeze gates (needle
+≤ 0.15, up ≥ 3.00 s, drift ≤ 60°) AND sweep ≥ 700° probe AND sit ≤ 0.5 s AND arena 20.00 s — then
+archive as the new live show; the exit line stays 0/3 expected (structural: the timeline commands
+head 0 under the flag where the physics demands the spindle fold — noted 2026-10-25, `check.py`
+head error under a headstand is NOT a fixable line on this robot, see the spin1 rationale).
+*Fallbacks*: (a) if turns do NOT rise by 1250 (frontier pay wasn't the binding constraint — the
+freeze-shape attractor is): stop early (hs13 precedent, cite this line), revert to 6.0, record
+failed-by-measurement — the turn tax is the price of the needle and the show accepts it; (b) if
+turns rise but the needle/sweep/sit break at EVERY good-turn checkpoint: the pay sum, not the
+shape, was binding — try 7.0 ONCE, nothing else; (c) neither: hs12b stays live, unchanged.
+*The 2500-stage law holds*: expect the winner ≤ 2250, judge late checkpoints hardest.
+*Finish*: same ritual — 12 checkpoints judged, winner (if any) archived to
+`checkpoints/got_a_talent/spin1/`, Runs row filled, pushed.
+
 **hs15 — "Block Rockin' Beats" Breakbeat Cypher Troupe** (`timeline_version: 2`, no policy
 training; `timeline.json` only; STAGING ONLY — no publishing without a new explicit yes) —
 was hs14. Transforms the solo performance into a full 6-duck B-Boy Battle Cypher on
