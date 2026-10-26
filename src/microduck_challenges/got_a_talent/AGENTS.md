@@ -824,6 +824,30 @@ shape, was binding — try 7.0 ONCE, nothing else; (c) neither: hs12b stays live
 *Finish*: same ritual — 12 checkpoints judged, winner (if any) archived to
 `checkpoints/got_a_talent/spin1/`, Runs row filled, pushed.
 
+**hs15 — Sweep-Timing Sprint** (the user's priority #4, 2026-10-26: transition speed INTO the
+downrock sweep + maximum headspin stability/RPM; **QUEUED behind spin1**, launch only from a staged
+base `logs/rsl_rl/got_a_talent/hs15_base/` — `scratch/launch_hs15_after_spin1.ps1` waits for spin1
+to finish AND a ready marker `scratch/hs15_ready.txt` naming the base checkpoint; nothing launches
+from an unstaged base). ONE changed term: `sweep_rate_max` stages **same values, earlier: 2.0@0 /
+3.5@500 / 5.0@1000** (was 3.5@1500 / 5.0@2500). *Hypothesis (measured)*: the live sweep reads 419°
+inside the 2 s show window ≈ 3.5 rad/s — the last stage that ever consolidated; the 5.0 rad/s
+demand landed at iter 2500, the decay stage proven in six runs, and was never learned. Entry costs
+~0.34 s of the window; at 5.0 rad/s the remaining ~1.66 s holds ~520° — consolidating the fast
+sweep while the ladder is healthy is the transition-speed fix. *RPM focus rides the base, not a
+second change*: the resume base is spin1's verdict winner if it beat `hs12b/model_2000` (frontier
+pay 8.0 = the measured RPM lever), else `hs12b_base` (13.62 @ +21.67) — stacking another untested
+headspin change with a new sweep demand would be the hs12c starvation mistake, so the headspin
+lines are GATES here: mean_rate ≥ 13.5, turns ≥ base −0.5, hold ≥ 12.6 s, needle ≤ 0.15 up 3.00 s.
+*Acceptance*: show-path sweep **≥ 550°** (`sweep_probe … full`, batch-measured) AND probe crouch
+≥ 750° held ≥ 2.5 s, gates intact, arena 20.00 s — winner only if it beats the base overall.
+*Fallbacks*: (a) show sweep < 480° at checkpoint 1000 → stage timing was never the binding
+constraint and the window is entry-bound — STOP early, revert the schedule, record (the honest
+window ceiling is entry 0.34 s + 1.66 s × rate); (b) sweep passes but turns/RPM/freeze break at
+every good-sweep checkpoint → the fast-sweep demand trades against headspin economy — revert,
+419° stays, record; (c) neither. *Base rule*: spin1 winner ≤ 2250 only — never its late ones.
+*Finish*: 12 checkpoints judged, Runs row, pushed. (The troupe entry below keeps its "hs15" label —
+staging work by the user; the run folders continue the numbering, `hs15/` = this sprint.)
+
 **hs15 — "Block Rock'n Beaks" Breakbeat Cypher Troupe** — **DONE — BUILT AND DELIVERED BY THE USER
 (2026-10-25/26, commits `abaad87` → `672f467` → `2533fe9`)**: the 6-duck cypher is staged with
 acoustic mimicry, validated by the user against the Arena's troupe limits, rendered at 720p
