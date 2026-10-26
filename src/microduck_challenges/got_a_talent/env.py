@@ -574,8 +574,13 @@ def make_env_cfg(
         params={"command_name": "twist", "body_sensor": body_ground_cfg.name},
     )
     # The headspin (twist[2]): new counter-clockwise turn on the head, starts at 10 rad/s (hs9).
+    # spin1: 6.0 → 8.0, matching headstand_hold. Measured cost in hs12b's own record: the L-kick
+    # freeze pay traded ~2–4 turns (24.0 → +21.67) — with both flags riding, quiet legs satisfy
+    # l_kick_hold cheaper than turning legs. Equalizing the frontier pay makes new CCW turn the
+    # cheaper earn again. The stage's freeze window (spin flag DOWN at 18 s) is untouched: the
+    # needle is held by the kick pay, not this term. Acceptance in the AGENTS spin1 entry.
     cfg.rewards["headspin"] = RewardTermCfg(
-        func=headstand.headspin, weight=6.0, params={"command_name": "twist", "rate_max": 10.0, **sensors},
+        func=headstand.headspin, weight=8.0, params={"command_name": "twist", "rate_max": 10.0, **sensors},
     )
     # Head stillness during headstand (hs8/hs9: b-boy static head pivot, forces legs to drive spin).
     cfg.rewards["head_stillness_on_head"] = RewardTermCfg(
