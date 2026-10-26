@@ -824,8 +824,16 @@ shape, was binding — try 7.0 ONCE, nothing else; (c) neither: hs12b stays live
 *Finish*: same ritual — 12 checkpoints judged, winner (if any) archived to
 `checkpoints/got_a_talent/spin1/`, Runs row filled, pushed.
 
-**hs15 — "Block Rock'n Beaks" Breakbeat Cypher Troupe** (`timeline_version: 2`, no policy
-training; `timeline.json` only; STAGING ONLY — no publishing without a new explicit yes) —
+**hs15 — "Block Rock'n Beaks" Breakbeat Cypher Troupe** — **DONE — BUILT AND DELIVERED BY THE USER
+(2026-10-25/26, commits `abaad87` → `672f467` → `2533fe9`)**: the 6-duck cypher is staged with
+acoustic mimicry, validated by the user against the Arena's troupe limits, rendered at 720p
+(`scratch/microduck_block_rockn_beaks_troupe_720p.mp4`, real MP4 stream, verified), with the duck
+ensemble mix (`block_rockn_beaks_*_mimicry.wav` + `mix_block_rockn_beaks_troupe_audio.py`), the
+troupe timeline itself (`scratch/full_block_rockn_beaks_troupe.json`: `timeline_version: 2`,
+6 ducks, verified) and the interactive **preview player live** (`scratch/preview_player.html`,
+titled exactly "Block Rock'n Beaks"). What is still PUBLISHED is unchanged: the solo
+`hs12b/model_2000` entry (the armed submission); the troupe goes on the Arena only when the user
+orders it, with the troupe JSON passed and a new explicit yes. Their design, kept below as built:
 was hs14. **ROUTINE TITLE LOCKED by the user (2026-10-26): "Block Rock'n Beaks"** — this exact
 spelling (the beak pun), everywhere the routine is named; the Chemical Brothers track it riffs
 on stays "Block Rockin' Beats" wherever the score itself is cited. Transforms the solo
