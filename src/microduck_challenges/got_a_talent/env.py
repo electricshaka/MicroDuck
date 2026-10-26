@@ -1181,14 +1181,19 @@ def make_env_cfg(
     # Sweep rate_max curriculum (hs12, hs7's "quarter turns first" lesson at seated scale): a slow
     # turn pays FULL at 2 rad/s from step 0; the bar rises only once the motion exists. A seated
     # grinder at 3-5 rad/s is already the show; this is no headspin, it just has to SWEEP.
+    # hs15: SAME values, EARLIER stages — 3.5 at 500 and 5.0 at 1000 (was 1500/2500). Measured:
+    # the live show sweeps 419° inside its 2 s window = ~3.5 rad/s — the last stage that ever
+    # consolidated; the 5.0 demand landed at iter 2500, the decay stage proven in six runs, and
+    # was never learned. The show window (~2 s minus ~0.34 s entry) at 5.0 rad/s holds ~520°:
+    # consolidate the fast sweep while the ladder is healthy, and the transition pays.
     cfg.curriculum["sweep_rate_max"] = CurriculumTermCfg(
         func=headstand.headspin_rate_max_curriculum,
         params={
             "reward_name": "downrock_sweep",
             "stages": [
-                {"step": 0,          "rate_max": 2.0},
-                {"step": 1500 * 24,  "rate_max": 3.5},
-                {"step": 2500 * 24,  "rate_max": 5.0},
+                {"step": 0,         "rate_max": 2.0},
+                {"step": 500 * 24,  "rate_max": 3.5},
+                {"step": 1000 * 24, "rate_max": 5.0},
             ],
         },
     )
