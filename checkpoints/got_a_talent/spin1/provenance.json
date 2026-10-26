@@ -1,0 +1,30 @@
+{
+  "command": [
+    "train",
+    "Mjlab-GotATalent-MicroDuck",
+    "--env.scene.num-envs",
+    "4096",
+    "--agent.max-iterations",
+    "3000",
+    "--agent.seed",
+    "1",
+    "--agent.logger",
+    "tensorboard",
+    "--agent.run-name",
+    "spin1",
+    "--agent.resume",
+    "True",
+    "--agent.load-run",
+    "hs12b_base",
+    "--agent.load-checkpoint",
+    "model_2000.pt"
+  ],
+  "task": "Mjlab-GotATalent-MicroDuck",
+  "seed": 1,
+  "commit": "5e7fc5578",
+  "branch": "main",
+  "dirty": true,
+  "repo": "https://github.com/electricshaka/microduck-private.git",
+  "base": "mjlab-microduck 0.1.0 @ 8d0dbc94c",
+  "started": "2026-10-26T15:40:54Z"
+}

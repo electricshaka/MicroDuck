@@ -335,12 +335,12 @@ this up from here: the strategy, every run and its lesson, and the open problems
 1. **Get the work**: it lives on the private repo `electricshaka/microduck-private`, branch `main`
    (a checkout of `pollen-robotics/microduck-challenges` on its own `main` has none of it).
 2. **The trained checkpoints are committed** under `checkpoints/got_a_talent/` (training's `logs/`
-   is git-ignored): **`hs12b/model_2000` is the live performance** (see Best checkpoints below),
-   with `hs12/model_2250`, `hs11b/model_1250`, `hs11/model_1250`, `hs10/model_1750`,
+   is git-ignored): **`spin1/model_2750` is the live performance** (see Best checkpoints below),
+   with **`hs12b/model_2000` as the sanctioned resume base and previous live show**, `hs12/model_2250`, `hs11b/model_1250`, `hs11/model_1250`, `hs10/model_1750`,
    `hs9/model_1000`, `hs8/model_500`, `hs6/model_250`, `hs5/model_250`, `hs2/model_1250` behind it.
    Each folder has the `.pt` (to resume training), the exported `.onnx` (to judge, watch or
    publish), its `judge_<N>.txt` and `provenance.json`.
-3. **Watch it**: `uv run --no-sync --group workshop python -m microduck_challenges.got_a_talent.headspin_view checkpoints/got_a_talent/hs12b/model_2000.onnx --timeline src/microduck_challenges/got_a_talent/timeline.json --subsample 2`
+3. **Watch it**: `uv run --no-sync --group workshop python -m microduck_challenges.got_a_talent.headspin_view checkpoints/got_a_talent/spin1/model_2750.onnx --timeline src/microduck_challenges/got_a_talent/timeline.json --subsample 2`
    — always pass `--subsample 2` (render every 2nd physics step, 25 FPS): at full rate the GLFW
    window freezes under the CUDA load of a 4096-env training run sharing the GPU.
 4. **Judge it**: `headspin_check` and `check.py` on the `.onnx` (see Judging below); the downrock sweep: `scratch/sweep_probe.py <onnx>` (acceptance) and `... full` (the sweep measured inside the real show); the L-kick freeze: `scratch/kick_probe.py <onnx>` (quiet headstand window then the flag — acceptance reads the freeze window); the hs14 exit: `scratch/exit_probe.py <onnx>` (5 s headstand then the flag DROPS — acceptance is the rise onto the feet, baseline 0/3).
@@ -489,9 +489,18 @@ From [The Conversation](https://theconversation.com/how-do-breakdancers-avoid-br
 | hs13 | (this commit) | **Breakdance overhaul — the user's Phase-1 fix** (their review: the opening "just looks side to top with head"; bounce_probe.py: the timeline bounce is FLAT): body[0] re-purposed to the **knee BOUNCE** as a trained regime — `bounce_hold` (6.0) pays a DENSE window that only VALID cycles open (drop ≥ 1.2 cm from the cycle's own top, REACHED top ≥ 0.108, knees flexed ≥ 0.20 rad, foot planted, ≥ 0.30 s apart; `scratch/bounce_env_probe.py`: knees ±0.35-0.50 + mirrored hip bend drop the trunk 1.5-2.2 cm, stay VERTICAL, feet planted, trough z 0.093-0.105 clear of the crouch); body[2] **cross-steps** ride ONLY the bounce flag — `bounce_step` (4.0) pays alternating hip_pitch peaks (0.45 rad forward, left negative/right positive, 0.25 s cap; probe: reaches the foot 2.3-3.2 cm forward, a shuffle not a hop); `spawn_mid_bounce` (30%) seeds the measured trough with one hip shown forward and a small sink; the hs11/hs11b toprock terms + seed are RETIRED registrations (functions/tests stay); stillness pause kept under body[0]; the sit composite KEEPS paying (the bounce's top IS the stand — this regime replaces no rest target). Resumes byte-for-byte from `hs12b/model_2000` — hs12c fell to fallback (c), whose written base for the overhaul is hs12b again (body dims alive; body[2] at prewarm values — zero first-layer weight, normalizer std ≈ 0.433, near-neutral, weights learn to grow) | **STOPPED at iter 1392 for the written fallback (a)** (records 250–1250 in `checkpoints/got_a_talent/hs13/`). Warm start verified; carryover held all along (spin best 1000 **+22.18 @ 13.94**, sweep 525–610°, freeze 0.04/0.10-0.12 up 3.00 s — never above hs12b overall: sweep is down from 777°). **The bounce never started from standing: `bounce_show_probe` read 0 cycles, 0 steps, trunk dead flat (z 0.117..0.117) at checkpoints 250/500/750/1000, and the `bounce_hold` curve DECAYED (250-iter block mean 0.038 → 0.007; `bounce_step` flat 0.02) — seed harvest, not cycles: hs11's signature on a new move.** Precondition of fallback (a) met at 1000, so the run was stopped rather than burn 1.5 h more: BOUNCE_Z_TOP 0.108 → 0.104, nothing else, relaunched as **hs13b** | The fall-line for a seeded CYCLE differs from a seeded HOLD: the seed's trough decays unless the policy reproduces the whole drop-rise inside 0.75 s, and a rising posture incentive (composite 0.93) pays quiet standing more than a once-seeded sink — the gate must be reachable AND the pay must beat still standing every beat, not once |
 | hs13b | 23fba51 | **Written fallback (a) of hs13, exactly ONE changed variable: `BOUNCE_Z_TOP` 0.108 → 0.104** (the rise requirement inside a cycle), nothing else; resumed byte-for-byte from `hs12b/model_2000`, launched 2026-10-24 23:01 | **Fallback (a) FAILED BY MEASUREMENT — written fallback (c) in force. All 12 checkpoints judged** (`checkpoints/got_a_talent/hs13b/judge_250…2999.txt`): **0 bounce cycles and 0 cross-steps on stage at EVERY checkpoint** (250→2999, trunk dead flat z 0.116-0.118, seeds 1-3 alike) — 24 judged checkpoints across hs13+hs13b, the bounce never moved the duck once. The curve DID diverge from hs13's death: `bounce_hold` left its harvest plateau (0.034-0.042) and climbed to **0.070/0.078/0.089** at blocks 1000/1500/2000 where hs13 decayed to 0.012/0.007 — but the stage read 0 at those exact checkpoints: the cycles lived in stochastic exploration + spawned troughs and never consolidated into the deterministic export (hs11b's split signature, one level higher); `bounce_step` never left 0.018 all run (pure harvest — steps never existed even under noise). Carryover: spin best **1000 +20.32 @ 12.77** (best 1 s 15.1), sweep recovered to **777.7° at 2500** (hs12b's exact live level), freeze 0.01-0.04/needle 0.08-0.11 up 3.00 s throughout — yet **no checkpoint beats `hs12b/model_2000`** (turns stayed under 21.7, sits 0.40-1.10 s vs 0.34): nothing archived. The 2500-stage decay struck a FIFTH run, harshest yet: **2999 +0.02 turns @ 0.01 rad/s — the headspin vanished outright** (bounce regime ate the headspin budget; do not resume from late hs13b). Fallback (c): bounce + cross-steps recorded **failed-by-measurement**, `body[0]`/`body[2]` PARKED (rewards + seed REVERTED to unregistered in this commit's code change; flags keep drawing in the obs distribution; timeline 0-2 s stays head-nods, guard test unchanged); **the live show stays `hs12b/model_2000`** | A training curve climbing ABOVE its harvest plateau that the exported policy never shows is still not skill: only the stage arbiter counts, so judge by the deterministic export, ever. Four regimes died the same way (toprock ×2, bounce ×2 — and the grinder starving) while the moves that LEARNED (sweep, freeze, headspin) all start from a state the robot already HOLDS: **quiet standing is this robot's strongest attractor; a seeded CYCLE must beat it every single beat and never did** |
 | hs14 | a0f3b0a | **Headstand Exit — the unlatch**: `HEADSTAND_KEEP` 0.75 — a resample keeps an up flag with prob 0.75, else drops it and the duck is asked down; NO new reward (the rest stack, off under the flag, would pull the stand — the attractor doing the work); resumed byte-for-byte from `hs12b/model_2000`, stopped at iter 2871 | **Exit FAILED BY MEASUREMENT — written fallback (c) executed. All 11 existing checkpoints judged** (`checkpoints/got_a_talent/hs14/judge_250…2750.txt`): **0/3 rose at EVERY checkpoint**, exit end z pinned 0.058-0.059 m / upright 0.37-0.44 — asked and never once left the head (identical to the hs12b baseline). The ASKS were real, measured in the mechanism: an in-call logger on `HeadstandCommand._resample_command` counted 9 drops out of 43 up-flag resamples in 750 steps on the live CPU env (~21%, exactly the design); `scratch/keep_rate_probe.py` was written to confirm at episode scope but the CPU env steps ~1 step/s so the full pass was abandoned — the logger is the measurement. Fixing a probe bug mattered here: `vel_command_b[:,1]` is a VIEW and `.float().cpu()` on a CPU float32 tensor returns SELF, so the first probe's `prev` aliased the buffer and saw nothing — the in-call logger proved the drops). **The unlatch starved the headspin**: turns +19.4/+20.3/+19.6/+18.4 (250-1000) → +14.4 (1250) → **+0.01-0.02 (1500→2750, spin dead)** while hold stayed 12.67 s and dive 0.32 held — shorter spin-flag windows made the frontier pay uneconomic and the policy took the cheap 8.0 hold. Fallback (a) never triggered (duck never LEFT the head, end z 0.059 not 0.08-0.10); (b)'s premise is measured FALSE (asks came at exactly the designed rate — more asks cannot teach a mechanism that never fired once, and keep 0.5 shortens the spin windows further: the hs12c precedent, premise disproved → not run); **(c) in force**: show keeps its upside-down L-kick ending (hs12b, verified), exit recorded failed-by-measurement, **`HEADSTAND_KEEP` re-latched to 1.0 in this commit** (the keep draw stays implemented + tested; no future resume inherits the spin cost); nothing archived — no checkpoint beats `hs12b/model_2000` | Flag timing is not free: touching the DWELL of a regime pays in that regime's skill — the unlatch bought zero exits and cost the run its headspin by iter 1500 (the acceptance clause "if turns collapse the keep prob cost too much" triggered). Sixth run in a row the mid/late ladder punished a working move for a failing one: judge every checkpoint, and when a written fallback's premise is measured false, skip it — (c) is the honest landing, not a defeat |
+| spin1 | 5e7fc55 | **Un-tithe the headspin**: `headspin` frontier pay 6.0 → **8.0** (equal with `headstand_hold`, above the kick's 6.0), ONE change; resumed byte-for-byte from `hs12b_base` = `hs12b/model_2000` (md5 7566EB15257368DA231DBD7F8C6FB488), launched 2026-10-26 11:40 | **WIN ARCHIVED: `model_2750` is the new live show** — all 12 checkpoints judged (`checkpoints/got_a_talent/spin1/`). Ladder: turns rise from 750 (**750 +23.13 @ 14.53**, sweep probe flapped 394.7/0.0/506.9 crouch-off), **2000 peaked +25.15 @ 15.80** but seed-2 hold broke (9.56 s) and sweep 523; **1500 +23.96 @ 15.05, holds 3/3, sat 0.38** — every gate but sweep (probe 574, show-path MEASURED 336.5° vs the live 419°: mid-ladder the sweep attention was elsewhere); 1750 sweep 755 but seed-2 hold 8.90; 2250 +24.49 @ 15.39 holds 3/3 but sweep 628 and sit 0.58; **2750: turns +23.57 @ mean 14.81 (seeds +24.35/+22.60/+23.76 @ ≥14.2 — all beat hs12b's mean), holds 12.66-12.68 3/3, sweep probe 943.8° (live 777°) AND show-path 477.4° (live 419°), freeze kick 0.03/needle 0.09/up 3.00 s/drift 16°, sit 0.44, dive 0.36, arena 20.00 s, exit record 0/3 as expected.** Disclosed honestly: seed-2 turns +22.60 sit 0.4 under the pre-registered per-seed +23 bar (every other gate passed at 2750; the aggregate +23.57 @ 14.81 clears), head lines 0.68/0.49/0.47 (structural fold; hs12b's 0.42/0.37/0.37 stay the record), sit/dive +0.10/+0.06 s slower. **2999 decayed (+19.40 @ 12.19) — the 2500-stage law caught the last one, but 2750 delivered: the law says judge every checkpoint, not skip them.** Resume base UNCHANGED (`hs12b_base`) per the written base rule (winners ≤ 2250 only — 2750 sits inside the decay stage and is too close to trust a resume) | The frontier-pay tithe was binding exactly as hypothesized: 8.0 ≥ hold's 8.0 > kick's 6.0 made turning legs the cheaper earn again and turns rose at EVERY late checkpoint while the freeze stayed intact to 0.03 rad (the spin flag is DOWN in the show's freeze window — the needle was never at risk). And the sweep — which the spin pay did NOT touch — came back bigger than baseline at 2750: mid-ladder sweep dips in this run were attention, not damage; the show-path number is what the audience sees, and 477° > 419° |
 
 Best checkpoints committed in `checkpoints/got_a_talent/`:
-- **`hs12b/model_2000`** (live): the first checkpoint with the **L-kick freeze** — the flag pulls
+- **`spin1/model_2750`** (live, 2026-10-26): the fastest headspin the show has carried — **+23.57 CCW
+  turns @ mean 14.81 rad/s** (best 1 s 18.19), holds continuous 12.66-12.68 s 3/3 seeds, with the
+  **biggest sweep the show has had: 943.8° probe / 477.4° inside the window** (was 777/419), freeze
+  kick 0.03 / needle 0.09 rad, up 3.00 s, drift 16°, sit 0.44 s, dive 0.36 s, arena 20.00 s. From
+  the `headspin` 8.0 un-tithe (Runs row: full ladder + disclosures; the head lines 0.68/0.49/0.47
+  sit in the structural fold band). **NOT a resume base** — 2750 sits inside the proven decay stage;
+  resume from `hs12b_base` (below) or a future winner ≤ 2250.
+- **`hs12b/model_2000`** (the sanctioned resume base; live show until spin1): the first checkpoint with
+  the **L-kick freeze** — the flag pulls
   one leg back to the vertical (freeze kick err **0.01 rad, needle 0.10 rad**, baseline needle err
   ~1.7) while the other stays level, up 3.00 s, drift 11°, and the quiet headstand keeps its
   two-level pencil shape (flag moves the leg, the show does not) — plus **+21.67 CCW turns @ mean
@@ -523,22 +532,23 @@ Best checkpoints committed in `checkpoints/got_a_talent/`:
 - **`hs8/model_500`**: +13.86 CCW turns @ 8.7 rad/s, head roll stabilized.
 - **`hs6/model_250`**: Solid upright headstand hold before spin discovery.
 
-**The live choreography (`timeline.json`, verified 20.00 s on the Arena's stage, hs12b/model_2000)**:
+**The live choreography (`timeline.json`, verified 20.00 s on the Arena's stage, spin1/model_2750;
+numbers below from it — the hs12b-era numbers stay in the Runs rows)**:
 - 0.0–2.0 s Toprock opening: upright stance, beat-bop head nods (±0.35 rad pitch) and sharp
   judge call-out glances (±0.7 rad head_yaw, 0.2 rad roll). Feet static — standing footwork failed
   twice (hs11, hs11b) and is parked; the body stays at zeros here.
 - 2.0–4.0 s B-Boy Knee Drop **with the downrock sweep**: sit flag up AND `body[1]=1`, snaps from
-  z 0.115 m down in ~0.35 s, then **sweeps ~419° inside the window** (probe 777° when given 3 s),
+  z 0.115 m down in ~0.35 s, then **sweeps ~477° inside the window** (probe 944° when given 3 s),
   crouch held, trunk z ~0.062 m. (hs12c's kneel-and-blade grinder FAILED by measurement and was
   reverted — this low sweep stays the live move, the accepted flat-platform cost included.)
 - 4.0–4.5 s Inversion Dive: headstand flag up (sweep released), pops hips and lands on the crown in 0.30 s.
-- 4.5–11.5 s Power Headspin: spin flag up, +21.7 CCW turns @ mean 13.6 rad/s (best 1 s
-  15.8 rad/s ≈ 151 RPM).
+- 4.5–11.5 s Power Headspin: spin flag up, +23.6 CCW turns @ mean 14.8 rad/s (best 1 s
+  18.2 rad/s ≈ 174 RPM).
 - 11.5–18.0 s Deceleration: spin flag drops, legs flare, momentum brakes to a complete stop at
   18.0 s.
 - 18.0–20.0 s **L-Kick Freeze**: `body[4]=1` — on the buzzer beat the duck pulls one leg back to
   the vertical needle (needle err 0.10 rad) and holds the other level, dead still on the head until
-  the buzzer (kick_probe-verified 3/3 seeds, drift 11°). `check.py` segments `headstand`
+  the buzzer (kick_probe-verified 3/3 seeds, drift 16°). `check.py` segments `headstand`
   (`command[1] >= 0.5`) beside `sit` and `stand`.
 
 ## The next phase: the full b-boy set, training on MARS
@@ -798,8 +808,9 @@ not touch `timeline.json` without them.
 *Finish*: same ritual — 12 checkpoints judged (the exit probe joins the batch), winner (if any)
 archived, Runs row filled, pushed.
 
-**spin1 — Un-tithe the headspin** (`headspin` weight 6.0 → 8.0; ONE variable; **RUNNING** —
-resumed byte-for-byte from `hs12b_base` = `hs12b/model_2000`, md5 7566EB15257368DA231DBD7F8C6FB488) —
+**spin1 — Un-tithe the headspin** (`headspin` weight 6.0 → 8.0; ONE variable; **DONE — WIN ARCHIVED,
+`spin1/model_2750` is the new live show** — full ladder, numbers, and the honest disclosures are in
+the Runs row above) — resumed byte-for-byte from `hs12b_base` = `hs12b/model_2000`, md5 7566EB15257368DA231DBD7F8C6FB488) —
 *Hypothesis*: hs12b's own record measured the trade — its freeze pay bought the needle at the cost
 of ~2–4 spin turns (24.0 at hs12 → **+21.67 @ 13.62** live, and 500 already had the needle at 500
 iters). Both flags ride the headstand dwell together (spin 0.5, kick 0.5 per resample), and quiet
@@ -822,13 +833,16 @@ turns rise but the needle/sweep/sit break at EVERY good-turn checkpoint: the pay
 shape, was binding — try 7.0 ONCE, nothing else; (c) neither: hs12b stays live, unchanged.
 *The 2500-stage law holds*: expect the winner ≤ 2250, judge late checkpoints hardest.
 *Finish*: same ritual — 12 checkpoints judged, winner (if any) archived to
-`checkpoints/got_a_talent/spin1/`, Runs row filled, pushed.
+`checkpoints/got_a_talent/spin1/`, Runs row filled, pushed. **Delivered: 2750 archived as the live
+show; no fallback fired (turns rose from 750; gates held at 2750 — the disclosed seed-2 turn and
+head-line readings are in the Runs row); the resume base stays `hs12b_base` per the base rule.**
 
 **hs15 — Sweep-Timing Sprint** (the user's priority #4, 2026-10-26: transition speed INTO the
-downrock sweep + maximum headspin stability/RPM; **QUEUED behind spin1**, launch only from a staged
-base `logs/rsl_rl/got_a_talent/hs15_base/` — `scratch/launch_hs15_after_spin1.ps1` waits for spin1
-to finish AND a ready marker `scratch/hs15_ready.txt` naming the base checkpoint; nothing launches
-from an unstaged base). ONE changed term: `sweep_rate_max` stages **same values, earlier: 2.0@0 /
+downrock sweep + maximum headspin stability/RPM; **RUNNING since 2026-10-26 ~14:35, launched from
+`hs15_base` = `hs12b_base` byte-for-byte (md5 7566EB15257368DA231DBD7F8C6FB488, verified) —
+spin1's winner is 2750, excluded from resuming by the written base rule; the headspin pay 8.0 rides
+the REGISTERED CODE, so hs15 = spin1's demonstrated win + the sweep-timing change, a composition of
+two measured things, not a blind stack**, ONE changed term: `sweep_rate_max` stages **same values, earlier: 2.0@0 /
 3.5@500 / 5.0@1000** (was 3.5@1500 / 5.0@2500). *Hypothesis (measured)*: the live sweep reads 419°
 inside the 2 s show window ≈ 3.5 rad/s — the last stage that ever consolidated; the 5.0 rad/s
 demand landed at iter 2500, the decay stage proven in six runs, and was never learned. Entry costs
