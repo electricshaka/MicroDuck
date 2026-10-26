@@ -1,0 +1,47 @@
+== checkpoint 2750 ==
+[publish] dry run: wrote C:\GitHub\microduck-private\publish-eval/ (policy.onnx, manifest.json, README.md, checkpoint.pt)
+seed 1: stood before the flag yes | onto head after 0.34 s | longest hold 12.68 s | on head 12.68 of 13 s | spin: +24.35 turns (ccw +), mean +15.3 rad/s, best 1 s +18.3 rad/s
+seed 2: stood before the flag yes | onto head after 0.36 s | longest hold 12.66 s | on head 12.66 of 13 s | spin: +22.60 turns (ccw +), mean +14.2 rad/s, best 1 s +17.9 rad/s
+seed 3: stood before the flag yes | onto head after 0.36 s | longest hold 12.66 s | on head 12.66 of 13 s | spin: +23.76 turns (ccw +), mean +14.9 rad/s, best 1 s +18.4 rad/s
+mean longest +12.67, total +12.67, turns +23.57, mean_rate +14.81, best_rate +18.19
+
+[mdp] Patches 1-2 active: NaN-safe reward/advantage
+[mdp] Patch 4 active: ONNX export filters passive_* joints
+[mdp] Patch 5 active: MICRODUCK_WARM_START=1 restarts curricula after checkpoint load
+t= 0.00  stand: reached after 0.00 s, held until 2.00 s; head: held under 2 s, not checked
+t= 0.70  head: held under 2 s, not checked
+t= 1.40  head: held under 2 s, not checked
+t= 2.00  sit: reached after 0.44 s, held until 4.00 s; head: held under 2 s, not checked
+t= 3.50  head: held under 2 s, not checked
+t= 4.00  headstand: reached after 0.28 s, held until 20.00 s; head: held under 2 s, not checked
+t= 4.50  head: off by 0.68 rad
+t=11.50  head: off by 0.49 rad
+t=18.00  head: off by 0.47 rad
+fell at 4.46 s
+FAIL: largest head error 0.68 rad
+
+-- sweep probe (downrock flag window, seeds 1-3) --
+seed 1: swept  936.5 deg in the sweep phase (quiet   2.4 deg), crouch held 3.00 s, min z 0.061 m, played 8.00 s
+        grinder read: blade radius 0.068 m med, 0% >= 0.08 m | kneel 0% >= 0.085 m | pelvis-contact frames 0
+seed 2: swept  942.9 deg in the sweep phase (quiet   1.8 deg), crouch held 3.00 s, min z 0.061 m, played 8.00 s
+        grinder read: blade radius 0.069 m med, 0% >= 0.08 m | kneel 0% >= 0.085 m | pelvis-contact frames 0
+seed 3: swept  951.9 deg in the sweep phase (quiet   2.3 deg), crouch held 3.00 s, min z 0.061 m, played 8.00 s
+        grinder read: blade radius 0.069 m med, 0% >= 0.08 m | kneel 0% >= 0.085 m | pelvis-contact frames 0
+MEAN: swept 943.8 deg | quiet 2.2 deg | crouch 3.00 s | min z 0.061 m
+MEAN grinder: radius 0.069 m, 0% >= 0.08 m | kneel 0% | pelvis-contact frames 0 (bar: >= 400 deg, radius/kneel most of window, contacts ~0)
+
+-- kick probe (L-kick freeze, seeds 1-3) --
+seed 1: quiet window kick err 0.16 rad (needle 1.60, up 2.16 s) | freeze window kick err 0.03 rad (needle 0.09), up 3.00 s, drift 17 deg
+    raw hips quiet L +1.18 R -1.22 | freeze L +1.45 R +0.37
+seed 2: quiet window kick err 0.19 rad (needle 1.61, up 2.16 s) | freeze window kick err 0.03 rad (needle 0.09), up 3.00 s, drift 16 deg
+    raw hips quiet L +1.19 R -1.20 | freeze L +1.44 R +0.37
+seed 3: quiet window kick err 0.13 rad (needle 1.62, up 2.16 s) | freeze window kick err 0.03 rad (needle 0.09), up 3.00 s, drift 16 deg
+    raw hips quiet L +1.21 R -1.23 | freeze L +1.44 R +0.37
+MEAN: quiet kick err 0.16 rad (needle 1.61, up 2.16 s) | freeze kick err 0.03 rad (needle 0.09), up 3.00 s, drift 16 deg
+
+-- exit probe (record line only for spin1: structural 0/3 expected, seeds 1-3) --
+seed 1: exit rise NEVER | end z 0.059 upright 0.41 | quiet headstand up 4.66 s of 5.0
+seed 2: exit rise NEVER | end z 0.059 upright 0.43 | quiet headstand up 4.66 s of 5.0
+seed 3: exit rise NEVER | end z 0.059 upright 0.41 | quiet headstand up 4.66 s of 5.0
+MEAN: rose 0/3, rise nan s | end z 0.059 upright 0.41 | quiet up 4.66 s
+
