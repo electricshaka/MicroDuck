@@ -1292,4 +1292,5 @@ def test_the_manifest_says_what_the_policy_reads():
     command = ch.for_task("Mjlab-GotATalent-MicroDuck").command
     assert command["twist"].startswith("[sit flag")
     assert "head_yaw" in command["head"]
-    assert command["body"].startswith("[bounce flag")
+    assert command["body"].startswith("[reserved, keep 0")
+    assert "downrock sweep flag" in command["body"] and "L-kick freeze flag" in command["body"]

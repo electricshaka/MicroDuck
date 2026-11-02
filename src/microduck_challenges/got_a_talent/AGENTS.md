@@ -343,7 +343,7 @@ this up from here: the strategy, every run and its lesson, and the open problems
 3. **Watch it**: `uv run --no-sync --group workshop python -m microduck_challenges.got_a_talent.headspin_view checkpoints/got_a_talent/spin1/model_2750.onnx --timeline src/microduck_challenges/got_a_talent/timeline.json --subsample 2`
    — always pass `--subsample 2` (render every 2nd physics step, 25 FPS): at full rate the GLFW
    window freezes under the CUDA load of a 4096-env training run sharing the GPU.
-4. **Judge it**: `headspin_check` and `check.py` on the `.onnx` (see Judging below); the downrock sweep: `scratch/sweep_probe.py <onnx>` (acceptance) and `... full` (the sweep measured inside the real show); the L-kick freeze: `scratch/kick_probe.py <onnx>` (quiet headstand window then the flag — acceptance reads the freeze window); the hs14 exit: `scratch/exit_probe.py <onnx>` (5 s headstand then the flag DROPS — acceptance is the rise onto the feet, baseline 0/3).
+4. **Judge it**: `headspin_check` and `check.py` on the `.onnx` (see Judging below); the downrock sweep: `scratch/sweep_probe.py <onnx>` (acceptance) and `... full` (the sweep measured inside the real show); the L-kick freeze: `scratch/kick_probe.py <onnx>` (quiet headstand window then the flag — acceptance reads the freeze window); the hs14 exit: `scratch/exit_probe.py <onnx>` (5 s headstand then the flag DROPS — acceptance is the rise onto the feet, baseline 0/3; **not committed** — it lived in a training checkout's untracked scratch, recreate it from the hs14 Runs row before use).
 5. **Resume training** (hs12b is done — L-kick freeze learned and live; **hs12c, the grinder, is
    DONE — FAILED BY MEASUREMENT, fallback (c)**: all 12 checkpoints judged, the ban starved the
    sweep (frontier flat 0.002; probe 0-5° vs the 777° live), the grinder terms are REVERTED and
@@ -383,8 +383,11 @@ this up from here: the strategy, every run and its lesson, and the open problems
    `main` is mirrored to the public checkout `C:\GitHub\MicroDuck` (remote `origin` =
    `electricshaka/MicroDuck`, remote `private` = this checkout) and pushed immediately:
    `git -C "C:\GitHub\MicroDuck" fetch private && git -C "C:\GitHub\MicroDuck" merge -X theirs private/main --no-edit && git -C "C:\GitHub\MicroDuck" push origin main`
-   — both repos must always read 0 unpushed (`scratch/public_sync_loop.ps1` runs this on a 60 s
-   loop; verify its work, don't assume it).
+   — both repos must always read 0 unpushed (a 60 s loop script, `public_sync_loop.ps1`, ran this on
+   the workshop box; it is not committed — verify its work, don't assume it). **Caution**: the merge
+   mirrors whatever lands on private `main`, so the flight-pack branches (`codex/*`, which carry the
+   private house scans and evidence) must never be merged into private `main`: the public mirror
+   would publish them within a minute.
 
 ### Why a headspin
 
@@ -784,7 +787,7 @@ an attractor. The known trap stays warded: no reward asks for "not upside down" 
 rest stack pays the FULL upright pose (height × upright × pose), so a lean back at 57° earns
 nothing near a stand.
 
-*Baseline measured* (`scratch/exit_probe.py`, new: 2.5 s stand, 5.0 s headstand, then the flag
+*Baseline measured* (`scratch/exit_probe.py`, not committed — see Start here item 4; new: 2.5 s stand, 5.0 s headstand, then the flag
 DROPS for 3.5 s; STAND_OK = z ≥ 0.10 AND upright ≥ 0.75 held to the window's end; seeds 1-3):
 **hs12b/model_2000 rises 0/3, EVER** — 3.5 s after the drop it is still down, end z 0.059 m,
 tilt 64° (upright 0.44), seeds identical; quiet headstand 4.69 s of 5 (carryover control).
@@ -869,7 +872,10 @@ acoustic mimicry, validated by the user against the Arena's troupe limits, rende
 ensemble mix (`block_rockn_beaks_*_mimicry.wav` + `mix_block_rockn_beaks_troupe_audio.py`), the
 troupe timeline itself (`scratch/full_block_rockn_beaks_troupe.json`: `timeline_version: 2`,
 6 ducks, verified) and the interactive **preview player live** (`scratch/preview_player.html`,
-titled exactly "Block Rock'n Beaks"). What is still PUBLISHED is unchanged: the solo
+titled exactly "Block Rock'n Beaks"). Of these only `preview_player.html`, the synth
+(`scratch/synth_block_rockin_beats.py`) and the renderer (`scratch/render_cypher_audio_showcase.py`)
+are committed; the MP4, the WAV mix, the mixer script and the troupe JSON were staged outputs
+that stayed untracked — regenerate them with those scripts before publishing a troupe. What is still PUBLISHED is unchanged: the solo
 `hs12b/model_2000` entry (the armed submission); the troupe goes on the Arena only when the user
 orders it, with the troupe JSON passed and a new explicit yes. Their design, kept below as built:
 was hs14. **ROUTINE TITLE LOCKED by the user (2026-10-26): "Block Rock'n Beaks"** — this exact
