@@ -1,0 +1,51 @@
+== checkpoint 250 ==
+[publish] dry run: wrote C:\GitHub\microduck-private\publish-eval/ (policy.onnx, manifest.json, README.md, checkpoint.pt)
+seed 1: stood before the flag yes | onto head after 0.32 s | longest hold 12.70 s | on head 12.70 of 13 s | spin: +19.68 turns (ccw +), mean +12.4 rad/s, best 1 s +14.1 rad/s
+seed 2: stood before the flag yes | onto head after 0.34 s | longest hold 12.68 s | on head 12.68 of 13 s | spin: +20.81 turns (ccw +), mean +13.1 rad/s, best 1 s +14.8 rad/s
+seed 3: stood before the flag yes | onto head after 0.34 s | longest hold 12.68 s | on head 12.68 of 13 s | spin: +20.58 turns (ccw +), mean +12.9 rad/s, best 1 s +14.4 rad/s
+mean longest +12.69, total +12.69, turns +20.36, mean_rate +12.79, best_rate +14.45
+
+[mdp] Patches 1-2 active: NaN-safe reward/advantage
+[mdp] Patch 4 active: ONNX export filters passive_* joints
+[mdp] Patch 5 active: MICRODUCK_WARM_START=1 restarts curricula after checkpoint load
+t= 0.00  stand: reached after 0.00 s, held until 2.00 s; head: held under 2 s, not checked
+t= 0.70  head: held under 2 s, not checked
+t= 1.40  head: held under 2 s, not checked
+t= 2.00  sit: reached after 0.46 s, held until 4.00 s; head: held under 2 s, not checked
+t= 3.50  head: held under 2 s, not checked
+t= 4.00  headstand: reached after 0.30 s, held until 20.00 s; head: held under 2 s, not checked
+t= 4.50  head: off by 0.64 rad
+t=11.50  head: off by 0.36 rad
+t=18.00  head: off by 0.42 rad
+fell at 4.46 s
+FAIL: largest head error 0.64 rad
+
+-- sweep probe (downrock flag window, seeds 1-3) --
+seed 1: swept  595.5 deg in the sweep phase (quiet   0.0 deg), crouch held 2.52 s, min z 0.063 m, played 8.00 s
+        grinder read: blade radius 0.069 m med, 0% >= 0.08 m | kneel 17% >= 0.085 m | pelvis-contact frames 0
+seed 2: swept  601.7 deg in the sweep phase (quiet   0.0 deg), crouch held 2.54 s, min z 0.063 m, played 8.00 s
+        grinder read: blade radius 0.069 m med, 0% >= 0.08 m | kneel 17% >= 0.085 m | pelvis-contact frames 0
+seed 3: swept  597.1 deg in the sweep phase (quiet   0.0 deg), crouch held 2.54 s, min z 0.063 m, played 8.00 s
+        grinder read: blade radius 0.069 m med, 0% >= 0.08 m | kneel 17% >= 0.085 m | pelvis-contact frames 0
+MEAN: swept 598.1 deg | quiet 0.0 deg | crouch 2.53 s | min z 0.063 m
+MEAN grinder: radius 0.069 m, 0% >= 0.08 m | kneel 17% | pelvis-contact frames 0 (bar: >= 400 deg, radius/kneel most of window, contacts ~0)
+
+-- sweep probe SHOW PATH (sweep inside the real 2 s window, seeds 1-3 — the hs15 acceptance line) --
+seed 1: swept  361.6 deg in the sweep phase (quiet   0.0 deg), crouch held 1.62 s, min z 0.063 m, played 20.00 s, dive z 0.065..0.152 m
+        grinder read: blade radius 0.069 m med, 0% >= 0.08 m | kneel 21% >= 0.085 m | pelvis-contact frames 0
+seed 2: swept  360.3 deg in the sweep phase (quiet   0.0 deg), crouch held 1.60 s, min z 0.062 m, played 20.00 s, dive z 0.065..0.152 m
+        grinder read: blade radius 0.069 m med, 0% >= 0.08 m | kneel 21% >= 0.085 m | pelvis-contact frames 0
+seed 3: swept  368.0 deg in the sweep phase (quiet   0.0 deg), crouch held 1.62 s, min z 0.063 m, played 20.00 s, dive z 0.065..0.151 m
+        grinder read: blade radius 0.069 m med, 0% >= 0.08 m | kneel 21% >= 0.085 m | pelvis-contact frames 0
+MEAN: swept 363.3 deg | quiet 0.0 deg | crouch 1.61 s | min z 0.063 m | dive z 0.065..0.152 m
+MEAN grinder: radius 0.069 m, 0% >= 0.08 m | kneel 21% | pelvis-contact frames 0 (bar: >= 400 deg, radius/kneel most of window, contacts ~0)
+
+-- kick probe (L-kick freeze, seeds 1-3) --
+seed 1: quiet window kick err 0.17 rad (needle 1.47, up 2.18 s) | freeze window kick err 0.05 rad (needle 0.13), up 3.00 s, drift 136 deg
+    raw hips quiet L +1.25 R -1.03 | freeze L +1.38 R +0.32
+seed 2: quiet window kick err 0.19 rad (needle 1.54, up 2.18 s) | freeze window kick err 0.05 rad (needle 0.14), up 3.00 s, drift 136 deg
+    raw hips quiet L +1.22 R -1.10 | freeze L +1.38 R +0.32
+seed 3: quiet window kick err 0.18 rad (needle 1.54, up 2.18 s) | freeze window kick err 0.05 rad (needle 0.12), up 3.00 s, drift 87 deg
+    raw hips quiet L +1.23 R -1.09 | freeze L +1.37 R +0.33
+MEAN: quiet kick err 0.18 rad (needle 1.52, up 2.18 s) | freeze kick err 0.05 rad (needle 0.13), up 3.00 s, drift 119 deg
+
